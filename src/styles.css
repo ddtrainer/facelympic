@@ -296,6 +296,18 @@ video.active {
   box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.18);
 }
 
+.secondary-button {
+  width: 100%;
+  min-height: 54px;
+  margin-top: 12px;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #14191f;
+  font-size: 20px;
+  font-weight: 900;
+  box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.14);
+}
+
 .training-card,
 .race-hud,
 .mission-list,
@@ -386,6 +398,114 @@ video.active {
   background: rgba(0, 0, 0, 0.24);
 }
 
+.diagnostics-toolbar {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.diagnostics-toolbar span {
+  color: #d8e1e8;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.diagnostics-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.diagnostic-card {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.24);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+}
+
+.diagnostic-card.active {
+  border-color: #f2c94c;
+}
+
+.diagnostic-card.success {
+  border-color: #35d07f;
+  background: rgba(53, 208, 127, 0.14);
+}
+
+.diagnostic-title,
+.diagnostic-numbers {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.diagnostic-title strong {
+  font-size: 18px;
+}
+
+.diagnostic-title span {
+  color: #f2c94c;
+  font-weight: 900;
+}
+
+.diagnostic-numbers {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.diagnostic-numbers span {
+  padding: 7px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.diagnostic-meter {
+  position: relative;
+  height: 16px;
+}
+
+.diagnostic-meter i {
+  position: absolute;
+  top: -4px;
+  width: 3px;
+  height: 24px;
+  border-radius: 999px;
+  background: #f2c94c;
+}
+
+.diagnostic-card small {
+  color: #b7e2ff;
+  font-size: 12px;
+  font-weight: 800;
+  word-break: break-word;
+}
+
+.raw-panel {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.raw-panel summary {
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.raw-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+  color: #d8e1e8;
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .signal-panel {
   padding: 18px;
 }
@@ -459,5 +579,9 @@ video.active {
 
   .primary-action {
     min-height: 82px;
+  }
+
+  .diagnostic-numbers {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

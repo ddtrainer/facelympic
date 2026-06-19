@@ -1,5 +1,12 @@
 import { createFaceLandmarker } from "./faceLandmarker.js";
-import { calculateFaceSignals, createSignalState, signalLabels } from "./faceSignals.js";
+import {
+  calculateFaceSignals,
+  createSignalState,
+  signalBlendshapeSources,
+  signalLabels,
+  signalNames,
+  signalThresholds
+} from "./faceSignals.js";
 
 const text = {
   readyTitle: "\uBC14\uB85C \uC2DC\uC791\uD558\uC138\uC694",
@@ -15,6 +22,9 @@ const text = {
   startTraining: "\uD6C8\uB828 \uC2DC\uC791",
   startRace: "\uCD9C\uBC1C!",
   resetRace: "\uB2E4\uC2DC \uB6F0\uAE30",
+  diagnosticsTitle: "\uD45C\uC815 \uC815\uBC00 \uD14C\uC2A4\uD2B8",
+  startDiagnostics: "\uC815\uBC00 \uD14C\uC2A4\uD2B8",
+  resetDiagnostics: "\uCD5C\uACE0\uAC12 \uCD08\uAE30\uD654",
   noRecords: "\uC544\uC9C1 \uC800\uC7A5\uB41C \uAE30\uB85D\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.",
   cameraHelp: "\uBA3C\uC800 \uCE74\uBA54\uB77C\uB97C \uCF1C\uC8FC\uC138\uC694."
 };
@@ -48,9 +58,25 @@ let animationFrameId = null;
 let raceFrameId = null;
 let currentMode = "home";
 let currentSignals = createSignalState();
+let rawBlendshapeCategories = [];
+let signalStats = createSignalStats();
 let trainingIndex = 0;
 let trainingHold = 0;
 let raceState = createRaceState();
+
+function createSignalStats() {
+  return Object.fromEntries(
+    signalNames.map((name) => [
+      name,
+      {
+        peak: 0,
+        history: [],
+        stableFrames: 0,
+        success: false
+      }
+    ])
+  );
+}
 
 function createRaceState() {
   return {
@@ -107,8 +133,121 @@ function renderHome() {
     <h2>${text.readyTitle}</h2>
     <p>${text.readyBody}</p>
     <button id="cameraButton" class="camera-button" type="button">${text.cameraOn}</button>
+    <button id="diagnosticsButton" class="secondary-button" type="button">${text.startDiagnostics}</button>
   `;
   modePanel.querySelector("#cameraButton").addEventListener("click", requestCamera);
+  modePanel.querySelector("#diagnosticsButton").addEventListener("click", renderDiagnostics);
+}
+
+function renderDiagnostics() {
+  currentMode = "diagnostics";
+  setSelectedButton("");
+  gameStatus.textContent = "\uC815\uBC00 \uCE21\uC815";
+  modePanel.innerHTML = `
+    <h2>${text.diagnosticsTitle}</h2>
+    <p>\uAC01 \uD45C\uC815\uC744 \uD558\uB098\uC529 \uD574\uBCF4\uBA74 \uC2E4\uC2DC\uAC04 \uAC12, \uCD5C\uACE0\uAC12, \uC784\uACC4\uAC12, \uC548\uC815\uB3C4\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.</p>
+    <div class="diagnostics-toolbar">
+      <button id="resetDiagnosticsButton" class="secondary-button" type="button">${text.resetDiagnostics}</button>
+      <span id="faceStatusText">\uCE74\uBA54\uB77C\uB97C \uCF1C\uACE0 \uC5BC\uAD74\uC744 \uC815\uBA74\uC5D0 \uB450\uC138\uC694.</span>
+    </div>
+    <div id="diagnosticsGrid" class="diagnostics-grid"></div>
+    <details class="raw-panel">
+      <summary>\uC6D0\uBCF8 Blendshape Top 8</summary>
+      <div id="rawBlendshapeList" class="raw-list"></div>
+    </details>
+  `;
+  modePanel.querySelector("#resetDiagnosticsButton").addEventListener("click", () => {
+    signalStats = createSignalStats();
+    updateDiagnostics();
+  });
+  updateDiagnostics();
+}
+
+function updateSignalStats() {
+  currentSignals.forEach((signal) => {
+    const stats = signalStats[signal.name];
+    stats.peak = Math.max(stats.peak, signal.value);
+    stats.history.push(signal.value);
+
+    if (stats.history.length > 18) {
+      stats.history.shift();
+    }
+
+    stats.stableFrames = signal.active ? stats.stableFrames + 1 : 0;
+    stats.success = stats.success || stats.stableFrames >= 10;
+  });
+}
+
+function getSignalStability(stats) {
+  if (stats.history.length < 2) {
+    return 0;
+  }
+
+  const average = stats.history.reduce((total, value) => total + value, 0) / stats.history.length;
+  const variance =
+    stats.history.reduce((total, value) => total + Math.abs(value - average), 0) / stats.history.length;
+
+  return Math.max(0, Math.round((1 - variance * 8) * 100));
+}
+
+function updateDiagnostics() {
+  if (currentMode !== "diagnostics") {
+    return;
+  }
+
+  const grid = modePanel.querySelector("#diagnosticsGrid");
+  const faceStatusText = modePanel.querySelector("#faceStatusText");
+  const rawBlendshapeList = modePanel.querySelector("#rawBlendshapeList");
+
+  if (!grid) {
+    return;
+  }
+
+  if (faceStatusText) {
+    faceStatusText.textContent = rawBlendshapeCategories.length
+      ? "\uC5BC\uAD74 \uC778\uC2DD \uC911"
+      : "\uC5BC\uAD74\uC774 \uC544\uC9C1 \uC778\uC2DD\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4.";
+  }
+
+  grid.innerHTML = currentSignals
+    .map((signal) => {
+      const stats = signalStats[signal.name];
+      const valuePercent = Math.round(signal.value * 100);
+      const peakPercent = Math.round(stats.peak * 100);
+      const thresholdPercent = Math.round((signalThresholds[signal.name] || 0) * 100);
+      const stability = getSignalStability(stats);
+      const status = stats.success ? "\uD1B5\uACFC" : signal.active ? "\uC720\uC9C0" : "\uB300\uAE30";
+
+      return `
+        <article class="diagnostic-card${signal.active ? " active" : ""}${stats.success ? " success" : ""}">
+          <div class="diagnostic-title">
+            <strong>${signalLabels[signal.name]}</strong>
+            <span>${status}</span>
+          </div>
+          <div class="diagnostic-numbers">
+            <span>\uD604\uC7AC ${valuePercent}%</span>
+            <span>\uCD5C\uACE0 ${peakPercent}%</span>
+            <span>\uC784\uACC4 ${thresholdPercent}%</span>
+            <span>\uC548\uC815 ${stability}%</span>
+          </div>
+          <div class="signal-meter diagnostic-meter">
+            <span style="width: ${valuePercent}%"></span>
+            <i style="left: ${thresholdPercent}%"></i>
+          </div>
+          <small>${signalBlendshapeSources[signal.name].join(" / ")}</small>
+        </article>
+      `;
+    })
+    .join("");
+
+  if (rawBlendshapeList) {
+    rawBlendshapeList.innerHTML = rawBlendshapeCategories
+      .slice(0, 8)
+      .map((category) => {
+        return `<span>${category.categoryName}: ${Math.round(category.score * 100)}%</span>`;
+      })
+      .join("");
+  }
 }
 
 function renderTraining() {
@@ -399,9 +538,12 @@ function detectFaceSignals() {
     lastVideoTime = cameraPreview.currentTime;
     const result = faceLandmarker.detectForVideo(cameraPreview, performance.now());
     const categories = result.faceBlendshapes?.[0]?.categories || [];
+    rawBlendshapeCategories = [...categories].sort((left, right) => right.score - left.score);
     currentSignals = calculateFaceSignals(categories);
+    updateSignalStats();
     renderSignals(currentSignals);
     updateTraining();
+    updateDiagnostics();
   }
 
   animationFrameId = requestAnimationFrame(detectFaceSignals);
