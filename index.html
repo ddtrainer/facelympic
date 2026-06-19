@@ -505,13 +505,14 @@ function gameLoop(now, gen){
 
   // ---- 점프: 고개 끄덕(pitch 급변) ----
   if(G.pitchBase==null) G.pitchBase=sig.pitch;
-  G.pitchBase += (sig.pitch-G.pitchBase)*0.012;    // 매우 느린 기준선 → 끄덕 반동(double jump) 제거
-  const nod = sig.pitch - G.pitchBase;
-  if(G.jumpCd>0) G.jumpCd-=dt;                      // 점프 쿨다운
-  if(sig.ok && G.nodReady && G.jumpCd<=0 && Math.abs(nod)>0.06 && G.grounded){
-    G.vy=10.8; G.grounded=false; G.nodReady=false; G.jumpCd=0.5; sfx.jump();   // 한 번만
+  G.pitchBase += (sig.pitch-G.pitchBase)*0.012;    // 거의 고정 기준선
+  const NOD_SIGN = -1;                             // 끄덕(고개 내림) 방향 — 점프가 늦게 발동하면 1로 바꾸기
+  const nd = (sig.pitch - G.pitchBase) * NOD_SIGN; // 한 방향만 본다(내림). 올림/반동은 음수라 무시 → 끄덕당 1회
+  if(G.jumpCd>0) G.jumpCd-=dt;
+  if(sig.ok && G.nodReady && G.jumpCd<=0 && nd>0.06 && G.grounded){
+    G.vy=10.8; G.grounded=false; G.nodReady=false; G.jumpCd=0.3; sfx.jump();
   }
-  if(Math.abs(nod)<0.03) G.nodReady=true;          // 중립으로 돌아와야 다음 끄덕 인정
+  if(nd<0.03) G.nodReady=true;                     // 내렸다 돌아오면 재장전
   if(!G.grounded){ G.vy-=20*dt; G.py+=G.vy*dt; if(G.py<=0){ G.py=0; G.grounded=true; G.vy=0; sfx.land(); } }
 
   // ---- 폭발 입자 업데이트 ----
