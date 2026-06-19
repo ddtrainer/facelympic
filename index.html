@@ -8,17 +8,17 @@
   </head>
   <body>
     <main class="app-shell">
-      <section class="stadium-panel" aria-label="페이셀림픽 경기장">
+      <section class="stadium-panel" aria-label="&#xD398;&#xC774;&#xC140;&#xB9BC;&#xD53D; &#xACBD;&#xAE30;&#xC7A5;">
         <div class="scoreboard">
           <p class="kicker">FACELYMPIC 100M</p>
-          <h1>웃으면 빨라진다</h1>
-          <p class="subtitle">표정으로 달리는 얼굴 근육 경주 게임</p>
+          <h1>&#xC6C3;&#xC73C;&#xBA74; &#xBE68;&#xB77C;&#xC9C4;&#xB2E4;</h1>
+          <p class="subtitle">&#xD45C;&#xC815;&#xC73C;&#xB85C; &#xB2EC;&#xB9AC;&#xB294; &#xC5BC;&#xAD74; &#xADFC;&#xC721; &#xACBD;&#xC8FC; &#xAC8C;&#xC784;</p>
         </div>
 
         <div class="track" aria-hidden="true">
           <div class="lane lane-one"></div>
           <div class="lane lane-two">
-            <div class="runner-face">
+            <div id="runnerFace" class="runner-face">
               <span class="eye"></span>
               <span class="eye"></span>
               <span class="smile"></span>
@@ -29,43 +29,39 @@
         </div>
       </section>
 
-      <section class="control-panel" aria-label="메인 메뉴">
+      <section class="control-panel" aria-label="&#xBA54;&#xC778; &#xBA54;&#xB274;">
         <div class="camera-card">
           <video id="cameraPreview" autoplay playsinline muted></video>
           <div id="cameraPlaceholder" class="camera-placeholder">
             <span class="camera-icon" aria-hidden="true"></span>
-            <strong>카메라 준비</strong>
+            <strong>&#xCE74;&#xBA54;&#xB77C; &#xC900;&#xBE44;</strong>
           </div>
         </div>
 
         <div class="status-row">
-          <span id="cameraStatus" class="status-pill">카메라 대기</span>
-          <span class="status-pill secondary">무료 체험</span>
+          <span id="cameraStatus" class="status-pill">&#xCE74;&#xBA54;&#xB77C; &#xB300;&#xAE30;</span>
+          <span id="gameStatus" class="status-pill secondary">&#xBB34;&#xB8CC; &#xCCB4;&#xD5D8;</span>
         </div>
 
-        <nav class="action-grid" aria-label="게임 시작 메뉴">
+        <nav class="action-grid" aria-label="&#xAC8C;&#xC784; &#xC2DC;&#xC791; &#xBA54;&#xB274;">
           <button id="trainingButton" class="primary-action" type="button">
-            <span>기초 훈련</span>
-            <small>7개 표정 연습</small>
+            <span>&#xAE30;&#xCD08; &#xD6C8;&#xB828;</span>
+            <small>7&#xAC1C; &#xD45C;&#xC815; &#xC5F0;&#xC2B5;</small>
           </button>
           <button id="raceButton" class="primary-action accent" type="button">
-            <span>100m 경기</span>
-            <small>첫 MVP 종목</small>
+            <span>100m &#xACBD;&#xAE30;</span>
+            <small>&#xCCAB; MVP &#xC885;&#xBAA9;</small>
           </button>
           <button id="recordsButton" class="primary-action muted" type="button">
-            <span>기록 보기</span>
-            <small>내 최고 기록</small>
+            <span>&#xAE30;&#xB85D; &#xBCF4;&#xAE30;</span>
+            <small>&#xB0B4; &#xCD5C;&#xACE0; &#xAE30;&#xB85D;</small>
           </button>
         </nav>
 
-        <section id="modePanel" class="mode-panel" aria-live="polite">
-          <h2>바로 시작하세요</h2>
-          <p>카메라를 켜고 입꼬리를 올리면 캐릭터가 달립니다.</p>
-          <button id="cameraButton" class="camera-button" type="button">카메라 켜기</button>
-        </section>
+        <section id="modePanel" class="mode-panel" aria-live="polite"></section>
 
-        <section class="signal-panel" aria-label="표정 인식 상태">
-          <h2>표정 신호</h2>
+        <section class="signal-panel" aria-label="&#xD45C;&#xC815; &#xC778;&#xC2DD; &#xC0C1;&#xD0DC;">
+          <h2>&#xD45C;&#xC815; &#xC2E0;&#xD638;</h2>
           <div id="signalList" class="signal-list"></div>
         </section>
       </section>
