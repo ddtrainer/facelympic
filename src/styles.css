@@ -309,13 +309,15 @@ video.active {
 }
 
 .training-card,
+.target-test-card,
 .race-hud,
 .mission-list,
 .record-list {
   margin-bottom: 16px;
 }
 
-.training-card {
+.training-card,
+.target-test-card {
   display: grid;
   gap: 10px;
   min-height: 120px;
@@ -324,11 +326,18 @@ video.active {
   background: rgba(0, 0, 0, 0.24);
 }
 
-.training-card strong {
+.target-test-card {
+  border: 3px solid #f2c94c;
+  background: rgba(242, 201, 76, 0.16);
+}
+
+.training-card strong,
+.target-test-card strong {
   font-size: 24px;
 }
 
 .training-card span,
+.target-test-card span,
 .record-list span {
   color: #d8e1e8;
   font-size: 17px;

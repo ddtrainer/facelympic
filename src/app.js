@@ -24,6 +24,7 @@ const text = {
   resetRace: "\uB2E4\uC2DC \uB6F0\uAE30",
   diagnosticsTitle: "\uD45C\uC815 \uC815\uBC00 \uD14C\uC2A4\uD2B8",
   startDiagnostics: "\uC815\uBC00 \uD14C\uC2A4\uD2B8",
+  startSignalTest: "\uD45C\uC815 \uC2E0\uD638 \uD14C\uC2A4\uD2B8",
   resetDiagnostics: "\uCD5C\uACE0\uAC12 \uCD08\uAE30\uD654",
   noRecords: "\uC544\uC9C1 \uC800\uC7A5\uB41C \uAE30\uB85D\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.",
   cameraHelp: "\uBA3C\uC800 \uCE74\uBA54\uB77C\uB97C \uCF1C\uC8FC\uC138\uC694."
@@ -39,7 +40,11 @@ const trainingSteps = [
   { signal: "mouthSide", label: "\uC785 \uC88C\uC6B0", guide: "\uC785\uC744 \uC67C\uCABD\uACFC \uC624\uB978\uCABD\uC73C\uB85C \uC6C0\uC9C1\uC5EC \uD68C\uD53C\uD569\uB2C8\uB2E4." }
 ];
 
-const cameraButton = document.querySelector("#cameraButton");
+const diagnosticSteps = trainingSteps.map((step) => ({
+  ...step,
+  passLabel: `${step.label} \uD1B5\uACFC`
+}));
+
 const cameraPreview = document.querySelector("#cameraPreview");
 const cameraPlaceholder = document.querySelector("#cameraPlaceholder");
 const cameraStatus = document.querySelector("#cameraStatus");
@@ -60,6 +65,8 @@ let currentMode = "home";
 let currentSignals = createSignalState();
 let rawBlendshapeCategories = [];
 let signalStats = createSignalStats();
+let diagnosticIndex = 0;
+let diagnosticHold = 0;
 let trainingIndex = 0;
 let trainingHold = 0;
 let raceState = createRaceState();
@@ -76,6 +83,12 @@ function createSignalStats() {
       }
     ])
   );
+}
+
+function resetDiagnosticsState() {
+  signalStats = createSignalStats();
+  diagnosticIndex = 0;
+  diagnosticHold = 0;
 }
 
 function createRaceState() {
@@ -131,9 +144,9 @@ function renderHome() {
   gameStatus.textContent = "\uBB34\uB8CC \uCCB4\uD5D8";
   modePanel.innerHTML = `
     <h2>${text.readyTitle}</h2>
-    <p>${text.readyBody}</p>
-    <button id="cameraButton" class="camera-button" type="button">${text.cameraOn}</button>
-    <button id="diagnosticsButton" class="secondary-button" type="button">${text.startDiagnostics}</button>
+    <p>\uCE74\uBA54\uB77C\uB97C \uCF1C\uBA74 7\uAC1C \uD45C\uC815 \uC2E0\uD638\uB97C \uC21C\uC11C\uB300\uB85C \uC815\uBC00 \uD14C\uC2A4\uD2B8\uD569\uB2C8\uB2E4.</p>
+    <button id="cameraButton" class="camera-button" type="button">${text.startSignalTest}</button>
+    <button id="diagnosticsButton" class="secondary-button" type="button">\uCE74\uBA54\uB77C \uC5C6\uC774 \uD14C\uC2A4\uD2B8 \uD654\uBA74 \uBCF4\uAE30</button>
   `;
   modePanel.querySelector("#cameraButton").addEventListener("click", requestCamera);
   modePanel.querySelector("#diagnosticsButton").addEventListener("click", renderDiagnostics);
@@ -145,8 +158,10 @@ function renderDiagnostics() {
   gameStatus.textContent = "\uC815\uBC00 \uCE21\uC815";
   modePanel.innerHTML = `
     <h2>${text.diagnosticsTitle}</h2>
-    <p>\uAC01 \uD45C\uC815\uC744 \uD558\uB098\uC529 \uD574\uBCF4\uBA74 \uC2E4\uC2DC\uAC04 \uAC12, \uCD5C\uACE0\uAC12, \uC784\uACC4\uAC12, \uC548\uC815\uB3C4\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.</p>
+    <p>\uD654\uBA74\uC5D0 \uD45C\uC2DC\uB418\uB294 \uD45C\uC815\uC744 \uD558\uB098\uC529 \uB530\uB77C\uD558\uC138\uC694. \uAC12\uC774 \uC784\uACC4\uAC12\uC744 \uB118\uC5B4 \uC7A0\uC2DC \uC720\uC9C0\uB418\uBA74 \uD1B5\uACFC\uB429\uB2C8\uB2E4.</p>
+    <div id="targetTestCard" class="target-test-card"></div>
     <div class="diagnostics-toolbar">
+      <button id="cameraDiagnosticsButton" class="camera-button" type="button">${faceLandmarker ? "\uCE74\uBA54\uB77C \uC5F0\uACB0\uB428" : text.cameraOn}</button>
       <button id="resetDiagnosticsButton" class="secondary-button" type="button">${text.resetDiagnostics}</button>
       <span id="faceStatusText">\uCE74\uBA54\uB77C\uB97C \uCF1C\uACE0 \uC5BC\uAD74\uC744 \uC815\uBA74\uC5D0 \uB450\uC138\uC694.</span>
     </div>
@@ -156,8 +171,11 @@ function renderDiagnostics() {
       <div id="rawBlendshapeList" class="raw-list"></div>
     </details>
   `;
+  const cameraDiagnosticsButton = modePanel.querySelector("#cameraDiagnosticsButton");
+  cameraDiagnosticsButton.disabled = Boolean(faceLandmarker);
+  cameraDiagnosticsButton.addEventListener("click", requestCamera);
   modePanel.querySelector("#resetDiagnosticsButton").addEventListener("click", () => {
-    signalStats = createSignalStats();
+    resetDiagnosticsState();
     updateDiagnostics();
   });
   updateDiagnostics();
@@ -196,6 +214,7 @@ function updateDiagnostics() {
   }
 
   const grid = modePanel.querySelector("#diagnosticsGrid");
+  const targetTestCard = modePanel.querySelector("#targetTestCard");
   const faceStatusText = modePanel.querySelector("#faceStatusText");
   const rawBlendshapeList = modePanel.querySelector("#rawBlendshapeList");
 
@@ -207,6 +226,10 @@ function updateDiagnostics() {
     faceStatusText.textContent = rawBlendshapeCategories.length
       ? "\uC5BC\uAD74 \uC778\uC2DD \uC911"
       : "\uC5BC\uAD74\uC774 \uC544\uC9C1 \uC778\uC2DD\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4.";
+  }
+
+  if (targetTestCard) {
+    targetTestCard.innerHTML = renderDiagnosticTarget();
   }
 
   grid.innerHTML = currentSignals
@@ -247,6 +270,51 @@ function updateDiagnostics() {
         return `<span>${category.categoryName}: ${Math.round(category.score * 100)}%</span>`;
       })
       .join("");
+  }
+}
+
+function renderDiagnosticTarget() {
+  const step = diagnosticSteps[diagnosticIndex];
+  const completedCount = diagnosticSteps.filter((stepItem) => signalStats[stepItem.signal].success).length;
+
+  if (!step) {
+    return `
+      <strong>\uC804\uCCB4 \uD45C\uC815 \uD14C\uC2A4\uD2B8 \uC644\uB8CC</strong>
+      <span>7\uAC1C \uD45C\uC815\uC774 \uBAA8\uB450 \uD1B5\uACFC\uD588\uC2B5\uB2C8\uB2E4. \uC544\uB798 \uCE74\uB4DC\uC5D0\uC11C \uCD5C\uACE0\uAC12\uACFC \uC548\uC815\uB3C4\uB97C \uD655\uC778\uD558\uC138\uC694.</span>
+      <div class="progress-bar"><span style="width: 100%"></span></div>
+    `;
+  }
+
+  const signal = signalByName(step.signal);
+  const holdPercent = Math.min(100, Math.round(diagnosticHold * 100));
+  const valuePercent = Math.round(signal.value * 100);
+  const thresholdPercent = Math.round(signalThresholds[step.signal] * 100);
+
+  return `
+    <strong>${diagnosticIndex + 1}/7 ${step.label}</strong>
+    <span>${step.guide}</span>
+    <span>\uD604\uC7AC ${valuePercent}% / \uD1B5\uACFC\uAE30\uC900 ${thresholdPercent}% / \uC644\uB8CC ${completedCount}/7</span>
+    <div class="progress-bar"><span style="width: ${holdPercent}%"></span></div>
+  `;
+}
+
+function updateDiagnosticSequence() {
+  if (currentMode !== "diagnostics") {
+    return;
+  }
+
+  const step = diagnosticSteps[diagnosticIndex];
+
+  if (!step) {
+    return;
+  }
+
+  diagnosticHold = signalByName(step.signal).active ? diagnosticHold + 0.09 : Math.max(0, diagnosticHold - 0.05);
+
+  if (diagnosticHold >= 1) {
+    signalStats[step.signal].success = true;
+    diagnosticIndex += 1;
+    diagnosticHold = 0;
   }
 }
 
@@ -511,6 +579,8 @@ async function requestCamera() {
     cameraStatus.textContent = text.cameraLoading;
 
     await startFaceDetection();
+    resetDiagnosticsState();
+    renderDiagnostics();
   } catch (error) {
     cameraStatus.textContent = text.cameraNeed;
     modePanel.querySelector("p").textContent = "\uCE74\uBA54\uB77C \uAD8C\uD55C\uC744 \uD5C8\uC6A9\uD574\uC57C \uD45C\uC815 \uD6C8\uB828\uC744 \uC2DC\uC791\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.";
@@ -521,7 +591,9 @@ async function startFaceDetection() {
   try {
     faceLandmarker = await createFaceLandmarker();
     cameraStatus.textContent = text.cameraReady;
-    detectFaceSignals();
+    if (!animationFrameId) {
+      detectFaceSignals();
+    }
   } catch (error) {
     cameraStatus.textContent = "\uC778\uC2DD \uC5D4\uC9C4 \uC624\uB958";
     modePanel.querySelector("p").textContent = "MediaPipe\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. \uC778\uD130\uB137 \uC5F0\uACB0 \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.";
@@ -541,6 +613,7 @@ function detectFaceSignals() {
     rawBlendshapeCategories = [...categories].sort((left, right) => right.score - left.score);
     currentSignals = calculateFaceSignals(categories);
     updateSignalStats();
+    updateDiagnosticSequence();
     renderSignals(currentSignals);
     updateTraining();
     updateDiagnostics();

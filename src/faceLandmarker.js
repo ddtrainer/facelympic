@@ -7,7 +7,7 @@ export async function createFaceLandmarker() {
   const { FaceLandmarker, FilesetResolver } = await import(visionPackageUrl);
   const filesetResolver = await FilesetResolver.forVisionTasks(wasmRootUrl);
 
-  return FaceLandmarker.createFromOptions(filesetResolver, {
+  const options = {
     baseOptions: {
       modelAssetPath: modelUrl,
       delegate: "GPU"
@@ -15,5 +15,17 @@ export async function createFaceLandmarker() {
     outputFaceBlendshapes: true,
     runningMode: "VIDEO",
     numFaces: 1
-  });
+  };
+
+  try {
+    return await FaceLandmarker.createFromOptions(filesetResolver, options);
+  } catch (error) {
+    return FaceLandmarker.createFromOptions(filesetResolver, {
+      ...options,
+      baseOptions: {
+        modelAssetPath: modelUrl,
+        delegate: "CPU"
+      }
+    });
+  }
 }
