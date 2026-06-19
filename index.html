@@ -390,7 +390,8 @@ window.addEventListener('resize',()=>{ if(screens.game.classList.contains('activ
 
 const TARGET=700;        // 트랙 길이(m) — 활발히 달리면 약 1분
 const VIEW=42;           // 오브젝트 보이는 거리(m)
-const ACT=20;            // 액션 활성 거리(m)
+const ACT=20;            // 액션 경고 큐가 뜨는 거리(m)
+const HIT=9;             // 실제 명중(먹기/격파) 가능 거리 — 이 안쪽에서 동작해야 맞음
 const FINISH_VIEW=72;    // 결승 테이프가 멀리서부터 보이는 거리(m)
 let G;                   // 게임 상태
 
@@ -536,8 +537,9 @@ function gameLoop(now, gen){
 
   // ---- 먹기/괴물 rep → 활성 오브젝트로 라우팅 ----
   if(sig.ok){
-    if(repStep('jaw', norm('jaw',sig.jaw)) && act && act.type==='food' && !act.resolved){ act.bites=1; resolve(act); }       // 입 벌리는 즉시 먹기
-    if(repStep('pucker', norm('pucker',sig.pucker)) && act && act.type==='monster' && !act.resolved){ act.charge=1; resolve(act); } // 오므리는 즉시 꽝
+    const near = act && (act.at-G.dist) < HIT;   // 충분히 가까울 때만 명중
+    if(repStep('jaw', norm('jaw',sig.jaw)) && near && act.type==='food' && !act.resolved){ act.bites=1; resolve(act); }       // 가까이서 입 벌리면 먹기
+    if(repStep('pucker', norm('pucker',sig.pucker)) && near && act.type==='monster' && !act.resolved){ act.charge=1; resolve(act); } // 가까이서 오므리면 꽝
   }
 
   // ---- 전진 & 판정 ----
@@ -678,7 +680,7 @@ function drawScene(sig, speed){
   // 중앙 액션 큐
   if(G){
     const act=activeObstacle();
-    if(act){ const ahead=act.at-G.dist; if(ahead<ACT){ drawCue(act, W,H); } }
+    if(act){ const ahead=act.at-G.dist; if(ahead<ACT){ drawCue(act, W,H, ahead<HIT); } }
     if(G.feedT>0){ drawFeed(W,H); }
   }
 }
@@ -778,14 +780,14 @@ function drawHUD(W,H,sig){
 }
 const CUE_TXT={ hurdle:['JUMP!','고개 끄덕! 점프'], arrow:['피해!','고개 기울여 피하기'],
   food:['냠냠!','입 벌려 먹기'], monster:['후~!','입 오므려 꽝!'] };
-function drawCue(o,W,H){
+function drawCue(o,W,H,now){
   const [big,sub]=CUE_TXT[o.type];
-  ctx.textAlign='center';
-  ctx.fillStyle='#fff'; ctx.font='900 40px Pretendard'; ctx.textBaseline='middle';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.shadowColor='rgba(0,0,0,.6)'; ctx.shadowBlur=12;
+  ctx.fillStyle= now?'#ffe14d':'#fff'; ctx.font=`900 ${now?46:40}px Pretendard`;
   ctx.fillText(big, W/2, H*0.20);
-  ctx.font='700 17px Pretendard'; ctx.fillStyle='#cfe3ff';
-  ctx.fillText(sub, W/2, H*0.20+34);
+  ctx.font=`800 ${now?20:17}px Pretendard`; ctx.fillStyle= now?'#ffe14d':'#cfe3ff';
+  ctx.fillText(now?'지금!':sub, W/2, H*0.20+36);
   ctx.shadowBlur=0;
 }
 function drawFeed(W,H){
