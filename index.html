@@ -105,12 +105,13 @@
   <section id="intro" class="screen active">
     <div class="logo">페이셀림픽<br>FACELYMPIC</div>
     <div class="tagline">웃으면 빨라진다</div>
-    <p class="lead">얼굴 표정으로 트랙을 질주하세요.<br>웃으면 달리고, 눈썹 올리면 점프, 입으로 먹고 피합니다.</p>
+    <p class="lead">얼굴과 고개로 트랙을 질주하세요.<br>웃으면 달리고, 고개를 끄덕여 점프, 기울여 피하고, 입으로 먹고 터뜨립니다.</p>
     <div class="moves">
       <div class="move"><span class="e">😊</span><div><b>웃기</b><span>달리기 · 부스터</span></div></div>
-      <div class="move"><span class="e">😮</span><div><b>눈썹 올리기</b><span>점프</span></div></div>
-      <div class="move"><span class="e">😋</span><div><b>입 벌리기 ×5</b><span>음식 먹기</span></div></div>
-      <div class="move"><span class="e">😗</span><div><b>입 오므리기 ×3</b><span>괴물 격파</span></div></div>
+      <div class="move"><span class="e">🙇</span><div><b>고개 끄덕</b><span>점프</span></div></div>
+      <div class="move"><span class="e">↔️</span><div><b>고개 기울이기</b><span>좌우 피하기</span></div></div>
+      <div class="move"><span class="e">😮</span><div><b>입 벌리기 ×5</b><span>음식 먹기</span></div></div>
+      <div class="move"><span class="e">😗</span><div><b>입 오므리기 ×3</b><span>괴물 꽝!</span></div></div>
     </div>
     <button class="btn btn-primary" id="startBtn">시작하기</button>
     <p class="err" id="introErr"></p>
@@ -174,7 +175,7 @@ let lastVT=-1;
 
 // 캘리브레이션 결과: 각 신호의 min(중립)/max
 const CAL = {
-  smile:{min:.05,max:.7}, brow:{min:.05,max:.5}, jaw:{min:.05,max:.6}, pucker:{min:.05,max:.5},
+  smile:{min:.05,max:.7}, jaw:{min:.05,max:.6}, pucker:{min:.05,max:.5},
 };
 function norm(sig,v){ const c=CAL[sig]; const d=Math.max(c.max-c.min,1e-3); return Math.min(1,Math.max(0,(v-c.min)/d)); }
 
@@ -203,13 +204,14 @@ async function startCamera(videoEl){
 function stopCamera(){ if(stream) stream.getTracks().forEach(t=>t.stop()); stream=null; detVideo=null; }
 
 // 신호 스무딩(EMA): 떨림·순간 오인식을 줄여 더 안정적이고 정확하게
-const SM = { smile:0, brow:0, jaw:0, pucker:0, yaw:0 };
+const SM = { smile:0, jaw:0, pucker:0, roll:0, pitch:0 };
 const SM_A = 0.4;   // 0~1, 클수록 즉각적 / 작을수록 부드러움
+const SM_KEYS = ['smile','jaw','pucker','roll','pitch'];
 let lostFrames = 0; // 얼굴 잠깐 놓침에 대한 관용(깜빡임 방지)
 
-// 매 프레임 blendshape 신호 추출
+// 매 프레임 blendshape + 머리자세 신호 추출
 function readSignals(now){
-  const out = { ok:false, smile:0, brow:0, jaw:0, pucker:0, yaw:0 };
+  const out = { ok:false, smile:0, jaw:0, pucker:0, roll:0, pitch:0 };
   if(!detVideo || detVideo.readyState<2) return out;
   if(detVideo.currentTime===lastVT) { out._stale=true; }
   lastVT = detVideo.currentTime;
@@ -217,33 +219,36 @@ function readSignals(now){
   let raw=null;
   if(res.faceBlendshapes && res.faceBlendshapes.length){
     const m={}; for(const c of res.faceBlendshapes[0].categories) m[c.categoryName]=c.score;
+    const hp = (res.faceLandmarks && res.faceLandmarks.length) ? computeHeadPose(res.faceLandmarks[0]) : {roll:SM.roll,pitch:SM.pitch};
     raw = {
       smile : ((m.mouthSmileLeft||0)+(m.mouthSmileRight||0))/2,
-      brow  : ((m.browInnerUp||0)+(m.browOuterUpLeft||0)+(m.browOuterUpRight||0))/3,
       jaw   : m.jawOpen||0,
       pucker: Math.max(m.mouthPucker||0, m.mouthFunnel||0),
-      yaw   : (res.faceLandmarks && res.faceLandmarks.length) ? computeYaw(res.faceLandmarks[0]) : SM.yaw,
+      roll  : hp.roll,
+      pitch : hp.pitch,
     };
   }
   if(raw){
     lostFrames = 0; out.ok = true;
-    for(const k of ['smile','brow','jaw','pucker','yaw']){
+    for(const k of SM_KEYS){
       SM[k] += (raw[k]-SM[k])*SM_A;   // EMA 스무딩
       out[k] = SM[k];
     }
   } else {
     // 얼굴을 잠깐(약 6프레임) 놓쳐도 직전 값 유지 → 깜빡임/끊김 방지
-    if(++lostFrames < 6){ out.ok=true; for(const k of ['smile','brow','jaw','pucker','yaw']) out[k]=SM[k]; }
+    if(++lostFrames < 6){ out.ok=true; for(const k of SM_KEYS) out[k]=SM[k]; }
     else { for(const k in SM) SM[k]=0; }
   }
   return out;
 }
 
-// 고개 yaw 추정: 코끝(1)이 양볼(234,454) 사이 어디에 있는가 → -1..+1 (FaceFit+ 재사용)
-function computeYaw(lm){
-  const nose=lm[1], cL=lm[234], cR=lm[454];
-  const mid=(cL.x+cR.x)/2, halfW=Math.abs(cR.x-cL.x)/2 || 1e-3;
-  return Math.max(-1, Math.min(1, (nose.x-mid)/halfW));
+// 머리 자세 추정: 눈(33,263)·코끝(1)으로 roll(좌우 기울기)·pitch(끄덕) 계산
+function computeHeadPose(lm){
+  const eL=lm[33], eR=lm[263], nose=lm[1];
+  const interoc = Math.hypot(eR.x-eL.x, eR.y-eL.y) || 1e-3;
+  const roll  = Math.atan2(eR.y-eL.y, eR.x-eL.x);     // 머리 좌우 기울기(rad, 똑바로면 ~0)
+  const pitch = (nose.y-(eL.y+eR.y)/2)/interoc;        // 끄덕 proxy(코-눈 수직거리 정규화)
+  return { roll, pitch };
 }
 
 // ============================================================
@@ -272,6 +277,7 @@ const sfx = {
   break:()=>{ tone(160,.22,'sawtooth',.4,.4); tone(90,.3,'square',.3,.5); },
   dodge:()=>tone(900,.12,'sine',.3,.6),
   boost:()=>tone(300,.4,'sawtooth',.25,2.4),
+  boom:()=>{ tone(140,.32,'sawtooth',.5,.32); tone(70,.42,'square',.45,.4); tone(240,.18,'sawtooth',.32,.5); },
   coin:()=>{ tone(880,.07,'square',.3); setTimeout(()=>tone(1320,.1,'square',.3),60); },
   hit:()=>{ tone(120,.25,'sawtooth',.4,.5); },
   nice:()=>{ tone(660,.08,'square',.3); setTimeout(()=>tone(990,.12,'square',.3),70); },
@@ -307,7 +313,6 @@ function bgmSchedule(speed){
 const CAL_STEPS = [
   {key:'neutral', sig:null,     cue:'무표정', instr:'편안하게 힘 빼고 정면을 봐요', dur:1800},
   {key:'smile',   sig:'smile',  cue:'활짝 😄', instr:'최대한 크게 웃어요', dur:2200},
-  {key:'brow',    sig:'brow',   cue:'눈썹 ⬆️', instr:'눈썹을 끝까지 올려요', dur:2200},
   {key:'jaw',     sig:'jaw',    cue:'아~ 😮', instr:'입을 최대한 크게 벌려요', dur:2200},
   {key:'pucker',  sig:'pucker', cue:'후~ 😗', instr:'입을 오므려 내밀어요', dur:2200},
 ];
@@ -320,7 +325,7 @@ function renderCalDots(idx){
 async function runCalibration(){
   show('calib');
   let idx=0;
-  const neutralAcc={smile:[],brow:[],jaw:[],pucker:[]};
+  const neutralAcc={smile:[],jaw:[],pucker:[]};
   function doStep(){
     const st=CAL_STEPS[idx]; renderCalDots(idx);
     $("calCue").textContent=st.cue; $("calInstr").textContent=st.instr; $("calFill").style.width='0%';
@@ -329,7 +334,7 @@ async function runCalibration(){
       const s=readSignals(now);
       const p=Math.min(1,(now-t0)/st.dur);
       if(st.key==='neutral'){
-        if(s.ok){ neutralAcc.smile.push(s.smile); neutralAcc.brow.push(s.brow);
+        if(s.ok){ neutralAcc.smile.push(s.smile);
           neutralAcc.jaw.push(s.jaw); neutralAcc.pucker.push(s.pucker); }
         $("calFill").style.width=(p*100)+'%';
       }else{
@@ -339,7 +344,7 @@ async function runCalibration(){
       if(p>=1){
         if(st.key==='neutral'){
           const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:.05;
-          for(const k of ['smile','brow','jaw','pucker']) CAL[k].min=Math.max(.03, avg(neutralAcc[k])+.02);
+          for(const k of ['smile','jaw','pucker']) CAL[k].min=Math.max(.03, avg(neutralAcc[k])+.02);
         }else{
           CAL[st.sig].max=Math.max(CAL[st.sig].min+0.08, mx*0.85); // 살짝 여유
         }
@@ -392,9 +397,10 @@ function startGame(){
   show('game'); resize(); initAudio(); if(actx.state==='suspended') actx.resume();
   G = {
     dist:0, speed:4, px:0, py:0, vy:0, grounded:true, sN:0, boosting:false,
+    pitchBase:null, nodReady:true, fx:[],
     obstacles:makeObstacles(),
     score:0, combo:0, maxCombo:0, hits:0,
-    rep:{ jaw:'ready', pucker:'ready', brow:'ready' },
+    rep:{ jaw:'ready', pucker:'ready' },
     flash:null, flashT:0, shake:0, cue:null, feed:null, feedT:0, slow:1,
     running:true, t:performance.now(), started:false, countdown:3.0,
   };
@@ -424,6 +430,14 @@ function activeObstacle(){
   return best;
 }
 
+// 괴물 격파 폭발 입자 생성
+function spawnBoom(x,y){
+  const cols=['#ff7a30','#ffd34e','#ff5d6c','#fff2a0'];
+  for(let i=0;i<28;i++){ const a=Math.random()*Math.PI*2, sp=90+Math.random()*230;
+    G.fx.push({ x, y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-70,
+      life:0.7+Math.random()*0.45, size:3+Math.random()*5, color:cols[i%cols.length] }); }
+}
+
 function resolve(o){
   o.resolved=true;
   let ok=false;
@@ -437,7 +451,7 @@ function resolve(o){
     let pts = o.type==='food'? o.bites*20 : 100;
     pts += G.combo*10; G.score+=pts;
     setFlash('rgba(120,230,90,.25)');
-    if(o.type==='monster'){ sfx.break(); setFeed('격파!','#9be635'); }
+    if(o.type==='monster'){ sfx.boom(); spawnBoom(cssW/2, cssH*0.58); G.shake=18; setFlash('rgba(255,170,50,.35)'); setFeed('💥 꽝!','#ffd34e'); }
     else if(o.type==='food'){ sfx.coin(); setFeed('냠냠 +'+o.bites,'#ffd34e'); }
     else if(o.type==='arrow'){ sfx.dodge(); setFeed('NICE!','#37d6ff'); }
     else { sfx.nice(); setFeed('점프!','#37d6ff'); }
@@ -476,18 +490,27 @@ function gameLoop(now, gen){
   if(G.boosting && targetSpeed>G.speed+2 && Math.random()<.05) sfx.boost();
   G.speed += (targetSpeed-G.speed)*Math.min(1,dt*6);   // 반응 더 빠르게
 
-  // ---- 좌우 이동(화살 회피): 고개 좌우(yaw) ----
-  const YAW_SIGN=1, dead=0.12;          // 실기기에서 좌우가 반대로 느껴지면 YAW_SIGN을 -1로
-  const yaw = sig.yaw*YAW_SIGN;
-  let tx = Math.abs(yaw)>dead ? Math.max(-1,Math.min(1,yaw*2.4)) : 0;
+  // ---- 좌우 이동(화살 회피): 고개 기울이기(roll) ----
+  const ROLL_SIGN=1, deadR=0.10;        // rad(~6°). 실기기에서 좌우 반대면 ROLL_SIGN을 -1로
+  const roll = sig.roll*ROLL_SIGN;
+  let tx = Math.abs(roll)>deadR ? Math.max(-1,Math.min(1,roll*4.5)) : 0;
   if(!(act && act.type==='arrow')) tx=tx*0.45; // 회피 구간 아니면 약하게
   G.px += (tx-G.px)*Math.min(1,dt*9);
 
-  // ---- 점프: 눈썹 ----
-  if(sig.ok && repStep('brow', norm('brow',sig.brow)) && G.grounded){
-    G.vy=7.2; G.grounded=false; sfx.jump();
+  // ---- 점프: 고개 끄덕(pitch 급변) ----
+  if(G.pitchBase==null) G.pitchBase=sig.pitch;
+  G.pitchBase += (sig.pitch-G.pitchBase)*0.04;     // 느린 기준선(개인별 중립 자동 적응)
+  const nod = sig.pitch - G.pitchBase;             // 끄덕이면 기준선에서 급격히 벗어남
+  if(sig.ok && G.nodReady && Math.abs(nod)>0.06 && G.grounded){
+    G.vy=7.6; G.grounded=false; G.nodReady=false; sfx.jump();
   }
+  if(Math.abs(nod)<0.025) G.nodReady=true;         // 중립 복귀 시 다음 끄덕 받을 준비
   if(!G.grounded){ G.vy-=22*dt; G.py+=G.vy*dt; if(G.py<=0){ G.py=0; G.grounded=true; G.vy=0; sfx.land(); } }
+
+  // ---- 폭발 입자 업데이트 ----
+  for(let i=G.fx.length-1;i>=0;i--){ const p=G.fx[i];
+    p.vy+=40*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.life-=dt*1.6;
+    if(p.life<=0) G.fx.splice(i,1); }
 
   // ---- 먹기/괴물 rep → 활성 오브젝트로 라우팅 ----
   if(sig.ok){
@@ -599,6 +622,13 @@ function drawScene(sig, speed){
   // 플래시
   if(G && G.flashT>0){ ctx.fillStyle=G.flash; ctx.globalAlpha=Math.min(1,G.flashT/0.25); ctx.fillRect(0,0,W,H); ctx.globalAlpha=1; }
 
+  // 폭발 입자(꽝)
+  if(G && G.fx.length){
+    for(const p of G.fx){ ctx.globalAlpha=Math.max(0,Math.min(1,p.life));
+      ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,7); ctx.fill(); }
+    ctx.globalAlpha=1;
+  }
+
   // HUD
   drawHUD(W,H,sig);
 
@@ -670,8 +700,8 @@ function drawHUD(W,H,sig){
   if(!sig.ok){ ctx.fillStyle='rgba(255,255,255,.85)'; ctx.font='700 12px Pretendard'; ctx.textAlign='center';
     ctx.fillText('얼굴이 안 보여요',W/2,H*0.5); }
 }
-const CUE_TXT={ hurdle:['JUMP!','눈썹 올려 점프'], arrow:['피해!','고개를 좌우로'],
-  food:['냠냠 ×5','입 벌려 먹기'], monster:['후~ ×3','입 오므려 격파'] };
+const CUE_TXT={ hurdle:['JUMP!','고개 끄덕! 점프'], arrow:['피해!','고개 기울여 피하기'],
+  food:['냠냠 ×5','입 벌려 먹기'], monster:['후~ ×3','입 오므려 꽝!'] };
 function drawCue(o,W,H){
   const [big,sub]=CUE_TXT[o.type];
   ctx.textAlign='center';
