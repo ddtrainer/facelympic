@@ -17,3 +17,13 @@ npm run dev
 ```
 
 Open `http://localhost:5173`.
+
+## Mobile Testing
+
+Use the production HTTPS URL for camera testing on a phone:
+
+```text
+https://facelympic.vercel.app
+```
+
+Local network URLs printed by `npm run dev` are useful for layout checks on the same Wi-Fi, but mobile browsers usually require HTTPS for camera access.

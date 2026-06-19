@@ -1,5 +1,6 @@
 const http = require("http");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 
 const root = __dirname;
@@ -16,37 +17,49 @@ const mimeTypes = {
 
 function createServer() {
   return http.createServer((request, response) => {
-  const requestedPath = request.url === "/" ? "/index.html" : request.url;
-  const filePath = path.join(root, decodeURIComponent(requestedPath.split("?")[0]));
+    const requestedPath = request.url === "/" ? "/index.html" : request.url;
+    const filePath = path.join(root, decodeURIComponent(requestedPath.split("?")[0]));
 
-  if (!filePath.startsWith(root)) {
-    response.writeHead(403);
-    response.end("Forbidden");
-    return;
-  }
-
-  fs.readFile(filePath, (error, contents) => {
-    if (error) {
-      response.writeHead(404);
-      response.end("Not found");
+    if (!filePath.startsWith(root)) {
+      response.writeHead(403);
+      response.end("Forbidden");
       return;
     }
 
-    const extension = path.extname(filePath);
-    response.writeHead(200, {
-      "Content-Type": mimeTypes[extension] || "application/octet-stream"
+    fs.readFile(filePath, (error, contents) => {
+      if (error) {
+        response.writeHead(404);
+        response.end("Not found");
+        return;
+      }
+
+      const extension = path.extname(filePath);
+      response.writeHead(200, {
+        "Content-Type": mimeTypes[extension] || "application/octet-stream"
+      });
+      response.end(contents);
     });
-    response.end(contents);
   });
-  });
+}
+
+function getNetworkUrls(port) {
+  return Object.values(os.networkInterfaces())
+    .flat()
+    .filter((networkInterface) => {
+      return networkInterface && networkInterface.family === "IPv4" && !networkInterface.internal;
+    })
+    .map((networkInterface) => `http://${networkInterface.address}:${port}`);
 }
 
 if (require.main === module) {
   const port = process.env.PORT || 5173;
+  const host = process.env.HOST || "0.0.0.0";
   const server = createServer();
 
-  server.listen(port, () => {
+  server.listen(port, host, () => {
     console.log(`Facelympic MVP running at http://localhost:${port}`);
+    getNetworkUrls(port).forEach((url) => console.log(`Mobile LAN preview: ${url}`));
+    console.log("Mobile camera test: use https://facelympic.vercel.app for HTTPS camera access.");
   });
 }
 
