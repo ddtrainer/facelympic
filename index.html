@@ -495,7 +495,7 @@ function gameLoop(now, gen){
   G.speedScore += Math.max(0, G.speed-4) * dt * 6;     // 스피드 점수: 빠를수록 더 쌓임
 
   // ---- 좌우 이동(화살 회피): 고개 기울이기(roll) ----
-  const ROLL_SIGN=1, deadR=0.10;        // rad(~6°). 실기기에서 좌우 반대면 ROLL_SIGN을 -1로
+  const ROLL_SIGN=-1, deadR=0.10;       // rad(~6°). 좌우 반대면 부호 뒤집기(현재 -1)
   const roll = sig.roll*ROLL_SIGN;
   let tx = Math.abs(roll)>deadR ? Math.max(-1,Math.min(1,roll*4.5)) : 0;
   if(!(act && act.type==='arrow')) tx=tx*0.45; // 회피 구간 아니면 약하게
