@@ -1,72 +1,747 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Facelympic</title>
-    <link rel="stylesheet" href="./src/styles.css" />
-  </head>
-  <body>
-    <main class="app-shell">
-      <section class="stadium-panel" aria-label="&#xD398;&#xC774;&#xC140;&#xB9BC;&#xD53D; &#xACBD;&#xAE30;&#xC7A5;">
-        <div class="scoreboard">
-          <p class="kicker">FACELYMPIC 100M</p>
-          <h1>&#xC6C3;&#xC73C;&#xBA74; &#xBE68;&#xB77C;&#xC9C4;&#xB2E4;</h1>
-          <p class="subtitle">&#xD45C;&#xC815;&#xC73C;&#xB85C; &#xB2EC;&#xB9AC;&#xB294; &#xC5BC;&#xAD74; &#xADFC;&#xC721; &#xACBD;&#xC8FC; &#xAC8C;&#xC784;</p>
-        </div>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>페이셀림픽 · Facelympic</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<style>
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+  :root{
+    --bg:#0a1428; --bg2:#10204a; --card:#15264f; --line:rgba(255,255,255,.10);
+    --ink:#f2f6ff; --dim:#9fb3d8; --faint:#5f74a0;
+    --cyan:#37d6ff; --cyan-deep:#0a7fb8; --lime:#9be635; --magenta:#e85cff;
+    --gold:#ffd34e; --coral:#ff5d6c;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    font-family:'Pretendard',system-ui,sans-serif;background:var(--bg);color:var(--ink);
+    overflow:hidden;position:fixed;inset:0;-webkit-font-smoothing:antialiased;
+  }
+  #app{height:100%;max-width:900px;margin:0 auto;position:relative;
+    background:radial-gradient(120% 80% at 50% -10%,#16306a 0%,transparent 55%),var(--bg);}
+  .screen{position:absolute;inset:0;display:none;flex-direction:column;}
+  .screen.active{display:flex;}
 
-        <div class="track" aria-hidden="true">
-          <div class="lane lane-one"></div>
-          <div class="lane lane-two">
-            <div id="runnerFace" class="runner-face">
-              <span class="eye"></span>
-              <span class="eye"></span>
-              <span class="smile"></span>
-            </div>
-          </div>
-          <div class="lane lane-three"></div>
-          <div class="finish-line"></div>
-        </div>
-      </section>
+  /* ---------- Intro ---------- */
+  #intro{padding:34px 26px;justify-content:center;}
+  .logo{font-size:40px;font-weight:900;letter-spacing:-.02em;line-height:1.05;margin-bottom:6px;
+    background:linear-gradient(100deg,var(--cyan),var(--lime),var(--gold),var(--magenta));
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+  .tagline{font-size:17px;color:var(--cyan);font-weight:700;margin-bottom:20px;}
+  .lead{color:var(--dim);font-size:15px;line-height:1.6;margin-bottom:24px;}
+  .moves{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:26px;}
+  .move{display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--line);
+    border-radius:14px;padding:12px 13px;}
+  .move .e{font-size:24px;}
+  .move b{display:block;font-size:14px;}
+  .move span{font-size:12px;color:var(--faint);}
+  .btn{border:none;border-radius:16px;font-family:inherit;cursor:pointer;font-weight:800;
+    font-size:17px;padding:17px;width:100%;transition:transform .12s;}
+  .btn:active{transform:scale(.975);}
+  .btn-primary{background:linear-gradient(135deg,var(--cyan),var(--cyan-deep));color:#04243a;
+    box-shadow:0 12px 32px -10px rgba(55,214,255,.6);}
+  .btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line);margin-top:10px;}
+  .err{color:var(--coral);font-size:14px;margin-top:14px;text-align:center;display:none;}
 
-      <section class="control-panel" aria-label="&#xBA54;&#xC778; &#xBA54;&#xB274;">
-        <div class="camera-card">
-          <video id="cameraPreview" autoplay playsinline muted></video>
-          <div id="cameraPlaceholder" class="camera-placeholder">
-            <span class="camera-icon" aria-hidden="true"></span>
-            <strong>&#xCE74;&#xBA54;&#xB77C; &#xC900;&#xBE44;</strong>
-          </div>
-        </div>
+  /* ---------- Calibration ---------- */
+  #calib{padding:24px;align-items:center;justify-content:center;text-align:center;}
+  #calib h2{font-size:24px;font-weight:800;margin-bottom:6px;}
+  #calib .sub{color:var(--dim);font-size:14px;margin-bottom:18px;}
+  .calvid-wrap{position:relative;width:240px;height:240px;border-radius:24px;overflow:hidden;
+    border:2px solid var(--line);background:#06101f;margin-bottom:18px;}
+  .calvid-wrap video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);}
+  .cal-ring{position:absolute;inset:0;}
+  .cal-cue{font-size:30px;font-weight:900;margin-bottom:4px;}
+  .cal-instr{color:var(--dim);font-size:15px;margin-bottom:16px;min-height:22px;}
+  .cal-meter{width:240px;height:10px;border-radius:6px;background:rgba(255,255,255,.1);overflow:hidden;margin-bottom:18px;}
+  .cal-fill{height:100%;width:0;background:linear-gradient(90deg,var(--lime),var(--cyan));transition:width .1s;}
+  .cal-dots{display:flex;gap:7px;margin-bottom:8px;}
+  .cal-dot{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.15);}
+  .cal-dot.on{background:var(--cyan);}
 
-        <div class="status-row">
-          <span id="cameraStatus" class="status-pill">&#xCE74;&#xBA54;&#xB77C; &#xB300;&#xAE30;</span>
-          <span id="gameStatus" class="status-pill secondary">&#xBB34;&#xB8CC; &#xCCB4;&#xD5D8;</span>
-        </div>
+  /* ---------- Game ---------- */
+  #game{padding:0;}
+  #gcanvas{width:100%;height:100%;display:block;touch-action:none;}
+  .g-exit{position:absolute;top:12px;left:12px;z-index:5;width:40px;height:40px;border-radius:12px;
+    border:1px solid var(--line);background:rgba(8,16,32,.6);color:var(--ink);font-size:20px;cursor:pointer;
+    backdrop-filter:blur(6px);}
+  .g-mute{position:absolute;top:12px;left:60px;z-index:5;width:40px;height:40px;border-radius:12px;
+    border:1px solid var(--line);background:rgba(8,16,32,.6);color:var(--ink);font-size:17px;cursor:pointer;
+    backdrop-filter:blur(6px);}
 
-        <nav class="action-grid" aria-label="&#xAC8C;&#xC784; &#xC2DC;&#xC791; &#xBA54;&#xB274;">
-          <button id="trainingButton" class="primary-action" type="button">
-            <span>&#xAE30;&#xCD08; &#xD6C8;&#xB828;</span>
-            <small>7&#xAC1C; &#xD45C;&#xC815; &#xC5F0;&#xC2B5;</small>
-          </button>
-          <button id="raceButton" class="primary-action accent" type="button">
-            <span>100m &#xACBD;&#xAE30;</span>
-            <small>&#xCCAB; MVP &#xC885;&#xBAA9;</small>
-          </button>
-          <button id="recordsButton" class="primary-action muted" type="button">
-            <span>&#xAE30;&#xB85D; &#xBCF4;&#xAE30;</span>
-            <small>&#xB0B4; &#xCD5C;&#xACE0; &#xAE30;&#xB85D;</small>
-          </button>
-        </nav>
+  /* ---------- Done ---------- */
+  #done{padding:34px 26px;align-items:center;justify-content:center;text-align:center;}
+  .medal{font-size:84px;margin-bottom:8px;animation:pop .5s cubic-bezier(.2,1.4,.4,1);}
+  @keyframes pop{0%{transform:scale(0)}100%{transform:scale(1)}}
+  #done h2{font-size:30px;font-weight:900;margin-bottom:6px;}
+  #done .res{color:var(--dim);font-size:15px;margin-bottom:22px;}
+  .scards{display:flex;gap:10px;width:100%;max-width:380px;margin-bottom:14px;}
+  .scard{flex:1;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 8px;}
+  .scard .v{font-size:24px;font-weight:900;color:var(--cyan);}
+  .scard .l{font-size:11px;color:var(--faint);margin-top:4px;}
+  .rp{width:100%;max-width:380px;background:linear-gradient(135deg,rgba(255,211,78,.16),rgba(255,211,78,.05));
+    border:1px solid rgba(255,211,78,.3);border-radius:18px;padding:16px 20px;margin-bottom:24px;
+    display:flex;justify-content:space-between;align-items:center;}
+  .rp .l{font-size:14px;color:var(--dim);} .rp .v{font-size:24px;font-weight:900;color:var(--gold);}
 
-        <section id="modePanel" class="mode-panel" aria-live="polite"></section>
+  /* loading */
+  #loading{position:absolute;inset:0;z-index:50;display:none;flex-direction:column;align-items:center;
+    justify-content:center;gap:16px;background:var(--bg);}
+  #loading.active{display:flex;}
+  .spin{width:44px;height:44px;border-radius:50%;border:3px solid rgba(255,255,255,.12);
+    border-top-color:var(--cyan);animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #loading p{color:var(--dim);font-size:14px;}
+  .confetti{position:absolute;inset:0;z-index:60;pointer-events:none;display:none;}
+  .confetti.on{display:block;}
+</style>
+</head>
+<body>
+<div id="app">
 
-        <section class="signal-panel" aria-label="&#xD45C;&#xC815; &#xC778;&#xC2DD; &#xC0C1;&#xD0DC;">
-          <h2>&#xD45C;&#xC815; &#xC2E0;&#xD638;</h2>
-          <div id="signalList" class="signal-list"></div>
-        </section>
-      </section>
-    </main>
+  <!-- INTRO -->
+  <section id="intro" class="screen active">
+    <div class="logo">페이셀림픽<br>FACELYMPIC</div>
+    <div class="tagline">웃으면 빨라진다</div>
+    <p class="lead">얼굴 표정으로 트랙을 질주하세요.<br>웃으면 달리고, 눈썹 올리면 점프, 입으로 먹고 피합니다.</p>
+    <div class="moves">
+      <div class="move"><span class="e">😊</span><div><b>웃기</b><span>달리기 · 부스터</span></div></div>
+      <div class="move"><span class="e">😮</span><div><b>눈썹 올리기</b><span>점프</span></div></div>
+      <div class="move"><span class="e">😋</span><div><b>입 벌리기 ×5</b><span>음식 먹기</span></div></div>
+      <div class="move"><span class="e">😗</span><div><b>입 오므리기 ×3</b><span>괴물 격파</span></div></div>
+    </div>
+    <button class="btn btn-primary" id="startBtn">시작하기</button>
+    <p class="err" id="introErr"></p>
+  </section>
 
-    <script type="module" src="./src/app.js"></script>
-  </body>
+  <!-- CALIBRATION -->
+  <section id="calib" class="screen">
+    <h2>표정 맞추기</h2>
+    <p class="sub">사람마다 표정이 달라요. 잠깐 내 표정을 기록할게요.</p>
+    <div class="calvid-wrap">
+      <video id="calvid" playsinline autoplay muted></video>
+    </div>
+    <div class="cal-cue" id="calCue">준비</div>
+    <div class="cal-instr" id="calInstr">화면 안에 얼굴을 맞춰 주세요</div>
+    <div class="cal-meter"><div class="cal-fill" id="calFill"></div></div>
+    <div class="cal-dots" id="calDots"></div>
+    <button class="btn btn-ghost" id="calSkip" style="max-width:380px;">기본값으로 건너뛰기</button>
+  </section>
+
+  <!-- GAME -->
+  <section id="game" class="screen">
+    <button class="g-exit" id="gExit">‹</button>
+    <button class="g-mute" id="gMute">🔊</button>
+    <canvas id="gcanvas"></canvas>
+  </section>
+
+  <!-- DONE -->
+  <section id="done" class="screen">
+    <div class="medal" id="medalEmoji">🥇</div>
+    <h2 id="doneTitle">결승선 통과!</h2>
+    <p class="res" id="doneRes">멋지게 완주했어요</p>
+    <div class="scards">
+      <div class="scard"><div class="v" id="sDist">0m</div><div class="l">거리</div></div>
+      <div class="scard"><div class="v" id="sCombo">0</div><div class="l">최고 콤보</div></div>
+      <div class="scard"><div class="v" id="sHit">0</div><div class="l">성공</div></div>
+    </div>
+    <div class="rp"><span class="l">획득 레이스 포인트</span><span class="v" id="sRP">0 RP</span></div>
+    <button class="btn btn-primary" id="againBtn" style="max-width:380px;">다시 달리기</button>
+    <button class="btn btn-ghost" id="homeBtn" style="max-width:380px;">처음으로</button>
+  </section>
+
+  <!-- LOADING -->
+  <div id="loading"><div class="spin"></div><p id="loadText">AI 모델을 불러오는 중…</p></div>
+  <canvas class="confetti" id="confetti"></canvas>
+</div>
+
+<script type="module">
+import { FilesetResolver, FaceLandmarker }
+  from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
+
+const $ = (id)=>document.getElementById(id);
+const screens = { intro:$("intro"), calib:$("calib"), game:$("game"), done:$("done") };
+function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
+
+// ============================================================
+//  공유 상태
+// ============================================================
+let faceLM=null, stream=null, calVideo=$("calvid");
+let detVideo=null;           // 측정에 쓰는 video 엘리먼트(인트로 캘리브와 공유)
+let lastVT=-1;
+
+// 캘리브레이션 결과: 각 신호의 min(중립)/max
+const CAL = {
+  smile:{min:.05,max:.7}, brow:{min:.05,max:.5}, jaw:{min:.05,max:.6}, pucker:{min:.05,max:.5},
+};
+function norm(sig,v){ const c=CAL[sig]; const d=Math.max(c.max-c.min,1e-3); return Math.min(1,Math.max(0,(v-c.min)/d)); }
+
+// ============================================================
+//  MediaPipe
+// ============================================================
+async function loadModel(){
+  $("loading").classList.add("active");
+  $("loadText").textContent="AI 모델을 불러오는 중…";
+  const fileset = await FilesetResolver.forVisionTasks(
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm");
+  faceLM = await FaceLandmarker.createFromOptions(fileset,{
+    baseOptions:{ modelAssetPath:
+      "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+      delegate:"GPU" },
+    runningMode:"VIDEO", numFaces:1, outputFaceBlendshapes:true,
+  });
+}
+async function startCamera(videoEl){
+  stream = await navigator.mediaDevices.getUserMedia({
+    video:{ facingMode:"user", width:{ideal:640}, height:{ideal:480} }, audio:false });
+  videoEl.srcObject = stream;
+  await new Promise(res=>{ videoEl.onloadedmetadata=()=>{ videoEl.play(); res(); }; });
+  detVideo = videoEl;
+}
+function stopCamera(){ if(stream) stream.getTracks().forEach(t=>t.stop()); stream=null; detVideo=null; }
+
+// 매 프레임 blendshape 신호 추출
+function readSignals(now){
+  const out = { ok:false, smile:0, brow:0, jaw:0, pucker:0, yaw:0 };
+  if(!detVideo || detVideo.readyState<2) return out;
+  if(detVideo.currentTime===lastVT) { out._stale=true; }
+  lastVT = detVideo.currentTime;
+  const res = faceLM.detectForVideo(detVideo, now);
+  if(res.faceBlendshapes && res.faceBlendshapes.length){
+    const m={}; for(const c of res.faceBlendshapes[0].categories) m[c.categoryName]=c.score;
+    out.ok=true;
+    out.smile  = ((m.mouthSmileLeft||0)+(m.mouthSmileRight||0))/2;
+    out.brow   = ((m.browInnerUp||0)+(m.browOuterUpLeft||0)+(m.browOuterUpRight||0))/3;
+    out.jaw    = m.jawOpen||0;
+    out.pucker = Math.max(m.mouthPucker||0, m.mouthFunnel||0);
+  }
+  if(res.faceLandmarks && res.faceLandmarks.length){
+    out.yaw = computeYaw(res.faceLandmarks[0]);   // 고개 좌우(화살 회피)
+  }
+  return out;
+}
+
+// 고개 yaw 추정: 코끝(1)이 양볼(234,454) 사이 어디에 있는가 → -1..+1 (FaceFit+ 재사용)
+function computeYaw(lm){
+  const nose=lm[1], cL=lm[234], cR=lm[454];
+  const mid=(cL.x+cR.x)/2, halfW=Math.abs(cR.x-cL.x)/2 || 1e-3;
+  return Math.max(-1, Math.min(1, (nose.x-mid)/halfW));
+}
+
+// ============================================================
+//  사운드 (Web Audio API)
+// ============================================================
+let actx=null, master=null, muted=false;
+function initAudio(){
+  if(actx) return;
+  actx = new (window.AudioContext||window.webkitAudioContext)();
+  master = actx.createGain(); master.gain.value=0.5; master.connect(actx.destination);
+}
+function tone(freq,dur,type='triangle',vol=.4,slide=0){
+  if(!actx||muted) return;
+  const o=actx.createOscillator(), g=actx.createGain();
+  o.type=type; o.frequency.value=freq;
+  if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(40,freq*slide), actx.currentTime+dur);
+  g.gain.setValueAtTime(0.0001, actx.currentTime);
+  g.gain.exponentialRampToValueAtTime(vol, actx.currentTime+0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime+dur);
+  o.connect(g); g.connect(master); o.start(); o.stop(actx.currentTime+dur+0.02);
+}
+const sfx = {
+  jump:()=>tone(560,.18,'square',.35,1.8),
+  land:()=>tone(180,.1,'sine',.3),
+  eat:()=>tone(420,.08,'square',.3,1.2),
+  break:()=>{ tone(160,.22,'sawtooth',.4,.4); tone(90,.3,'square',.3,.5); },
+  dodge:()=>tone(900,.12,'sine',.3,.6),
+  boost:()=>tone(300,.4,'sawtooth',.25,2.4),
+  coin:()=>{ tone(880,.07,'square',.3); setTimeout(()=>tone(1320,.1,'square',.3),60); },
+  hit:()=>{ tone(120,.25,'sawtooth',.4,.5); },
+  nice:()=>{ tone(660,.08,'square',.3); setTimeout(()=>tone(990,.12,'square',.3),70); },
+  go:()=>{ tone(440,.12,'square',.35); setTimeout(()=>tone(660,.2,'square',.4),140); },
+};
+// BGM: 속도에 따라 템포 상승하는 간단한 시퀀서
+const BASS=[110,110,146,164], ARP=[440,554,659,554];
+let bgmOn=false, nextNote=0, step=0;
+function bgmStart(){ bgmOn=true; nextNote=actx? actx.currentTime:0; step=0; }
+function bgmStop(){ bgmOn=false; }
+function bgmSchedule(speed){
+  if(!bgmOn||!actx||muted) return;
+  const bpm = 96 + speed*7;                 // 빠를수록 신나게
+  const beat = 60/bpm;
+  while(nextNote < actx.currentTime + 0.12){
+    const o=actx.createOscillator(), g=actx.createGain();
+    o.type='triangle'; o.frequency.value=BASS[step%BASS.length];
+    g.gain.setValueAtTime(.0001,nextNote); g.gain.exponentialRampToValueAtTime(.18,nextNote+.02);
+    g.gain.exponentialRampToValueAtTime(.0001,nextNote+beat*.9);
+    o.connect(g); g.connect(master); o.start(nextNote); o.stop(nextNote+beat);
+    if(step%2===0){ const o2=actx.createOscillator(), g2=actx.createGain();
+      o2.type='square'; o2.frequency.value=ARP[(step/2)%ARP.length];
+      g2.gain.setValueAtTime(.0001,nextNote); g2.gain.exponentialRampToValueAtTime(.07,nextNote+.02);
+      g2.gain.exponentialRampToValueAtTime(.0001,nextNote+beat*.5);
+      o2.connect(g2); g2.connect(master); o2.start(nextNote); o2.stop(nextNote+beat); }
+    nextNote += beat; step++;
+  }
+}
+
+// ============================================================
+//  캘리브레이션 진행
+// ============================================================
+const CAL_STEPS = [
+  {key:'neutral', sig:null,     cue:'무표정', instr:'편안하게 힘 빼고 정면을 봐요', dur:1800},
+  {key:'smile',   sig:'smile',  cue:'활짝 😄', instr:'최대한 크게 웃어요', dur:2200},
+  {key:'brow',    sig:'brow',   cue:'눈썹 ⬆️', instr:'눈썹을 끝까지 올려요', dur:2200},
+  {key:'jaw',     sig:'jaw',    cue:'아~ 😮', instr:'입을 최대한 크게 벌려요', dur:2200},
+  {key:'pucker',  sig:'pucker', cue:'후~ 😗', instr:'입을 오므려 내밀어요', dur:2200},
+];
+let calRAF=null;
+function renderCalDots(idx){
+  const w=$("calDots"); w.innerHTML='';
+  CAL_STEPS.forEach((_,i)=>{ const d=document.createElement('div');
+    d.className='cal-dot'+(i<=idx?' on':''); w.appendChild(d); });
+}
+async function runCalibration(){
+  show('calib');
+  let idx=0;
+  const neutralAcc={smile:[],brow:[],jaw:[],pucker:[]};
+  function doStep(){
+    const st=CAL_STEPS[idx]; renderCalDots(idx);
+    $("calCue").textContent=st.cue; $("calInstr").textContent=st.instr; $("calFill").style.width='0%';
+    let t0=performance.now(); let mx=0;
+    function frame(now){
+      const s=readSignals(now);
+      const p=Math.min(1,(now-t0)/st.dur);
+      if(st.key==='neutral'){
+        if(s.ok){ neutralAcc.smile.push(s.smile); neutralAcc.brow.push(s.brow);
+          neutralAcc.jaw.push(s.jaw); neutralAcc.pucker.push(s.pucker); }
+        $("calFill").style.width=(p*100)+'%';
+      }else{
+        const v=s[st.sig]||0; mx=Math.max(mx,v);
+        $("calFill").style.width=Math.min(100, norm(st.sig,v)*100)+'%';
+      }
+      if(p>=1){
+        if(st.key==='neutral'){
+          const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:.05;
+          for(const k of ['smile','brow','jaw','pucker']) CAL[k].min=Math.max(.03, avg(neutralAcc[k])+.02);
+        }else{
+          CAL[st.sig].max=Math.max(CAL[st.sig].min+0.08, mx*0.85); // 살짝 여유
+        }
+        sfx.coin();
+        idx++;
+        if(idx>=CAL_STEPS.length){ startGame(); return; }
+        setTimeout(doStep,300); return;
+      }
+      calRAF=requestAnimationFrame(frame);
+    }
+    calRAF=requestAnimationFrame(frame);
+  }
+  doStep();
+}
+
+// ============================================================
+//  게임
+// ============================================================
+const cv=$("gcanvas"), ctx=cv.getContext('2d');
+let cssW=0,cssH=0,DPR=1;
+function resize(){
+  DPR=Math.min(2,window.devicePixelRatio||1);
+  cssW=cv.clientWidth; cssH=cv.clientHeight;
+  cv.width=cssW*DPR; cv.height=cssH*DPR; ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize',()=>{ if(screens.game.classList.contains('active')) resize(); });
+
+const TARGET=100;        // 100m
+const VIEW=42;           // 보이는 거리(m)
+const ACT=20;            // 액션 활성 거리(m)
+let G;                   // 게임 상태
+
+// 깊이 d(0=플레이어, 1=먼곳) → 화면 투영 계수
+function f(d){ return (1-d)/(1+3*d); }   // 1(near)..0(far)
+
+function makeObstacles(){
+  const arr=[]; let d=14;
+  const order=['hurdle','arrow','food','monster','hurdle','arrow','monster','food'];
+  let i=0;
+  while(d < TARGET-7){
+    const type=order[i%order.length];
+    arr.push({ type, at:d, lane: type==='arrow'? (Math.random()<.5?-1:1):0,
+      resolved:false, charge:0, bites:0, result:null });
+    d += 10 + Math.random()*4; i++;
+  }
+  return arr;
+}
+
+function startGame(){
+  show('game'); resize(); initAudio(); if(actx.state==='suspended') actx.resume();
+  G = {
+    dist:0, speed:5, px:0, py:0, vy:0, grounded:true,
+    obstacles:makeObstacles(),
+    score:0, combo:0, maxCombo:0, hits:0,
+    rep:{ jaw:'ready', pucker:'ready', brow:'ready' },
+    flash:null, flashT:0, shake:0, cue:null, feed:null, feedT:0, slow:1,
+    running:true, t:performance.now(), started:false, countdown:3.0,
+  };
+  bgmStart(); sfx.go();
+  const myGen=++loopGen;
+  requestAnimationFrame((t)=>gameLoop(t,myGen));
+}
+let loopGen=0;
+
+// rep 상태머신: 정규화 신호 norm 받아 1회 완료 시 true
+function repStep(key, n){
+  if(G.rep[key]==='ready' && n>0.55){ G.rep[key]='active'; return false; }
+  if(G.rep[key]==='active' && n<0.25){ G.rep[key]='ready'; return true; }
+  return false;
+}
+
+function setFeed(txt,col){ G.feed=txt; G.feedColor=col; G.feedT=0.9; }
+function setFlash(col){ G.flash=col; G.flashT=0.25; }
+
+function activeObstacle(){
+  let best=null;
+  for(const o of G.obstacles){
+    if(o.resolved) continue;
+    const ahead=o.at-G.dist;
+    if(ahead>0 && ahead<ACT){ if(!best || ahead<(best.at-G.dist)) best=o; }
+  }
+  return best;
+}
+
+function resolve(o){
+  o.resolved=true;
+  let ok=false;
+  if(o.type==='hurdle') ok = !G.grounded;
+  else if(o.type==='arrow') ok = (G.px*o.lane < -0.15) && Math.abs(G.px)>0.35;
+  else if(o.type==='monster') ok = o.charge>=3;
+  else if(o.type==='food') ok = o.bites>=1; // 한 입이라도 먹으면 성공(점수는 비례)
+  o.result=ok;
+  if(ok){
+    G.combo++; G.maxCombo=Math.max(G.maxCombo,G.combo); G.hits++;
+    let pts = o.type==='food'? o.bites*20 : 100;
+    pts += G.combo*10; G.score+=pts;
+    setFlash('rgba(120,230,90,.25)');
+    if(o.type==='monster'){ sfx.break(); setFeed('격파!','#9be635'); }
+    else if(o.type==='food'){ sfx.coin(); setFeed('냠냠 +'+o.bites,'#ffd34e'); }
+    else if(o.type==='arrow'){ sfx.dodge(); setFeed('NICE!','#37d6ff'); }
+    else { sfx.nice(); setFeed('점프!','#37d6ff'); }
+  }else{
+    G.combo=0;
+    if(o.type!=='food'){ G.speed=Math.max(3,G.speed*0.45); setFlash('rgba(255,80,90,.3)'); G.shake=10; sfx.hit(); setFeed('MISS','#ff5d6c'); }
+    else { setFeed('놓침','#9fb3d8'); }
+  }
+}
+
+function gameLoop(now, gen){
+  if(!G || !G.running || gen!==loopGen) return;
+  const dt=Math.min(.05,(now-G.t)/1000); G.t=now;
+  const sig=readSignals(now);
+
+  // ---- 카운트다운 ----
+  if(!G.started){
+    G.countdown-=dt;
+    drawScene(sig, 0);
+    drawCountdown(Math.ceil(G.countdown));
+    if(G.countdown<=0){ G.started=true; }
+    requestAnimationFrame((t)=>gameLoop(t,gen)); return;
+  }
+
+  const act = activeObstacle();
+
+  // ---- 속도(연속): 웃음 강도 ----
+  const sN = sig.ok? norm('smile',sig.smile):0;
+  let targetSpeed;
+  if(sN<0.15) targetSpeed=5;            // 무표정=걷기
+  else if(sN<0.55) targetSpeed=9;       // 입꼬리=달리기
+  else targetSpeed=9 + (sN-0.55)/0.45*7;// 활짝=부스터(최대16)
+  // 입을 쓰는 챌린지 중엔 속도 바닥 보장
+  if(act && (act.type==='food'||act.type==='monster'||act.type==='arrow')) targetSpeed=Math.max(targetSpeed,7);
+  if(sN>0.55 && targetSpeed>G.speed+3 && Math.random()<.04) sfx.boost();
+  G.speed += (targetSpeed-G.speed)*Math.min(1,dt*4);
+
+  // ---- 좌우 이동(화살 회피): 고개 좌우(yaw) ----
+  const YAW_SIGN=1, dead=0.12;          // 실기기에서 좌우가 반대로 느껴지면 YAW_SIGN을 -1로
+  const yaw = sig.yaw*YAW_SIGN;
+  let tx = Math.abs(yaw)>dead ? Math.max(-1,Math.min(1,yaw*2.4)) : 0;
+  if(!(act && act.type==='arrow')) tx=tx*0.45; // 회피 구간 아니면 약하게
+  G.px += (tx-G.px)*Math.min(1,dt*9);
+
+  // ---- 점프: 눈썹 ----
+  if(sig.ok && repStep('brow', norm('brow',sig.brow)) && G.grounded){
+    G.vy=7.2; G.grounded=false; sfx.jump();
+  }
+  if(!G.grounded){ G.vy-=22*dt; G.py+=G.vy*dt; if(G.py<=0){ G.py=0; G.grounded=true; G.vy=0; sfx.land(); } }
+
+  // ---- 먹기/괴물 rep → 활성 오브젝트로 라우팅 ----
+  if(sig.ok){
+    if(repStep('jaw', norm('jaw',sig.jaw))){ if(act&&act.type==='food'&&act.bites<5){ act.bites++; sfx.eat(); } }
+    if(repStep('pucker', norm('pucker',sig.pucker))){ if(act&&act.type==='monster'&&act.charge<3){ act.charge++; sfx.break(); } }
+  }
+
+  // ---- 전진 & 판정 ----
+  G.dist += G.speed*dt;
+  for(const o of G.obstacles){ if(!o.resolved && (o.at-G.dist)<=0.5) resolve(o); }
+
+  // ---- 타이머 감쇠 ----
+  if(G.flashT>0) G.flashT-=dt; if(G.shake>0) G.shake=Math.max(0,G.shake-dt*40);
+  if(G.feedT>0) G.feedT-=dt;
+
+  bgmSchedule(G.speed);
+  drawScene(sig, G.speed);
+
+  // ---- 종료 ----
+  if(G.dist>=TARGET){ finish(); return; }
+  requestAnimationFrame((t)=>gameLoop(t,gen));
+}
+
+// ============================================================
+//  렌더링 (2.5D)
+// ============================================================
+const ICON = { hurdle:'🚧', arrow:'🏹', food:'🍜', monster:'👹' };
+const FOODS=['🍜','🍕','🍣','🌮','🥟','🍙','🥨','🍤'];
+function drawScene(sig, speed){
+  const W=cssW,H=cssH, cx=W/2, horizon=H*0.40;
+  let sx=0,sy=0; if(G && G.shake>0){ sx=(Math.random()-.5)*G.shake; sy=(Math.random()-.5)*G.shake; }
+  ctx.save(); ctx.translate(sx,sy);
+
+  // 하늘
+  const sky=ctx.createLinearGradient(0,0,0,horizon); sky.addColorStop(0,'#1a4fb0'); sky.addColorStop(1,'#7cc6ff');
+  ctx.fillStyle=sky; ctx.fillRect(-20,-20,W+40,horizon+20);
+  // 먼 산 (패럴럭스 느림)
+  const off1=(G?G.dist:0)*6;
+  ctx.fillStyle='#3a5a86';
+  drawHills(W,horizon,off1,42,horizon-40);
+  ctx.fillStyle='#2f4a72';
+  drawHills(W,horizon,off1*1.7,30,horizon-12);
+
+  // 바닥(잔디)
+  ctx.fillStyle='#15351f'; ctx.fillRect(-20,horizon,W+40,H-horizon+20);
+
+  // 트랙 (사다리꼴 + 스크롤 스트라이프)
+  const bottomHalf=W*0.46, topHalf=W*0.045;
+  const xL=d=> cx - (topHalf + (bottomHalf-topHalf)*f(d));
+  const xR=d=> cx + (topHalf + (bottomHalf-topHalf)*f(d));
+  const yD=d=> horizon + (H-horizon)*f(d);
+  const SEG=16, phase=(G?G.dist:0)*0.55;
+  for(let i=0;i<SEG;i++){
+    const d0=i/SEG, d1=(i+1)/SEG;
+    const y0=yD(d0), y1=yD(d1);
+    const band=Math.floor(phase+i*1.0)%2===0;
+    ctx.fillStyle = band? '#1ea6e0':'#178ec2';
+    ctx.beginPath(); ctx.moveTo(xL(d0),y0); ctx.lineTo(xR(d0),y0); ctx.lineTo(xR(d1),y1); ctx.lineTo(xL(d1),y1); ctx.closePath(); ctx.fill();
+  }
+  // 트랙 가장자리 빛
+  ctx.strokeStyle='rgba(120,235,255,.9)'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(xL(0),yD(0)); ctx.lineTo(xL(1),yD(1)); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(xR(0),yD(0)); ctx.lineTo(xR(1),yD(1)); ctx.stroke();
+  // 중앙 차선
+  ctx.strokeStyle='rgba(255,255,255,.35)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(cx,yD(0)); ctx.lineTo(cx,yD(1)); ctx.stroke();
+
+  // 오브젝트 (먼 것부터)
+  if(G){
+    const list=G.obstacles.filter(o=>!o.resolved && (o.at-G.dist)>0 && (o.at-G.dist)<VIEW)
+                          .sort((a,b)=>(b.at-G.dist)-(a.at-G.dist));
+    for(const o of list){
+      const ahead=o.at-G.dist, d=Math.max(0,Math.min(1,ahead/VIEW));
+      const ff=f(d);
+      const roadHalf=topHalf+(bottomHalf-topHalf)*ff;
+      const ox=cx + o.lane*roadHalf*0.7;
+      const oy=yD(d);
+      const sc=0.5+ff*2.6;
+      const em = o.type==='food'? FOODS[(o.at|0)%FOODS.length] : ICON[o.type];
+      ctx.font=`${Math.round(30*sc)}px serif`; ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+      ctx.fillText(em, ox, oy);
+      // 진행 표시(먹기/괴물)
+      if(ahead<ACT){
+        if(o.type==='food'){ drawMini(ox,oy-34*sc,o.bites,5,'#ffd34e'); }
+        if(o.type==='monster'){ drawMini(ox,oy-34*sc,o.charge,3,'#9be635'); }
+      }
+    }
+  }
+
+  // 플레이어
+  if(G){
+    const py=yD(0)-18 - G.py*46;
+    const pxs=cx + G.px*bottomHalf*0.62;
+    // 그림자
+    ctx.fillStyle='rgba(0,0,0,.35)'; ctx.beginPath();
+    ctx.ellipse(cx+G.px*bottomHalf*0.62, yD(0)-10, 34-G.py*10, 11, 0,0,7); ctx.fill();
+    drawRunner(pxs,py, G.dist);
+  }
+
+  // 속도선(부스터)
+  if(speed>11){
+    ctx.strokeStyle='rgba(255,255,255,'+Math.min(.5,(speed-11)/8)+')'; ctx.lineWidth=2;
+    for(let i=0;i<10;i++){ const a=Math.random()*Math.PI*2, r1=40+Math.random()*60, r2=r1+30+speed*4;
+      ctx.beginPath(); ctx.moveTo(cx+Math.cos(a)*r1, horizon+Math.sin(a)*r1*0.7);
+      ctx.lineTo(cx+Math.cos(a)*r2, horizon+Math.sin(a)*r2*0.7); ctx.stroke(); }
+  }
+  ctx.restore();
+
+  // 플래시
+  if(G && G.flashT>0){ ctx.fillStyle=G.flash; ctx.globalAlpha=Math.min(1,G.flashT/0.25); ctx.fillRect(0,0,W,H); ctx.globalAlpha=1; }
+
+  // HUD
+  drawHUD(W,H,sig);
+
+  // 중앙 액션 큐
+  if(G){
+    const act=activeObstacle();
+    if(act){ const ahead=act.at-G.dist; if(ahead<ACT){ drawCue(act, W,H); } }
+    if(G.feedT>0){ drawFeed(W,H); }
+  }
+}
+function drawHills(W,h,off,amp,base){
+  ctx.beginPath(); ctx.moveTo(-20,h+20);
+  const step=60; let x=-20-(off%step);
+  ctx.lineTo(x,base);
+  for(; x<W+80; x+=step){ const y=base - Math.abs(Math.sin(x*0.01+off*0.002))*amp; ctx.lineTo(x,y); }
+  ctx.lineTo(W+20,h+20); ctx.closePath(); ctx.fill();
+}
+function drawRunner(x,y,dist){
+  const bob=Math.sin(dist*2.2)*3;
+  ctx.save(); ctx.translate(x,y+bob);
+  // 몸
+  ctx.fillStyle='#0a1428'; ctx.strokeStyle='#37d6ff'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.arc(0,-30,12,0,7); ctx.fill(); ctx.stroke();        // 머리
+  ctx.beginPath(); ctx.moveTo(0,-18); ctx.lineTo(0,2); ctx.stroke();        // 몸통
+  const leg=Math.sin(dist*7)*8;
+  ctx.beginPath(); ctx.moveTo(0,2); ctx.lineTo(-7,16+leg*0.5); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,2); ctx.lineTo(7,16-leg*0.5); ctx.stroke();
+  const arm=Math.sin(dist*7+1)*7;
+  ctx.beginPath(); ctx.moveTo(0,-12); ctx.lineTo(-9,-2+arm*0.4); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,-12); ctx.lineTo(9,-2-arm*0.4); ctx.stroke();
+  ctx.restore();
+}
+function drawMini(x,y,val,max,col){
+  const w=40,h=6; ctx.fillStyle='rgba(0,0,0,.5)'; ctx.fillRect(x-w/2,y,w,h);
+  ctx.fillStyle=col; ctx.fillRect(x-w/2,y,w*Math.min(1,val/max),h);
+  ctx.fillStyle='#fff'; ctx.font='11px Pretendard'; ctx.textAlign='center'; ctx.fillText(val+'/'+max,x,y-3);
+}
+function drawHUD(W,H,sig){
+  // 거리
+  ctx.fillStyle='#fff'; ctx.font='800 22px Pretendard'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText((G?Math.floor(G.dist):0)+'m', 16, 14);
+  // 진행 바
+  const bx=W*0.30, bw=W*0.40, by=22, bh=10;
+  ctx.fillStyle='rgba(255,255,255,.2)'; roundRect(bx,by,bw,bh,5); ctx.fill();
+  ctx.fillStyle='#37d6ff'; roundRect(bx,by, bw*Math.min(1,(G?G.dist:0)/TARGET), bh,5); ctx.fill();
+  ctx.fillStyle='#fff'; ctx.font='700 13px Pretendard'; ctx.textAlign='right';
+  ctx.fillText('100m', bx+bw+44, 20); ctx.textAlign='left'; ctx.fillText('LEVEL 1', bx-72, 20);
+  // 콤보
+  if(G && G.combo>1){ ctx.fillStyle='#ffd34e'; ctx.font='900 20px Pretendard'; ctx.textAlign='right';
+    ctx.fillText(G.combo+' COMBO', W-16, 46); }
+  ctx.fillStyle='#fff'; ctx.font='800 18px Pretendard'; ctx.textAlign='right'; ctx.textBaseline='top';
+  ctx.fillText((G?G.score:0)+' RP', W-16, 14);
+
+  // 미니 웹캠 PIP
+  const pw=92,ph=72, px=W-pw-12, py=H-ph-12;
+  ctx.save(); roundRect(px,py,pw,ph,10); ctx.clip();
+  if(detVideo){ ctx.translate(px+pw,py); ctx.scale(-1,1); ctx.drawImage(detVideo,0,0,pw,ph); }
+  ctx.restore();
+  ctx.strokeStyle=sig.ok?'#9be635':'#5f74a0'; ctx.lineWidth=2; roundRect(px,py,pw,ph,10); ctx.stroke();
+  ctx.fillStyle=sig.ok?'#9be635':'#5f74a0'; ctx.beginPath(); ctx.arc(px+10,py+10,4,0,7); ctx.fill();
+  if(!sig.ok){ ctx.fillStyle='rgba(255,255,255,.85)'; ctx.font='700 12px Pretendard'; ctx.textAlign='center';
+    ctx.fillText('얼굴이 안 보여요',W/2,H*0.5); }
+}
+const CUE_TXT={ hurdle:['JUMP!','눈썹 올려 점프'], arrow:['피해!','고개를 좌우로'],
+  food:['냠냠 ×5','입 벌려 먹기'], monster:['후~ ×3','입 오므려 격파'] };
+function drawCue(o,W,H){
+  const [big,sub]=CUE_TXT[o.type];
+  ctx.textAlign='center';
+  ctx.fillStyle='#fff'; ctx.font='900 40px Pretendard'; ctx.textBaseline='middle';
+  ctx.shadowColor='rgba(0,0,0,.6)'; ctx.shadowBlur=12;
+  ctx.fillText(big, W/2, H*0.20);
+  ctx.font='700 17px Pretendard'; ctx.fillStyle='#cfe3ff';
+  ctx.fillText(sub, W/2, H*0.20+34);
+  ctx.shadowBlur=0;
+}
+function drawFeed(W,H){
+  ctx.textAlign='center'; ctx.globalAlpha=Math.min(1,G.feedT/0.9);
+  ctx.fillStyle=G.feedColor||'#fff'; ctx.font='900 34px Pretendard'; ctx.textBaseline='middle';
+  ctx.shadowColor='rgba(0,0,0,.6)'; ctx.shadowBlur=10;
+  ctx.fillText(G.feed, W/2, H*0.34); ctx.shadowBlur=0; ctx.globalAlpha=1;
+}
+function drawCountdown(n){
+  ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='900 90px Pretendard'; ctx.textBaseline='middle';
+  ctx.shadowColor='rgba(0,0,0,.5)'; ctx.shadowBlur=16;
+  ctx.fillText(n>0?n:'GO!', cssW/2, cssH/2); ctx.shadowBlur=0;
+}
+function roundRect(x,y,w,h,r){ ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+// ============================================================
+//  종료 / 결과
+// ============================================================
+function finish(){
+  G.running=false; bgmStop();
+  const rate = G.obstacles.length? G.hits/G.obstacles.length : 0;
+  let medal='🥉', title='완주!', cheer='끝까지 달렸어요';
+  if(rate>=0.8){ medal='🥇'; title='금메달!'; cheer='완벽한 질주였어요'; }
+  else if(rate>=0.5){ medal='🥈'; title='은메달!'; cheer='훌륭해요'; }
+  $("medalEmoji").textContent=medal; $("doneTitle").textContent=title; $("doneRes").textContent=cheer;
+  $("sDist").textContent=Math.floor(G.dist)+'m';
+  $("sCombo").textContent=G.maxCombo;
+  $("sHit").textContent=G.hits+'/'+G.obstacles.length;
+  $("sRP").textContent=G.score+' RP';
+  show('done'); fireConfetti();
+}
+
+// 폭죽 (숨-핏 패턴)
+const cfc=$("confetti"), cfx=cfc.getContext('2d'); let cfRAF=null;
+const CFCOL=['#37d6ff','#9be635','#ffd34e','#e85cff','#ff5d6c'];
+function fireConfetti(){
+  cfc.classList.add('on');
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  const w=cfc.width=innerWidth*dpr, h=cfc.height=innerHeight*dpr;
+  cfc.style.width=innerWidth+'px'; cfc.style.height=innerHeight+'px';
+  const parts=[]; const burst=(cxp,cyp)=>{ const n=40+Math.random()*20, base=CFCOL[Math.floor(Math.random()*CFCOL.length)];
+    for(let i=0;i<n;i++){ const a=(Math.PI*2*i)/n+Math.random()*.3, sp=(2+Math.random()*4.5)*dpr;
+      parts.push({x:cxp,y:cyp,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,
+        color:Math.random()<.3?CFCOL[Math.floor(Math.random()*CFCOL.length)]:base,life:1,size:(1.6+Math.random()*2.4)*dpr}); } };
+  burst(w*.35,h*.3); burst(w*.65,h*.27);
+  let t0=null,since=0;
+  const frame=(ts)=>{ if(t0==null)t0=ts; const el=ts-t0; cfx.clearRect(0,0,w,h);
+    since+=16; if(el<1700&&since>260){ since=0; burst(w*(.15+Math.random()*.7),h*(.12+Math.random()*.4)); }
+    for(let i=parts.length-1;i>=0;i--){ const p=parts[i]; p.vy+=.05*dpr; p.vx*=.985; p.vy*=.985;
+      p.x+=p.vx; p.y+=p.vy; p.life-=.012; if(p.life<=0){parts.splice(i,1);continue;}
+      cfx.globalAlpha=Math.max(0,p.life); cfx.fillStyle=p.color;
+      cfx.beginPath(); cfx.arc(p.x,p.y,p.size,0,7); cfx.fill(); }
+    cfx.globalAlpha=1;
+    if(el<2600||parts.length>0) cfRAF=requestAnimationFrame(frame);
+    else cfc.classList.remove('on');
+  };
+  cfRAF=requestAnimationFrame(frame);
+}
+
+// ============================================================
+//  이벤트
+// ============================================================
+$("startBtn").addEventListener('click', async ()=>{
+  const err=$("introErr"); err.style.display='none';
+  try{
+    if(!faceLM) await loadModel();
+    $("loadText").textContent='카메라를 켜는 중…';
+    await startCamera(calVideo);
+    $("loading").classList.remove('active');
+    runCalibration();
+  }catch(e){
+    $("loading").classList.remove('active'); console.error(e);
+    let msg='오류가 발생했어요: '+(e.message||e);
+    if(e.name==='NotAllowedError') msg='카메라 권한이 필요해요. 브라우저 설정에서 허용해 주세요.';
+    if(e.name==='NotFoundError') msg='카메라를 찾을 수 없어요.';
+    err.textContent=msg; err.style.display='block';
+  }
+});
+$("calSkip").addEventListener('click', ()=>{ if(calRAF)cancelAnimationFrame(calRAF); startGame(); });
+$("gExit").addEventListener('click', ()=>{ if(G)G.running=false; bgmStop(); stopCamera(); show('intro'); });
+$("gMute").addEventListener('click', ()=>{ muted=!muted; $("gMute").textContent=muted?'🔇':'🔊'; if(master)master.gain.value=muted?0:.5; });
+$("againBtn").addEventListener('click', ()=>{ if(actx&&actx.state==='suspended')actx.resume(); startGame(); });
+$("homeBtn").addEventListener('click', ()=>{ stopCamera(); show('intro'); });
+
+window.__fl={ CAL, startGame, get G(){return G;} };
+</script>
+</body>
 </html>
