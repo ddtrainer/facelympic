@@ -205,7 +205,9 @@ function stopCamera(){ if(stream) stream.getTracks().forEach(t=>t.stop()); strea
 
 // 신호 스무딩(EMA): 떨림·순간 오인식을 줄여 더 안정적이고 정확하게
 const SM = { smile:0, jaw:0, pucker:0, roll:0, pitch:0 };
-const SM_A = 0.4;   // 0~1, 클수록 즉각적 / 작을수록 부드러움
+const A_SLOW = 0.45;  // 연속 제어(부드럽게): 웃음(속도)·고개기울기(조향)
+const A_FAST = 0.85;  // 즉각 반응(거의 실시간): 입벌리기·오므리기·끄덕
+const A = { smile:A_SLOW, roll:A_SLOW, jaw:A_FAST, pucker:A_FAST, pitch:A_FAST };
 const SM_KEYS = ['smile','jaw','pucker','roll','pitch'];
 let lostFrames = 0; // 얼굴 잠깐 놓침에 대한 관용(깜빡임 방지)
 
@@ -231,7 +233,7 @@ function readSignals(now){
   if(raw){
     lostFrames = 0; out.ok = true;
     for(const k of SM_KEYS){
-      SM[k] += (raw[k]-SM[k])*SM_A;   // EMA 스무딩
+      SM[k] += (raw[k]-SM[k])*A[k];   // 신호별 EMA(즉각 동작은 빠르게)
       out[k] = SM[k];
     }
   } else {
@@ -411,10 +413,10 @@ function startGame(){
 }
 let loopGen=0;
 
-// rep 상태머신: 정규화 신호 norm 받아 1회 완료 시 true
+// rep 상태머신: 동작을 "시작하는 순간" 즉시 true (닫을 때 기다리지 않음)
 function repStep(key, n){
-  if(G.rep[key]==='ready' && n>0.55){ G.rep[key]='active'; return false; }
-  if(G.rep[key]==='active' && n<0.25){ G.rep[key]='ready'; return true; }
+  if(G.rep[key]==='ready' && n>0.5){ G.rep[key]='active'; return true; }
+  if(G.rep[key]==='active' && n<0.25){ G.rep[key]='ready'; return false; }
   return false;
 }
 
@@ -454,7 +456,7 @@ function resolve(o){
     const fwd = o.type==='monster'? 10 : 3;
     G.dist += fwd; G.speed = Math.min(20, G.speed + (o.type==='monster'?5:2));
     setFlash('rgba(120,230,90,.25)');
-    if(o.type==='monster'){ sfx.boom(); spawnBoom(cssW/2, cssH*0.58); G.shake=18; setFlash('rgba(255,170,50,.35)'); setFeed('💥 꽝!','#ffd34e'); }
+    if(o.type==='monster'){ sfx.boom(); spawnBoom(o._sx||cssW/2, o._sy||cssH*0.55); G.shake=18; setFlash('rgba(255,170,50,.35)'); setFeed('💥 꽝!','#ffd34e'); }
     else if(o.type==='food'){ sfx.coin(); setFeed('냠냠!','#ffd34e'); }
     else if(o.type==='arrow'){ sfx.dodge(); setFeed('NICE!','#37d6ff'); }
     else { sfx.nice(); setFeed('점프!','#37d6ff'); }
@@ -518,8 +520,8 @@ function gameLoop(now, gen){
 
   // ---- 먹기/괴물 rep → 활성 오브젝트로 라우팅 ----
   if(sig.ok){
-    if(repStep('jaw', norm('jaw',sig.jaw))){ if(act&&act.type==='food'&&act.bites<1){ act.bites++; sfx.eat(); } }
-    if(repStep('pucker', norm('pucker',sig.pucker))){ if(act&&act.type==='monster'&&act.charge<1){ act.charge++; sfx.break(); } }
+    if(repStep('jaw', norm('jaw',sig.jaw)) && act && act.type==='food' && !act.resolved){ act.bites=1; resolve(act); }       // 입 벌리는 즉시 먹기
+    if(repStep('pucker', norm('pucker',sig.pucker)) && act && act.type==='monster' && !act.resolved){ act.charge=1; resolve(act); } // 오므리는 즉시 꽝
   }
 
   // ---- 전진 & 판정 ----
@@ -593,6 +595,7 @@ function drawScene(sig, speed){
       const ox=cx + o.lane*roadHalf*0.7;
       const oy=yD(d);
       const sc=0.5+ff*2.6;
+      o._sx=ox; o._sy=oy;   // 즉시 격파 시 폭발 위치로 사용
       if(o.type==='arrow'){
         drawArrow(ox, oy-14*sc, sc);
       } else {
