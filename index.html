@@ -400,7 +400,7 @@ function startGame(){
   show('game'); resize(); initAudio(); if(actx.state==='suspended') actx.resume();
   G = {
     dist:0, speed:4, px:0, py:0, vy:0, grounded:true, sN:0, boosting:false,
-    pitchBase:null, nodReady:true, fx:[],
+    pitchBase:null, nodReady:true, jumpCd:0, fx:[],
     obstacles:makeObstacles(),
     speedScore:0, missionScore:0, combo:0, maxCombo:0, hits:0,
     rep:{ jaw:'ready', pucker:'ready' },
@@ -505,12 +505,13 @@ function gameLoop(now, gen){
 
   // ---- 점프: 고개 끄덕(pitch 급변) ----
   if(G.pitchBase==null) G.pitchBase=sig.pitch;
-  G.pitchBase += (sig.pitch-G.pitchBase)*0.04;     // 느린 기준선(개인별 중립 자동 적응)
-  const nod = sig.pitch - G.pitchBase;             // 끄덕이면 기준선에서 급격히 벗어남
-  if(sig.ok && G.nodReady && Math.abs(nod)>0.06 && G.grounded){
-    G.vy=10.8; G.grounded=false; G.nodReady=false; sfx.jump();   // 더 높이
+  G.pitchBase += (sig.pitch-G.pitchBase)*0.012;    // 매우 느린 기준선 → 끄덕 반동(double jump) 제거
+  const nod = sig.pitch - G.pitchBase;
+  if(G.jumpCd>0) G.jumpCd-=dt;                      // 점프 쿨다운
+  if(sig.ok && G.nodReady && G.jumpCd<=0 && Math.abs(nod)>0.06 && G.grounded){
+    G.vy=10.8; G.grounded=false; G.nodReady=false; G.jumpCd=0.5; sfx.jump();   // 한 번만
   }
-  if(Math.abs(nod)<0.025) G.nodReady=true;         // 중립 복귀 시 다음 끄덕 받을 준비
+  if(Math.abs(nod)<0.03) G.nodReady=true;          // 중립으로 돌아와야 다음 끄덕 인정
   if(!G.grounded){ G.vy-=20*dt; G.py+=G.vy*dt; if(G.py<=0){ G.py=0; G.grounded=true; G.vy=0; sfx.land(); } }
 
   // ---- 폭발 입자 업데이트 ----
