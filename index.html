@@ -508,10 +508,10 @@ function gameLoop(now, gen){
   G.pitchBase += (sig.pitch-G.pitchBase)*0.04;     // 느린 기준선(개인별 중립 자동 적응)
   const nod = sig.pitch - G.pitchBase;             // 끄덕이면 기준선에서 급격히 벗어남
   if(sig.ok && G.nodReady && Math.abs(nod)>0.06 && G.grounded){
-    G.vy=7.6; G.grounded=false; G.nodReady=false; sfx.jump();
+    G.vy=10.8; G.grounded=false; G.nodReady=false; sfx.jump();   // 더 높이
   }
   if(Math.abs(nod)<0.025) G.nodReady=true;         // 중립 복귀 시 다음 끄덕 받을 준비
-  if(!G.grounded){ G.vy-=22*dt; G.py+=G.vy*dt; if(G.py<=0){ G.py=0; G.grounded=true; G.vy=0; sfx.land(); } }
+  if(!G.grounded){ G.vy-=20*dt; G.py+=G.vy*dt; if(G.py<=0){ G.py=0; G.grounded=true; G.vy=0; sfx.land(); } }
 
   // ---- 폭발 입자 업데이트 ----
   for(let i=G.fx.length-1;i>=0;i--){ const p=G.fx[i];
