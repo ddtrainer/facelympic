@@ -110,8 +110,8 @@
       <div class="move"><span class="e">😊</span><div><b>웃기</b><span>달리기 · 부스터</span></div></div>
       <div class="move"><span class="e">🙇</span><div><b>고개 끄덕</b><span>점프</span></div></div>
       <div class="move"><span class="e">↔️</span><div><b>고개 기울이기</b><span>좌우 피하기</span></div></div>
-      <div class="move"><span class="e">😮</span><div><b>입 벌리기 ×5</b><span>음식 먹기</span></div></div>
-      <div class="move"><span class="e">😗</span><div><b>입 오므리기 ×3</b><span>괴물 꽝!</span></div></div>
+      <div class="move"><span class="e">😮</span><div><b>입 벌리기</b><span>음식 먹기</span></div></div>
+      <div class="move"><span class="e">😗</span><div><b>입 오므리기</b><span>괴물 꽝!</span></div></div>
     </div>
     <button class="btn btn-primary" id="startBtn">시작하기</button>
     <p class="err" id="introErr"></p>
@@ -443,16 +443,15 @@ function resolve(o){
   let ok=false;
   if(o.type==='hurdle') ok = !G.grounded;
   else if(o.type==='arrow') ok = (G.px*o.lane < -0.15) && Math.abs(G.px)>0.35;
-  else if(o.type==='monster') ok = o.charge>=3;
-  else if(o.type==='food') ok = o.bites>=1; // 한 입이라도 먹으면 성공(점수는 비례)
+  else if(o.type==='monster') ok = o.charge>=1; // 입 오므리기 1회로 격파
+  else if(o.type==='food') ok = o.bites>=1;     // 입 벌리기 1회로 먹기
   o.result=ok;
   if(ok){
     G.combo++; G.maxCombo=Math.max(G.maxCombo,G.combo); G.hits++;
-    let pts = o.type==='food'? o.bites*20 : 100;
-    pts += G.combo*10; G.score+=pts;
+    let pts = 100 + G.combo*10; G.score+=pts;
     setFlash('rgba(120,230,90,.25)');
     if(o.type==='monster'){ sfx.boom(); spawnBoom(cssW/2, cssH*0.58); G.shake=18; setFlash('rgba(255,170,50,.35)'); setFeed('💥 꽝!','#ffd34e'); }
-    else if(o.type==='food'){ sfx.coin(); setFeed('냠냠 +'+o.bites,'#ffd34e'); }
+    else if(o.type==='food'){ sfx.coin(); setFeed('냠냠!','#ffd34e'); }
     else if(o.type==='arrow'){ sfx.dodge(); setFeed('NICE!','#37d6ff'); }
     else { sfx.nice(); setFeed('점프!','#37d6ff'); }
   }else{
@@ -514,8 +513,8 @@ function gameLoop(now, gen){
 
   // ---- 먹기/괴물 rep → 활성 오브젝트로 라우팅 ----
   if(sig.ok){
-    if(repStep('jaw', norm('jaw',sig.jaw))){ if(act&&act.type==='food'&&act.bites<5){ act.bites++; sfx.eat(); } }
-    if(repStep('pucker', norm('pucker',sig.pucker))){ if(act&&act.type==='monster'&&act.charge<3){ act.charge++; sfx.break(); } }
+    if(repStep('jaw', norm('jaw',sig.jaw))){ if(act&&act.type==='food'&&act.bites<1){ act.bites++; sfx.eat(); } }
+    if(repStep('pucker', norm('pucker',sig.pucker))){ if(act&&act.type==='monster'&&act.charge<1){ act.charge++; sfx.break(); } }
   }
 
   // ---- 전진 & 판정 ----
@@ -592,11 +591,6 @@ function drawScene(sig, speed){
       const em = o.type==='food'? FOODS[(o.at|0)%FOODS.length] : ICON[o.type];
       ctx.font=`${Math.round(30*sc)}px serif`; ctx.textAlign='center'; ctx.textBaseline='alphabetic';
       ctx.fillText(em, ox, oy);
-      // 진행 표시(먹기/괴물)
-      if(ahead<ACT){
-        if(o.type==='food'){ drawMini(ox,oy-34*sc,o.bites,5,'#ffd34e'); }
-        if(o.type==='monster'){ drawMini(ox,oy-34*sc,o.charge,3,'#9be635'); }
-      }
     }
   }
 
@@ -661,11 +655,6 @@ function drawRunner(x,y,dist){
   ctx.beginPath(); ctx.moveTo(0,-12); ctx.lineTo(9,-2-arm*0.4); ctx.stroke();
   ctx.restore();
 }
-function drawMini(x,y,val,max,col){
-  const w=40,h=6; ctx.fillStyle='rgba(0,0,0,.5)'; ctx.fillRect(x-w/2,y,w,h);
-  ctx.fillStyle=col; ctx.fillRect(x-w/2,y,w*Math.min(1,val/max),h);
-  ctx.fillStyle='#fff'; ctx.font='11px Pretendard'; ctx.textAlign='center'; ctx.fillText(val+'/'+max,x,y-3);
-}
 function drawHUD(W,H,sig){
   // 거리
   ctx.fillStyle='#fff'; ctx.font='800 22px Pretendard'; ctx.textAlign='left'; ctx.textBaseline='top';
@@ -701,7 +690,7 @@ function drawHUD(W,H,sig){
     ctx.fillText('얼굴이 안 보여요',W/2,H*0.5); }
 }
 const CUE_TXT={ hurdle:['JUMP!','고개 끄덕! 점프'], arrow:['피해!','고개 기울여 피하기'],
-  food:['냠냠 ×5','입 벌려 먹기'], monster:['후~ ×3','입 오므려 꽝!'] };
+  food:['냠냠!','입 벌려 먹기'], monster:['후~!','입 오므려 꽝!'] };
 function drawCue(o,W,H){
   const [big,sub]=CUE_TXT[o.type];
   ctx.textAlign='center';
