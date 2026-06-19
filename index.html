@@ -202,6 +202,11 @@ async function startCamera(videoEl){
 }
 function stopCamera(){ if(stream) stream.getTracks().forEach(t=>t.stop()); stream=null; detVideo=null; }
 
+// 신호 스무딩(EMA): 떨림·순간 오인식을 줄여 더 안정적이고 정확하게
+const SM = { smile:0, brow:0, jaw:0, pucker:0, yaw:0 };
+const SM_A = 0.4;   // 0~1, 클수록 즉각적 / 작을수록 부드러움
+let lostFrames = 0; // 얼굴 잠깐 놓침에 대한 관용(깜빡임 방지)
+
 // 매 프레임 blendshape 신호 추출
 function readSignals(now){
   const out = { ok:false, smile:0, brow:0, jaw:0, pucker:0, yaw:0 };
@@ -209,16 +214,27 @@ function readSignals(now){
   if(detVideo.currentTime===lastVT) { out._stale=true; }
   lastVT = detVideo.currentTime;
   const res = faceLM.detectForVideo(detVideo, now);
+  let raw=null;
   if(res.faceBlendshapes && res.faceBlendshapes.length){
     const m={}; for(const c of res.faceBlendshapes[0].categories) m[c.categoryName]=c.score;
-    out.ok=true;
-    out.smile  = ((m.mouthSmileLeft||0)+(m.mouthSmileRight||0))/2;
-    out.brow   = ((m.browInnerUp||0)+(m.browOuterUpLeft||0)+(m.browOuterUpRight||0))/3;
-    out.jaw    = m.jawOpen||0;
-    out.pucker = Math.max(m.mouthPucker||0, m.mouthFunnel||0);
+    raw = {
+      smile : ((m.mouthSmileLeft||0)+(m.mouthSmileRight||0))/2,
+      brow  : ((m.browInnerUp||0)+(m.browOuterUpLeft||0)+(m.browOuterUpRight||0))/3,
+      jaw   : m.jawOpen||0,
+      pucker: Math.max(m.mouthPucker||0, m.mouthFunnel||0),
+      yaw   : (res.faceLandmarks && res.faceLandmarks.length) ? computeYaw(res.faceLandmarks[0]) : SM.yaw,
+    };
   }
-  if(res.faceLandmarks && res.faceLandmarks.length){
-    out.yaw = computeYaw(res.faceLandmarks[0]);   // 고개 좌우(화살 회피)
+  if(raw){
+    lostFrames = 0; out.ok = true;
+    for(const k of ['smile','brow','jaw','pucker','yaw']){
+      SM[k] += (raw[k]-SM[k])*SM_A;   // EMA 스무딩
+      out[k] = SM[k];
+    }
+  } else {
+    // 얼굴을 잠깐(약 6프레임) 놓쳐도 직전 값 유지 → 깜빡임/끊김 방지
+    if(++lostFrames < 6){ out.ok=true; for(const k of ['smile','brow','jaw','pucker','yaw']) out[k]=SM[k]; }
+    else { for(const k in SM) SM[k]=0; }
   }
   return out;
 }
@@ -351,7 +367,7 @@ function resize(){
 }
 window.addEventListener('resize',()=>{ if(screens.game.classList.contains('active')) resize(); });
 
-const TARGET=100;        // 100m
+const TARGET=300;        // 트랙 길이(m) — 더 길게
 const VIEW=42;           // 보이는 거리(m)
 const ACT=20;            // 액션 활성 거리(m)
 let G;                   // 게임 상태
@@ -375,7 +391,7 @@ function makeObstacles(){
 function startGame(){
   show('game'); resize(); initAudio(); if(actx.state==='suspended') actx.resume();
   G = {
-    dist:0, speed:5, px:0, py:0, vy:0, grounded:true,
+    dist:0, speed:4, px:0, py:0, vy:0, grounded:true, sN:0, boosting:false,
     obstacles:makeObstacles(),
     score:0, combo:0, maxCombo:0, hits:0,
     rep:{ jaw:'ready', pucker:'ready', brow:'ready' },
@@ -448,16 +464,17 @@ function gameLoop(now, gen){
 
   const act = activeObstacle();
 
-  // ---- 속도(연속): 웃음 강도 ----
+  // ---- 속도(연속): 웃음이 강할수록 빨라짐 (무표정→미소→활짝) ----
   const sN = sig.ok? norm('smile',sig.smile):0;
-  let targetSpeed;
-  if(sN<0.15) targetSpeed=5;            // 무표정=걷기
-  else if(sN<0.55) targetSpeed=9;       // 입꼬리=달리기
-  else targetSpeed=9 + (sN-0.55)/0.45*7;// 활짝=부스터(최대16)
-  // 입을 쓰는 챌린지 중엔 속도 바닥 보장
-  if(act && (act.type==='food'||act.type==='monster'||act.type==='arrow')) targetSpeed=Math.max(targetSpeed,7);
-  if(sN>0.55 && targetSpeed>G.speed+3 && Math.random()<.04) sfx.boost();
-  G.speed += (targetSpeed-G.speed)*Math.min(1,dt*4);
+  const WALK=4, MAXSP=19;
+  // 부드러운 곡선: 살짝만 웃어도 즉시 반응하고, 활짝 웃을수록 끝까지 빨라짐
+  const curve = sN<0.04 ? 0 : Math.pow(sN, 0.8);
+  let targetSpeed = WALK + curve*(MAXSP-WALK);
+  // 입을 쓰는 챌린지 중엔 속도 바닥 보장(달리기 유지)
+  if(act && (act.type==='food'||act.type==='monster'||act.type==='arrow')) targetSpeed=Math.max(targetSpeed,8);
+  G.sN = sN; G.boosting = sN>0.62;
+  if(G.boosting && targetSpeed>G.speed+2 && Math.random()<.05) sfx.boost();
+  G.speed += (targetSpeed-G.speed)*Math.min(1,dt*6);   // 반응 더 빠르게
 
   // ---- 좌우 이동(화살 회피): 고개 좌우(yaw) ----
   const YAW_SIGN=1, dead=0.12;          // 실기기에서 좌우가 반대로 느껴지면 YAW_SIGN을 -1로
@@ -623,12 +640,20 @@ function drawHUD(W,H,sig){
   // 거리
   ctx.fillStyle='#fff'; ctx.font='800 22px Pretendard'; ctx.textAlign='left'; ctx.textBaseline='top';
   ctx.fillText((G?Math.floor(G.dist):0)+'m', 16, 14);
+  // 속도 게이지 + 코칭(웃음→속도)
+  const gw=120, gh=9, gx=16, gy=44;
+  const spN = G? Math.max(0,Math.min(1,(G.speed-4)/15)) : 0;
+  const gcol = G&&G.boosting? '#ffd34e' : (G&&G.speed>8? '#37d6ff':'#9fb3d8');
+  ctx.fillStyle='rgba(255,255,255,.18)'; roundRect(gx,gy,gw,gh,5); ctx.fill();
+  ctx.fillStyle=gcol; roundRect(gx,gy, gw*spN, gh,5); ctx.fill();
+  ctx.fillStyle=gcol; ctx.font='800 12px Pretendard'; ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText(G&&G.boosting?'🔥 부스터!':(G&&G.speed>8?'🏃 달리는 중':'😀 더 활짝 웃어요'), gx, gy+13);
   // 진행 바
   const bx=W*0.30, bw=W*0.40, by=22, bh=10;
   ctx.fillStyle='rgba(255,255,255,.2)'; roundRect(bx,by,bw,bh,5); ctx.fill();
   ctx.fillStyle='#37d6ff'; roundRect(bx,by, bw*Math.min(1,(G?G.dist:0)/TARGET), bh,5); ctx.fill();
-  ctx.fillStyle='#fff'; ctx.font='700 13px Pretendard'; ctx.textAlign='right';
-  ctx.fillText('100m', bx+bw+44, 20); ctx.textAlign='left'; ctx.fillText('LEVEL 1', bx-72, 20);
+  ctx.fillStyle='#fff'; ctx.font='700 13px Pretendard'; ctx.textAlign='right'; ctx.textBaseline='top';
+  ctx.fillText(TARGET+'m', bx+bw+44, 14); ctx.textAlign='left'; ctx.fillText('LEVEL 1', bx-72, 14);
   // 콤보
   if(G && G.combo>1){ ctx.fillStyle='#ffd34e'; ctx.font='900 20px Pretendard'; ctx.textAlign='right';
     ctx.fillText(G.combo+' COMBO', W-16, 46); }
