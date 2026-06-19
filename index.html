@@ -144,11 +144,11 @@
     <h2 id="doneTitle">결승선 통과!</h2>
     <p class="res" id="doneRes">멋지게 완주했어요</p>
     <div class="scards">
-      <div class="scard"><div class="v" id="sDist">0m</div><div class="l">거리</div></div>
-      <div class="scard"><div class="v" id="sCombo">0</div><div class="l">최고 콤보</div></div>
-      <div class="scard"><div class="v" id="sHit">0</div><div class="l">성공</div></div>
+      <div class="scard"><div class="v" id="sSpeedSc">0</div><div class="l">⚡ 스피드 점수</div></div>
+      <div class="scard"><div class="v" id="sMissionSc">0</div><div class="l">🎯 미션 점수</div></div>
+      <div class="scard"><div class="v" id="sHit">0</div><div class="l">미션 성공</div></div>
     </div>
-    <div class="rp"><span class="l">획득 레이스 포인트</span><span class="v" id="sRP">0 RP</span></div>
+    <div class="rp"><span class="l">총 레이스 포인트</span><span class="v" id="sRP">0 RP</span></div>
     <button class="btn btn-primary" id="againBtn" style="max-width:380px;">다시 달리기</button>
     <button class="btn btn-ghost" id="homeBtn" style="max-width:380px;">처음으로</button>
   </section>
@@ -399,7 +399,7 @@ function startGame(){
     dist:0, speed:4, px:0, py:0, vy:0, grounded:true, sN:0, boosting:false,
     pitchBase:null, nodReady:true, fx:[],
     obstacles:makeObstacles(),
-    score:0, combo:0, maxCombo:0, hits:0,
+    speedScore:0, missionScore:0, combo:0, maxCombo:0, hits:0,
     rep:{ jaw:'ready', pucker:'ready' },
     flash:null, flashT:0, shake:0, cue:null, feed:null, feedT:0, slow:1,
     running:true, t:performance.now(), started:false, countdown:3.0,
@@ -448,7 +448,7 @@ function resolve(o){
   o.result=ok;
   if(ok){
     G.combo++; G.maxCombo=Math.max(G.maxCombo,G.combo); G.hits++;
-    let pts = 100 + G.combo*10; G.score+=pts;
+    let pts = 100 + G.combo*10; G.missionScore+=pts;
     setFlash('rgba(120,230,90,.25)');
     if(o.type==='monster'){ sfx.boom(); spawnBoom(cssW/2, cssH*0.58); G.shake=18; setFlash('rgba(255,170,50,.35)'); setFeed('💥 꽝!','#ffd34e'); }
     else if(o.type==='food'){ sfx.coin(); setFeed('냠냠!','#ffd34e'); }
@@ -488,6 +488,7 @@ function gameLoop(now, gen){
   G.sN = sN; G.boosting = sN>0.62;
   if(G.boosting && targetSpeed>G.speed+2 && Math.random()<.05) sfx.boost();
   G.speed += (targetSpeed-G.speed)*Math.min(1,dt*6);   // 반응 더 빠르게
+  G.speedScore += Math.max(0, G.speed-4) * dt * 6;     // 스피드 점수: 빠를수록 더 쌓임
 
   // ---- 좌우 이동(화살 회피): 고개 기울이기(roll) ----
   const ROLL_SIGN=1, deadR=0.10;        // rad(~6°). 실기기에서 좌우 반대면 ROLL_SIGN을 -1로
@@ -673,11 +674,15 @@ function drawHUD(W,H,sig){
   ctx.fillStyle='#37d6ff'; roundRect(bx,by, bw*Math.min(1,(G?G.dist:0)/TARGET), bh,5); ctx.fill();
   ctx.fillStyle='#fff'; ctx.font='700 13px Pretendard'; ctx.textAlign='right'; ctx.textBaseline='top';
   ctx.fillText(TARGET+'m', bx+bw+44, 14); ctx.textAlign='left'; ctx.fillText('LEVEL 1', bx-72, 14);
-  // 콤보
-  if(G && G.combo>1){ ctx.fillStyle='#ffd34e'; ctx.font='900 20px Pretendard'; ctx.textAlign='right';
-    ctx.fillText(G.combo+' COMBO', W-16, 46); }
-  ctx.fillStyle='#fff'; ctx.font='800 18px Pretendard'; ctx.textAlign='right'; ctx.textBaseline='top';
-  ctx.fillText((G?G.score:0)+' RP', W-16, 14);
+  // 점수판: 스피드 + 미션 → 합계 RP
+  const spd = G?Math.round(G.speedScore):0, msn = G?Math.round(G.missionScore):0;
+  ctx.textAlign='right'; ctx.textBaseline='top';
+  ctx.font='800 14px Pretendard'; ctx.fillStyle='#37d6ff'; ctx.fillText('⚡ 스피드 '+spd, W-16, 12);
+  ctx.fillStyle='#9be635'; ctx.fillText('🎯 미션 '+msn, W-16, 31);
+  ctx.font='900 20px Pretendard'; ctx.fillStyle='#ffd34e'; ctx.fillText((spd+msn)+' RP', W-16, 52);
+  // 콤보(중앙 상단)
+  if(G && G.combo>1){ ctx.textAlign='center'; ctx.fillStyle='#ffd34e'; ctx.font='900 18px Pretendard';
+    ctx.fillText('🔥 '+G.combo+' COMBO', W/2, 42); }
 
   // 미니 웹캠 PIP
   const pw=92,ph=72, px=W-pw-12, py=H-ph-12;
@@ -726,10 +731,11 @@ function finish(){
   if(rate>=0.8){ medal='🥇'; title='금메달!'; cheer='완벽한 질주였어요'; }
   else if(rate>=0.5){ medal='🥈'; title='은메달!'; cheer='훌륭해요'; }
   $("medalEmoji").textContent=medal; $("doneTitle").textContent=title; $("doneRes").textContent=cheer;
-  $("sDist").textContent=Math.floor(G.dist)+'m';
-  $("sCombo").textContent=G.maxCombo;
+  const spd=Math.round(G.speedScore), msn=Math.round(G.missionScore);
+  $("sSpeedSc").textContent=spd;
+  $("sMissionSc").textContent=msn;
   $("sHit").textContent=G.hits+'/'+G.obstacles.length;
-  $("sRP").textContent=G.score+' RP';
+  $("sRP").textContent=(spd+msn)+' RP';
   show('done'); fireConfetti();
 }
 
