@@ -372,9 +372,10 @@ function resize(){
 }
 window.addEventListener('resize',()=>{ if(screens.game.classList.contains('active')) resize(); });
 
-const TARGET=300;        // 트랙 길이(m) — 더 길게
-const VIEW=42;           // 보이는 거리(m)
+const TARGET=700;        // 트랙 길이(m) — 활발히 달리면 약 1분
+const VIEW=42;           // 오브젝트 보이는 거리(m)
 const ACT=20;            // 액션 활성 거리(m)
+const FINISH_VIEW=72;    // 결승 테이프가 멀리서부터 보이는 거리(m)
 let G;                   // 게임 상태
 
 // 깊이 d(0=플레이어, 1=먼곳) → 화면 투영 계수
@@ -388,7 +389,7 @@ function makeObstacles(){
     const type=order[i%order.length];
     arr.push({ type, at:d, lane: type==='arrow'? (Math.random()<.5?-1:1):0,
       resolved:false, charge:0, bites:0, result:null });
-    d += 10 + Math.random()*4; i++;
+    d += 15 + Math.random()*7; i++;   // 간격 넓힘(덜 빽빽하게)
   }
   return arr;
 }
@@ -449,6 +450,9 @@ function resolve(o){
   if(ok){
     G.combo++; G.maxCombo=Math.max(G.maxCombo,G.combo); G.hits++;
     let pts = 100 + G.combo*10; G.missionScore+=pts;
+    // 동작 성공 → 결승선으로 전진 부스트(많이 할수록 빨리 도달). 괴물 격파가 가장 큼
+    const fwd = o.type==='monster'? 10 : 3;
+    G.dist += fwd; G.speed = Math.min(20, G.speed + (o.type==='monster'?5:2));
     setFlash('rgba(120,230,90,.25)');
     if(o.type==='monster'){ sfx.boom(); spawnBoom(cssW/2, cssH*0.58); G.shake=18; setFlash('rgba(255,170,50,.35)'); setFeed('💥 꽝!','#ffd34e'); }
     else if(o.type==='food'){ sfx.coin(); setFeed('냠냠!','#ffd34e'); }
@@ -537,8 +541,8 @@ function gameLoop(now, gen){
 // ============================================================
 //  렌더링 (2.5D)
 // ============================================================
-const ICON = { hurdle:'🚧', arrow:'🏹', food:'🍜', monster:'👹' };
-const FOODS=['🍜','🍕','🍣','🌮','🥟','🍙','🥨','🍤'];
+const ICON = { hurdle:'🚧', food:'🍔', monster:'👹' };
+const FOODS=['🍔','🍗'];   // 햄버거 · 치킨
 function drawScene(sig, speed){
   const W=cssW,H=cssH, cx=W/2, horizon=H*0.40;
   let sx=0,sy=0; if(G && G.shake>0){ sx=(Math.random()-.5)*G.shake; sy=(Math.random()-.5)*G.shake; }
@@ -589,20 +593,45 @@ function drawScene(sig, speed){
       const ox=cx + o.lane*roadHalf*0.7;
       const oy=yD(d);
       const sc=0.5+ff*2.6;
-      const em = o.type==='food'? FOODS[(o.at|0)%FOODS.length] : ICON[o.type];
-      ctx.font=`${Math.round(30*sc)}px serif`; ctx.textAlign='center'; ctx.textBaseline='alphabetic';
-      ctx.fillText(em, ox, oy);
+      if(o.type==='arrow'){
+        drawArrow(ox, oy-14*sc, sc);
+      } else {
+        const em = o.type==='food'? FOODS[(o.at|0)%FOODS.length] : ICON[o.type];
+        ctx.font=`${Math.round(30*sc)}px serif`; ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+        ctx.fillText(em, ox, oy);
+      }
+    }
+  }
+
+  // 결승 테이프 (멀리서부터 보임)
+  if(G){
+    const fa = TARGET - G.dist;
+    if(fa>0 && fa<FINISH_VIEW){
+      const dd=Math.min(1, fa/VIEW), ff2=f(dd), yy=yD(dd);
+      const hw=topHalf+(bottomHalf-topHalf)*ff2;
+      const lx=cx-hw, rx=cx+hw, postH=48*ff2+8, tapeY=yy-postH;
+      // 체커 바닥선
+      const cells=10, cw=(2*hw)/cells, ch=4+ff2*16;
+      for(let i=0;i<cells;i++){ ctx.fillStyle=i%2?'#10141c':'#f2f6ff'; ctx.fillRect(lx+i*cw, yy-ch/2, cw+1, ch); }
+      // 기둥
+      ctx.fillStyle='#e0473a'; ctx.fillRect(lx-3,tapeY,6,postH); ctx.fillRect(rx-3,tapeY,6,postH);
+      // 테이프(끊는 리본)
+      ctx.strokeStyle='#ffe14d'; ctx.lineWidth=3+5*ff2;
+      ctx.beginPath(); ctx.moveTo(lx,tapeY+5); ctx.lineTo(rx,tapeY+5); ctx.stroke();
+      // 🏁 FINISH
+      ctx.fillStyle='#fff'; ctx.font=`900 ${Math.round(11+ff2*22)}px Pretendard`; ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+      ctx.fillText('🏁 FINISH', cx, tapeY-7);
     }
   }
 
   // 플레이어
   if(G){
-    const py=yD(0)-18 - G.py*46;
+    const footY=yD(0)-4 - G.py*52;
     const pxs=cx + G.px*bottomHalf*0.62;
     // 그림자
-    ctx.fillStyle='rgba(0,0,0,.35)'; ctx.beginPath();
-    ctx.ellipse(cx+G.px*bottomHalf*0.62, yD(0)-10, 34-G.py*10, 11, 0,0,7); ctx.fill();
-    drawRunner(pxs,py, G.dist);
+    ctx.fillStyle='rgba(0,0,0,.32)'; ctx.beginPath();
+    ctx.ellipse(pxs, yD(0)-4, 30-G.py*8, 10, 0,0,7); ctx.fill();
+    drawRunner(pxs, footY, G.dist);
   }
 
   // 속도선(부스터)
@@ -641,19 +670,53 @@ function drawHills(W,h,off,amp,base){
   for(; x<W+80; x+=step){ const y=base - Math.abs(Math.sin(x*0.01+off*0.002))*amp; ctx.lineTo(x,y); }
   ctx.lineTo(W+20,h+20); ctx.closePath(); ctx.fill();
 }
+// 날아오는 화살 (아래=플레이어 쪽을 향함)
+function drawArrow(x,y,sc){
+  ctx.save(); ctx.translate(x,y);
+  const L=24*sc, w=8*sc;
+  ctx.strokeStyle='#b9381f'; ctx.lineWidth=Math.max(2,4*sc); ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(0,-L); ctx.lineTo(0,L*0.45); ctx.stroke();        // 화살대
+  ctx.fillStyle='#e74c3c';                                                       // 화살촉(아래)
+  ctx.beginPath(); ctx.moveTo(0,L); ctx.lineTo(-w,L*0.35); ctx.lineTo(w,L*0.35); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#f5c451';                                                       // 깃(위)
+  ctx.beginPath(); ctx.moveTo(0,-L); ctx.lineTo(-w*0.95,-L*0.62); ctx.lineTo(0,-L*0.5); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(0,-L); ctx.lineTo(w*0.95,-L*0.62); ctx.lineTo(0,-L*0.5); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+// 러너 캐릭터 (발 위치 = x,y 기준, 위로 그림)
 function drawRunner(x,y,dist){
-  const bob=Math.sin(dist*2.2)*3;
-  ctx.save(); ctx.translate(x,y+bob);
-  // 몸
-  ctx.fillStyle='#0a1428'; ctx.strokeStyle='#37d6ff'; ctx.lineWidth=3;
-  ctx.beginPath(); ctx.arc(0,-30,12,0,7); ctx.fill(); ctx.stroke();        // 머리
-  ctx.beginPath(); ctx.moveTo(0,-18); ctx.lineTo(0,2); ctx.stroke();        // 몸통
-  const leg=Math.sin(dist*7)*8;
-  ctx.beginPath(); ctx.moveTo(0,2); ctx.lineTo(-7,16+leg*0.5); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(0,2); ctx.lineTo(7,16-leg*0.5); ctx.stroke();
-  const arm=Math.sin(dist*7+1)*7;
-  ctx.beginPath(); ctx.moveTo(0,-12); ctx.lineTo(-9,-2+arm*0.4); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(0,-12); ctx.lineTo(9,-2-arm*0.4); ctx.stroke();
+  const bob=Math.sin(dist*2.6)*2.5;
+  const ph=Math.sin(dist*9), arm=Math.sin(dist*9+Math.PI);
+  ctx.save(); ctx.translate(x,y+bob); ctx.lineCap='round';
+  // 다리
+  ctx.strokeStyle='#13294d'; ctx.lineWidth=11;
+  ctx.beginPath(); ctx.moveTo(0,-30); ctx.lineTo(10*ph,-2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,-30); ctx.lineTo(-10*ph,-2); ctx.stroke();
+  // 신발
+  ctx.strokeStyle='#ff5d6c'; ctx.lineWidth=6;
+  ctx.beginPath(); ctx.moveTo(10*ph,-2); ctx.lineTo(10*ph+7,-1); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-10*ph,-2); ctx.lineTo(-10*ph-7,-1); ctx.stroke();
+  // 뒤쪽 팔
+  ctx.strokeStyle='#1488c4'; ctx.lineWidth=9;
+  ctx.beginPath(); ctx.moveTo(0,-56); ctx.lineTo(-15,-40-10*arm); ctx.stroke();
+  // 몸통(유니폼)
+  const g=ctx.createLinearGradient(0,-62,0,-26); g.addColorStop(0,'#46e0ff'); g.addColorStop(1,'#1488c4');
+  ctx.fillStyle=g; roundRect(-14,-64,28,38,12); ctx.fill();
+  // 등번호
+  ctx.fillStyle='#eaf9ff'; ctx.font='900 15px Pretendard'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('1',0,-45);
+  // 앞쪽 팔
+  ctx.strokeStyle='#37d6ff'; ctx.lineWidth=9;
+  ctx.beginPath(); ctx.moveTo(0,-56); ctx.lineTo(15,-40+10*arm); ctx.stroke();
+  // 머리
+  ctx.fillStyle='#ffd9a8'; ctx.beginPath(); ctx.arc(0,-78,15,0,7); ctx.fill();
+  // 헤어밴드(머리에 클립)
+  ctx.save(); ctx.beginPath(); ctx.arc(0,-78,15,0,7); ctx.clip();
+  ctx.fillStyle='#ff5d6c'; ctx.fillRect(-15,-90,30,8); ctx.restore();
+  // 눈
+  ctx.fillStyle='#13294d'; ctx.beginPath(); ctx.arc(-5,-77,2.4,0,7); ctx.fill();
+  ctx.beginPath(); ctx.arc(6,-77,2.4,0,7); ctx.fill();
   ctx.restore();
 }
 function drawHUD(W,H,sig){
