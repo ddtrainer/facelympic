@@ -1,0 +1,4 @@
+dev.out.log
+dev.err.log
+node_modules/
+.vercel/

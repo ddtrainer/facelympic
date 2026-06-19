@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Facelympic</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="stadium-panel" aria-label="페이셀림픽 경기장">
+        <div class="scoreboard">
+          <p class="kicker">FACELYMPIC 100M</p>
+          <h1>웃으면 빨라진다</h1>
+          <p class="subtitle">표정으로 달리는 얼굴 근육 경주 게임</p>
+        </div>
+
+        <div class="track" aria-hidden="true">
+          <div class="lane lane-one"></div>
+          <div class="lane lane-two">
+            <div class="runner-face">
+              <span class="eye"></span>
+              <span class="eye"></span>
+              <span class="smile"></span>
+            </div>
+          </div>
+          <div class="lane lane-three"></div>
+          <div class="finish-line"></div>
+        </div>
+      </section>
+
+      <section class="control-panel" aria-label="메인 메뉴">
+        <div class="camera-card">
+          <video id="cameraPreview" autoplay playsinline muted></video>
+          <div id="cameraPlaceholder" class="camera-placeholder">
+            <span class="camera-icon" aria-hidden="true"></span>
+            <strong>카메라 준비</strong>
+          </div>
+        </div>
+
+        <div class="status-row">
+          <span id="cameraStatus" class="status-pill">카메라 대기</span>
+          <span class="status-pill secondary">무료 체험</span>
+        </div>
+
+        <nav class="action-grid" aria-label="게임 시작 메뉴">
+          <button id="trainingButton" class="primary-action" type="button">
+            <span>기초 훈련</span>
+            <small>7개 표정 연습</small>
+          </button>
+          <button id="raceButton" class="primary-action accent" type="button">
+            <span>100m 경기</span>
+            <small>첫 MVP 종목</small>
+          </button>
+          <button id="recordsButton" class="primary-action muted" type="button">
+            <span>기록 보기</span>
+            <small>내 최고 기록</small>
+          </button>
+        </nav>
+
+        <section id="modePanel" class="mode-panel" aria-live="polite">
+          <h2>바로 시작하세요</h2>
+          <p>카메라를 켜고 입꼬리를 올리면 캐릭터가 달립니다.</p>
+          <button id="cameraButton" class="camera-button" type="button">카메라 켜기</button>
+        </section>
+
+        <section class="signal-panel" aria-label="표정 인식 상태">
+          <h2>표정 신호</h2>
+          <div id="signalList" class="signal-list"></div>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
