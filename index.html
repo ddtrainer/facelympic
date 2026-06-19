@@ -53,7 +53,9 @@
     border:2px solid var(--line);background:#06101f;margin-bottom:18px;}
   .calvid-wrap video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);}
   .cal-ring{position:absolute;inset:0;}
-  .cal-cue{font-size:30px;font-weight:900;margin-bottom:4px;}
+  .cal-cue{font-size:28px;font-weight:900;margin-bottom:6px;}
+  .cal-fn{display:inline-block;font-size:14px;font-weight:800;color:#06281f;
+    background:linear-gradient(135deg,var(--lime),var(--cyan));padding:5px 14px;border-radius:999px;margin-bottom:10px;}
   .cal-instr{color:var(--dim);font-size:15px;margin-bottom:16px;min-height:22px;}
   .cal-meter{width:240px;height:10px;border-radius:6px;background:rgba(255,255,255,.1);overflow:hidden;margin-bottom:18px;}
   .cal-fill{height:100%;width:0;background:linear-gradient(90deg,var(--lime),var(--cyan));transition:width .1s;}
@@ -119,12 +121,13 @@
 
   <!-- CALIBRATION -->
   <section id="calib" class="screen">
-    <h2>표정 맞추기</h2>
-    <p class="sub">사람마다 표정이 달라요. 잠깐 내 표정을 기록할게요.</p>
+    <h2>표정·동작 익히기</h2>
+    <p class="sub">5가지 동작을 따라 하며 내 얼굴을 맞춰볼게요.</p>
     <div class="calvid-wrap">
       <video id="calvid" playsinline autoplay muted></video>
     </div>
     <div class="cal-cue" id="calCue">준비</div>
+    <div class="cal-fn" id="calFn" style="display:none;"></div>
     <div class="cal-instr" id="calInstr">화면 안에 얼굴을 맞춰 주세요</div>
     <div class="cal-meter"><div class="cal-fill" id="calFill"></div></div>
     <div class="cal-dots" id="calDots"></div>
@@ -313,10 +316,12 @@ function bgmSchedule(speed){
 //  캘리브레이션 진행
 // ============================================================
 const CAL_STEPS = [
-  {key:'neutral', sig:null,     cue:'무표정', instr:'편안하게 힘 빼고 정면을 봐요', dur:1800},
-  {key:'smile',   sig:'smile',  cue:'활짝 😄', instr:'최대한 크게 웃어요', dur:2200},
-  {key:'jaw',     sig:'jaw',    cue:'아~ 😮', instr:'입을 최대한 크게 벌려요', dur:2200},
-  {key:'pucker',  sig:'pucker', cue:'후~ 😗', instr:'입을 오므려 내밀어요', dur:2200},
+  {key:'neutral', sig:null,     cue:'😐 무표정', fn:'', instr:'편안하게 힘 빼고 정면을 봐요', dur:1800},
+  {key:'smile',   sig:'smile',  cue:'😄 활짝 웃기', fn:'달리기 · 부스터', instr:'웃을수록 빨라져요. 최대한 크게!', dur:2400},
+  {key:'jaw',     sig:'jaw',    cue:'😮 입 벌리기 "아~"', fn:'세계 음식 먹기', instr:'입을 크게 벌려요', dur:2400},
+  {key:'pucker',  sig:'pucker', cue:'😗 입 오므리기 "후~"', fn:'괴물 꽝! 격파', instr:'입을 오므려 내밀어요', dur:2400},
+  {key:'nod',     sig:null, practice:'nod',  cue:'🙇 고개 끄덕 (상하)', fn:'점프 — 장애물 넘기', instr:'고개를 위아래로 끄덕여요', dur:2800},
+  {key:'tilt',    sig:null, practice:'tilt', cue:'↔️ 고개 기울이기 (좌우)', fn:'화살 좌우로 피하기', instr:'고개를 좌·우로 기울여요', dur:2800},
 ];
 let calRAF=null;
 function renderCalDots(idx){
@@ -327,27 +332,36 @@ function renderCalDots(idx){
 async function runCalibration(){
   show('calib');
   let idx=0;
-  const neutralAcc={smile:[],jaw:[],pucker:[]};
+  const neutralAcc={smile:[],jaw:[],pucker:[],pitch:[]};
+  let neutralPitch=0;
   function doStep(){
     const st=CAL_STEPS[idx]; renderCalDots(idx);
-    $("calCue").textContent=st.cue; $("calInstr").textContent=st.instr; $("calFill").style.width='0%';
+    $("calCue").textContent=st.cue; $("calInstr").textContent=st.instr;
+    $("calFn").textContent = st.fn ? '→ '+st.fn : '';
+    $("calFn").style.display = st.fn ? 'inline-block' : 'none';
+    $("calFill").style.width='0%';
     let t0=performance.now(); let mx=0;
     function frame(now){
       const s=readSignals(now);
       const p=Math.min(1,(now-t0)/st.dur);
       if(st.key==='neutral'){
-        if(s.ok){ neutralAcc.smile.push(s.smile);
-          neutralAcc.jaw.push(s.jaw); neutralAcc.pucker.push(s.pucker); }
+        if(s.ok){ neutralAcc.smile.push(s.smile); neutralAcc.jaw.push(s.jaw);
+          neutralAcc.pucker.push(s.pucker); neutralAcc.pitch.push(s.pitch); }
         $("calFill").style.width=(p*100)+'%';
-      }else{
+      }else if(st.sig){                  // 최대값 측정(웃음/입벌림/오므림)
         const v=s[st.sig]||0; mx=Math.max(mx,v);
         $("calFill").style.width=Math.min(100, norm(st.sig,v)*100)+'%';
+      }else if(st.practice==='nod'){     // 끄덕 연습: 실시간 피드백(측정X)
+        $("calFill").style.width=Math.min(100, Math.abs((s.pitch||0)-neutralPitch)/0.12*100)+'%';
+      }else if(st.practice==='tilt'){    // 기울이기 연습
+        $("calFill").style.width=Math.min(100, Math.abs(s.roll||0)/0.4*100)+'%';
       }
       if(p>=1){
         if(st.key==='neutral'){
           const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:.05;
           for(const k of ['smile','jaw','pucker']) CAL[k].min=Math.max(.03, avg(neutralAcc[k])+.02);
-        }else{
+          neutralPitch=avg(neutralAcc.pitch);
+        }else if(st.sig){
           CAL[st.sig].max=Math.max(CAL[st.sig].min+0.08, mx*0.85); // 살짝 여유
         }
         sfx.coin();
