@@ -113,9 +113,10 @@
     <div class="streak-top" id="streakIntro"></div>
     <div class="logo">페이셀림픽<br>FACELYMPIC</div>
     <div class="tagline">웃으면 빨라진다</div>
-    <p class="lead">얼굴과 고개로 트랙을 질주하세요.<br>웃으면 달리고, 눈썹 올려 점프, 고개 기울여 피하고, 입으로 먹고 터뜨립니다.</p>
+    <p class="lead">얼굴과 고개로 트랙을 질주하세요.<br>웃으면 달리고 무표정이면 멈춰요. 눈썹 올려 점프, 고개 기울여 피하고, 입으로 먹고 터뜨립니다.</p>
     <div class="moves">
       <div class="move"><span class="e">😊</span><div><b>웃기</b><span>달리기 · 부스터</span></div></div>
+      <div class="move"><span class="e">😐</span><div><b>무표정</b><span>멈춤</span></div></div>
       <div class="move"><span class="e">🤨</span><div><b>눈썹 올리기</b><span>점프</span></div></div>
       <div class="move"><span class="e">↔️</span><div><b>고개 기울이기</b><span>좌우 피하기</span></div></div>
       <div class="move"><span class="e">😮</span><div><b>입 벌리기</b><span>음식 먹기</span></div></div>
@@ -320,7 +321,7 @@ function bgmSchedule(speed){
 //  캘리브레이션 진행
 // ============================================================
 const CAL_STEPS = [
-  {key:'neutral', sig:null,     cue:'😐 무표정', fn:'', instr:'편안하게 힘 빼고 정면을 봐요', dur:1800},
+  {key:'neutral', sig:null,     cue:'😐 무표정', fn:'멈춤 — 쉬어가기', instr:'힘을 빼면 멈춰요. 편안하게 정면을!', dur:1800},
   {key:'smile',   sig:'smile',  cue:'😄 활짝 웃기', fn:'달리기 · 부스터', instr:'웃을수록 빨라져요. 최대한 크게!', dur:2400},
   {key:'jaw',     sig:'jaw',    cue:'😮 입 벌리기 "아~"', fn:'세계 음식 먹기', instr:'입을 크게 벌려요', dur:2400},
   {key:'pucker',  sig:'pucker', cue:'😗 입 오므리기 "후~"', fn:'괴물 꽝! 격파', instr:'입을 오므려 내밀어요', dur:2400},
@@ -511,14 +512,14 @@ function gameLoop(now, gen){
   const act = activeObstacle();
   G.raceTime += dt;          // 기록 = 완주 시간(유일한 지표)
 
-  // ---- 속도(연속): 웃음이 강할수록 빨라짐 (무표정→미소→활짝) ----
+  // ---- 속도(연속): 무표정=멈춤, 웃을수록 빨라짐 ----
   const sN = sig.ok? norm('smile',sig.smile):0;
-  const WALK=4, MAXSP=19;
-  // 부드러운 곡선: 살짝만 웃어도 즉시 반응하고, 활짝 웃을수록 끝까지 빨라짐
-  const curve = sN<0.04 ? 0 : Math.pow(sN, 0.8);
-  let targetSpeed = WALK + curve*(MAXSP-WALK);
-  // 입을 쓰는 챌린지 중엔 속도 바닥 보장(달리기 유지)
-  if(act && (act.type==='food'||act.type==='monster'||act.type==='arrow')) targetSpeed=Math.max(targetSpeed,8);
+  const STOP_TH=0.08, MOVE_MIN=6, MAXSP=19;
+  let targetSpeed;
+  if(sN < STOP_TH) targetSpeed = 0;                                  // 무표정 = 멈춤
+  else targetSpeed = MOVE_MIN + Math.pow((sN-STOP_TH)/(1-STOP_TH),0.8)*(MAXSP-MOVE_MIN);
+  // 입을 쓰는 미션(먹기/괴물) 중엔 입이 막혀 못 웃으니 멈추지 않게 살짝 코스트
+  if(act && (act.type==='food'||act.type==='monster')) targetSpeed=Math.max(targetSpeed,6);
   G.sN = sN; G.boosting = sN>0.62;
   if(G.boosting && targetSpeed>G.speed+2 && Math.random()<.05) sfx.boost();
   G.speed += (targetSpeed-G.speed)*Math.min(1,dt*6);   // 반응 더 빠르게
@@ -755,12 +756,13 @@ function drawHUD(W,H,sig){
   ctx.fillText((G?Math.floor(G.dist):0)+'m', 16, 14);
   // 속도 게이지 + 코칭(웃음→속도)
   const gw=120, gh=9, gx=16, gy=44;
-  const spN = G? Math.max(0,Math.min(1,(G.speed-4)/15)) : 0;
-  const gcol = G&&G.boosting? '#ffd34e' : (G&&G.speed>8? '#37d6ff':'#9fb3d8');
+  const spN = G? Math.max(0,Math.min(1, G.speed/19)) : 0;
+  const stopped = G && G.speed<1.5;
+  const gcol = stopped? '#9fb3d8' : (G&&G.boosting? '#ffd34e' : (G&&G.speed>8? '#37d6ff':'#9be635'));
   ctx.fillStyle='rgba(255,255,255,.18)'; roundRect(gx,gy,gw,gh,5); ctx.fill();
   ctx.fillStyle=gcol; roundRect(gx,gy, gw*spN, gh,5); ctx.fill();
   ctx.fillStyle=gcol; ctx.font='800 12px Pretendard'; ctx.textAlign='left'; ctx.textBaseline='top';
-  ctx.fillText(G&&G.boosting?'🔥 부스터!':(G&&G.speed>8?'🏃 달리는 중':'😀 더 활짝 웃어요'), gx, gy+13);
+  ctx.fillText(stopped?'😐 멈춤 · 웃으면 출발':(G&&G.boosting?'🔥 부스터!':(G&&G.speed>8?'🏃 달리는 중':'😊 웃는 중')), gx, gy+13);
   // 진행 바
   const bx=W*0.30, bw=W*0.40, by=22, bh=10;
   ctx.fillStyle='rgba(255,255,255,.2)'; roundRect(bx,by,bw,bh,5); ctx.fill();
