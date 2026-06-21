@@ -531,12 +531,13 @@ function gameLoop(now, gen){
   if(!(act && act.type==='arrow')) tx=tx*0.45; // 회피 구간 아니면 약하게
   G.px += (tx-G.px)*Math.min(1,dt*9);
 
-  // ---- 점프: 눈썹 올리기(brow) — 올리는 순간 점프, 내리면 재장전 ----
-  const browN = sig.ok ? norm('brow', sig.brow) : 0;
-  if(G.jumpReady && browN>0.45 && G.grounded){
+  // ---- 점프: 눈썹 올리기(brow). 웃을 때 눈썹이 같이 올라가는 오발동 방지 → 웃음 성분 빼기 ----
+  const BROW_TH=0.55, SMILE_SUPPRESS=0.5;          // 오발동 잦으면 BROW_TH↑ 또는 SMILE_SUPPRESS↑
+  const browEff = (sig.ok ? norm('brow', sig.brow) : 0) - sN*SMILE_SUPPRESS;  // 웃음 강하면 상쇄
+  if(G.jumpReady && browEff>BROW_TH && G.grounded){
     G.vy=10.8; G.grounded=false; G.jumpReady=false; sfx.jump();
   }
-  if(browN<0.2) G.jumpReady=true;                  // 눈썹 내리면 다음 점프 준비
+  if(browEff<0.2) G.jumpReady=true;                // 눈썹 내리면 다음 점프 준비
   if(!G.grounded){ G.vy-=20*dt; G.py+=G.vy*dt; if(G.py<=0){ G.py=0; G.grounded=true; G.vy=0; sfx.land(); } }
 
   // ---- 폭발 입자 업데이트 ----
