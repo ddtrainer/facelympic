@@ -88,6 +88,10 @@
   .rk-down{color:var(--coral);font-weight:800;margin-left:5px;}
   .mission-report{font-size:14px;color:var(--dim);line-height:1.5;margin-bottom:7px;}
   .coaching{font-size:15.5px;font-weight:700;color:var(--cyan);}
+  .streak-result{font-size:16px;font-weight:800;color:var(--gold);margin-top:12px;}
+  .streak-top{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:3;
+    font-size:13.5px;font-weight:800;color:var(--gold);background:rgba(255,211,78,.12);
+    border:1px solid rgba(255,211,78,.32);padding:6px 14px;border-radius:999px;white-space:nowrap;}
 
   /* loading */
   #loading{position:absolute;inset:0;z-index:50;display:none;flex-direction:column;align-items:center;
@@ -106,6 +110,7 @@
 
   <!-- INTRO -->
   <section id="intro" class="screen active">
+    <div class="streak-top" id="streakIntro"></div>
     <div class="logo">페이셀림픽<br>FACELYMPIC</div>
     <div class="tagline">웃으면 빨라진다</div>
     <p class="lead">얼굴과 고개로 트랙을 질주하세요.<br>웃으면 달리고, 고개를 끄덕여 점프, 기울여 피하고, 입으로 먹고 터뜨립니다.</p>
@@ -152,6 +157,7 @@
     <div class="r-divider"></div>
     <div class="mission-report" id="rReport"></div>
     <div class="coaching" id="rCoach"></div>
+    <div class="streak-result" id="streakResult"></div>
     <div class="r-divider"></div>
     <button class="btn btn-primary" id="againBtn" style="max-width:380px;">다시 달리기</button>
     <button class="btn btn-ghost" id="homeBtn" style="max-width:380px;">처음으로</button>
@@ -811,6 +817,32 @@ function saveBest(t){ try{ localStorage.setItem('fl_best', t.toFixed(2)); }catch
 const MEDAL_GOLD=55, MEDAL_SILVER=70;          // 시간 기준 메달(트랙 700m 기준, 조정 가능)
 function medalFor(t){ return t<MEDAL_GOLD?'🥇':(t<MEDAL_SILVER?'🥈':'🥉'); }
 
+// ----- 연속 도전일(streak) = 투자. 끊겨도 응원 톤 -----
+function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+function dayStr(d){ return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+function todayStr(){ return dayStr(new Date()); }
+function yesterdayStr(){ const d=new Date(); d.setDate(d.getDate()-1); return dayStr(d); }
+function currentStreak(){       // 표시용(쓰기X): 어제/오늘 기록 있으면 살아있음
+  const n=parseInt(lsGet('fl_streak')||'0',10)||0;
+  const last=lsGet('fl_lastDay');
+  return (last===todayStr()||last===yesterdayStr()) ? n : 0;
+}
+function markPlayedToday(){      // 완주 시 호출: 오늘 첫 플레이면 streak 갱신
+  let n=parseInt(lsGet('fl_streak')||'0',10)||0;
+  const last=lsGet('fl_lastDay'), today=todayStr();
+  if(last===today){}                       // 오늘 이미 카운트됨
+  else if(last===yesterdayStr()){ n+=1; }  // 연속
+  else { n=1; }                            // 첫날 또는 끊김 → 다시 1일째
+  lsSet('fl_streak',String(n)); lsSet('fl_lastDay',today);
+  return n;
+}
+function updateStreakIntro(){
+  const el=$("streakIntro"); if(!el) return;
+  const s=currentStreak();
+  el.textContent = s>=1 ? '🔥 '+s+'일 연속 도전 중' : '🌱 오늘, 한 판 어때요?';
+}
+
 function missionTotals(){
   const tot={hurdle:0,arrow:0,food:0,monster:0};
   G.obstacles.forEach(o=>tot[o.type]++); return tot;
@@ -860,6 +892,10 @@ function finish(){
   $("rRank").innerHTML='전 세계 <b>'+rk.rank.toLocaleString()+'등</b> <span class="rk-up">↑'+rk.up+'</span>';
   $("rReport").textContent=missionReport();
   $("rCoach").textContent=coachingLine();
+
+  const streak=markPlayedToday();
+  $("streakResult").textContent = streak<=1 ? '🌱 '+streak+'일째 시작! 내일 또 만나요'
+                                            : '🔥 연속 '+streak+'일째!';
 
   show('done');
   if(isBest) fireConfetti();      // 자기최고 경신 시에만 축하
@@ -912,11 +948,12 @@ $("startBtn").addEventListener('click', async ()=>{
   }
 });
 $("calSkip").addEventListener('click', ()=>{ if(calRAF)cancelAnimationFrame(calRAF); startGame(); });
-$("gExit").addEventListener('click', ()=>{ if(G)G.running=false; bgmStop(); stopCamera(); show('intro'); });
+$("gExit").addEventListener('click', ()=>{ if(G)G.running=false; bgmStop(); stopCamera(); show('intro'); updateStreakIntro(); });
 $("gMute").addEventListener('click', ()=>{ muted=!muted; $("gMute").textContent=muted?'🔇':'🔊'; if(master)master.gain.value=muted?0:.5; });
 $("againBtn").addEventListener('click', ()=>{ if(actx&&actx.state==='suspended')actx.resume(); startGame(); });
-$("homeBtn").addEventListener('click', ()=>{ stopCamera(); show('intro'); });
+$("homeBtn").addEventListener('click', ()=>{ stopCamera(); show('intro'); updateStreakIntro(); });
 
+updateStreakIntro();   // 로드 시 streak 배지 표시
 window.__fl={ CAL, startGame, get G(){return G;} };
 </script>
 </body>
