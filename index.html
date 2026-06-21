@@ -395,35 +395,55 @@ function resize(){
 }
 window.addEventListener('resize',()=>{ if(screens.game.classList.contains('active')) resize(); });
 
-const TARGET=700;        // 트랙 길이(m) — 활발히 달리면 약 1분
+let TARGET=130;          // 현재 종목 트랙 길이(m) — startGame에서 종목별로 설정
 const VIEW=42;           // 오브젝트 보이는 거리(m)
 const ACT=20;            // 액션 경고 큐가 뜨는 거리(m)
 const HIT=9;             // 실제 명중(먹기/격파) 가능 거리 — 이 안쪽에서 동작해야 맞음
 const FINISH_VIEW=72;    // 결승 테이프가 멀리서부터 보이는 거리(m)
+
+// 종목 3종 — 길이가 아니라 성격으로 구분. 선택/해금은 작업 2.
+// mix = 미션 배분(food:monster:arrow + 점프용 hurdle 가볍게). 기록 단위는 '초' 유지.
+const EVENTS = [
+  { id:'sprint', name:'단거리', emoji:'⚡', dist:130, gold:11, silver:14, mix:{food:2,monster:1,arrow:1,hurdle:1} },
+  { id:'middle', name:'중거리', emoji:'🎵', dist:380, gold:31, silver:40, mix:{food:4,monster:3,arrow:2,hurdle:1} },
+  { id:'long',   name:'장거리', emoji:'🔥', dist:700, gold:58, silver:72, mix:{food:6,monster:5,arrow:4,hurdle:2} },
+];
+let curEvent = EVENTS[0];   // 작업 1: 단거리 고정 (선택화면은 작업 2)
+
+// 시드 기반 난수(LCG) — 매판 변주 / 오늘의 트랙(작업 4)
+function makeRng(seed){ let s=(seed>>>0)||1; return function(){ s=(s*1664525+1013904223)>>>0; return s/4294967296; }; }
 let G;                   // 게임 상태
 
 // 깊이 d(0=플레이어, 1=먼곳) → 화면 투영 계수
 function f(d){ return (1-d)/(1+3*d); }   // 1(near)..0(far)
 
-function makeObstacles(){
-  const arr=[]; let d=14;
-  const order=['hurdle','arrow','food','monster','hurdle','arrow','monster','food'];
-  let i=0;
-  while(d < TARGET-7){
-    const type=order[i%order.length];
-    arr.push({ type, at:d, lane: type==='arrow'? (Math.random()<.5?-1:1):0,
+// 종목 mix + 시드로 미션 배치를 매판 다르게 (순서 셔플 + 위치 지터)
+function makeObstacles(ev, seed){
+  const rng=makeRng(seed);
+  const pool=[];
+  for(const t in ev.mix){ for(let k=0;k<ev.mix[t];k++) pool.push(t); }
+  // Fisher–Yates 셔플(시드) → 같은 종목도 이번엔 화살 먼저, 다음엔 음식 먼저
+  for(let i=pool.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); const tmp=pool[i]; pool[i]=pool[j]; pool[j]=tmp; }
+  const n=pool.length, startD=14, endD=Math.max(startD+1, ev.dist-12), span=endD-startD;
+  const arr=[];
+  for(let i=0;i<n;i++){
+    const slot=startD + span*(i+0.5)/n;          // 균등 슬롯
+    const at=slot + (rng()-0.5)*(span/n)*0.7;     // 간격 지터
+    const type=pool[i];
+    arr.push({ type, at, lane: type==='arrow'? (rng()<0.5?-1:1):0,
       resolved:false, charge:0, bites:0, result:null });
-    d += 15 + Math.random()*7; i++;   // 간격 넓힘(덜 빽빽하게)
   }
   return arr;
 }
 
 function startGame(){
   show('game'); resize(); initAudio(); if(actx.state==='suspended') actx.resume();
+  TARGET = curEvent.dist;                          // 종목별 트랙 길이
+  const seed = Math.floor(Math.random()*1e9);      // 매판 다른 배치(작업 4: 오늘의 트랙 시드)
   G = {
     dist:0, speed:4, px:0, py:0, vy:0, grounded:true, sN:0, boosting:false,
     pitchBase:null, nodReady:true, jumpCd:0, fx:[],
-    obstacles:makeObstacles(),
+    obstacles:makeObstacles(curEvent, seed),
     raceTime:0, hits:0, tally:{hurdle:0,arrow:0,food:0,monster:0},
     rep:{ jaw:'ready', pucker:'ready' },
     flash:null, flashT:0, shake:0, cue:null, feed:null, feedT:0, slow:1,
@@ -763,7 +783,7 @@ function drawHUD(W,H,sig){
   ctx.fillStyle='rgba(255,255,255,.2)'; roundRect(bx,by,bw,bh,5); ctx.fill();
   ctx.fillStyle='#37d6ff'; roundRect(bx,by, bw*Math.min(1,(G?G.dist:0)/TARGET), bh,5); ctx.fill();
   ctx.fillStyle='#fff'; ctx.font='700 13px Pretendard'; ctx.textAlign='right'; ctx.textBaseline='top';
-  ctx.fillText(TARGET+'m', bx+bw+44, 14); ctx.textAlign='left'; ctx.fillText('LEVEL 1', bx-72, 14);
+  ctx.fillText(TARGET+'m', bx+bw+44, 14); ctx.textAlign='left'; ctx.fillText(curEvent.emoji+' '+curEvent.name, bx-78, 14);
   // 기록 타이머 (유일한 지표)
   ctx.textAlign='right'; ctx.textBaseline='top';
   ctx.fillStyle='#ffd34e'; ctx.font='900 30px Pretendard';
@@ -812,10 +832,10 @@ function roundRect(x,y,w,h,r){ ctx.beginPath();
 //  종료 / 결과
 // ============================================================
 // 기록 저장 (자기최고 시간)
-function loadBest(){ try{ const v=localStorage.getItem('fl_best'); return v?parseFloat(v):null; }catch(e){ return null; } }
-function saveBest(t){ try{ localStorage.setItem('fl_best', t.toFixed(2)); }catch(e){} }
-const MEDAL_GOLD=55, MEDAL_SILVER=70;          // 시간 기준 메달(트랙 700m 기준, 조정 가능)
-function medalFor(t){ return t<MEDAL_GOLD?'🥇':(t<MEDAL_SILVER?'🥈':'🥉'); }
+function bestKey(){ return 'fl_best_'+curEvent.id; }   // 종목별 자기최고
+function loadBest(){ try{ const v=localStorage.getItem(bestKey()); return v?parseFloat(v):null; }catch(e){ return null; } }
+function saveBest(t){ try{ localStorage.setItem(bestKey(), t.toFixed(2)); }catch(e){} }
+function medalFor(t){ return t<curEvent.gold?'🥇':(t<curEvent.silver?'🥈':'🥉'); }  // 종목 기준 시간
 
 // ----- 연속 도전일(streak) = 투자. 끊겨도 응원 톤 -----
 function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
