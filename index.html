@@ -73,20 +73,21 @@
     border:1px solid var(--line);background:rgba(8,16,32,.6);color:var(--ink);font-size:17px;cursor:pointer;
     backdrop-filter:blur(6px);}
 
-  /* ---------- Done ---------- */
-  #done{padding:34px 26px;align-items:center;justify-content:center;text-align:center;}
-  .medal{font-size:84px;margin-bottom:8px;animation:pop .5s cubic-bezier(.2,1.4,.4,1);}
+  /* ---------- Done (훅 결과 화면) ---------- */
+  #done{padding:30px 26px;align-items:center;justify-content:center;text-align:center;}
+  .medal{font-size:58px;margin-bottom:0;animation:pop .5s cubic-bezier(.2,1.4,.4,1);line-height:1;}
   @keyframes pop{0%{transform:scale(0)}100%{transform:scale(1)}}
-  #done h2{font-size:30px;font-weight:900;margin-bottom:6px;}
-  #done .res{color:var(--dim);font-size:15px;margin-bottom:22px;}
-  .scards{display:flex;gap:10px;width:100%;max-width:380px;margin-bottom:14px;}
-  .scard{flex:1;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px 8px;}
-  .scard .v{font-size:24px;font-weight:900;color:var(--cyan);}
-  .scard .l{font-size:11px;color:var(--faint);margin-top:4px;}
-  .rp{width:100%;max-width:380px;background:linear-gradient(135deg,rgba(255,211,78,.16),rgba(255,211,78,.05));
-    border:1px solid rgba(255,211,78,.3);border-radius:18px;padding:16px 20px;margin-bottom:24px;
-    display:flex;justify-content:space-between;align-items:center;}
-  .rp .l{font-size:14px;color:var(--dim);} .rp .v{font-size:24px;font-weight:900;color:var(--gold);}
+  .big-time{font-size:62px;font-weight:900;letter-spacing:-.02em;line-height:1.05;margin:2px 0 6px;}
+  .self-best{font-size:21px;font-weight:800;color:var(--dim);margin-bottom:2px;}
+  .self-best.beat{color:var(--lime);animation:bestpop .6s cubic-bezier(.2,1.5,.4,1);}
+  @keyframes bestpop{0%{transform:scale(.5);opacity:0}55%{transform:scale(1.18)}100%{transform:scale(1)}}
+  .r-divider{width:100%;max-width:360px;height:1px;background:var(--line);margin:13px 0;}
+  .world-rank{font-size:15px;color:var(--dim);}
+  .world-rank b{color:var(--ink);font-weight:800;}
+  .rk-up{color:var(--lime);font-weight:800;margin-left:5px;}
+  .rk-down{color:var(--coral);font-weight:800;margin-left:5px;}
+  .mission-report{font-size:14px;color:var(--dim);line-height:1.5;margin-bottom:7px;}
+  .coaching{font-size:15.5px;font-weight:700;color:var(--cyan);}
 
   /* loading */
   #loading{position:absolute;inset:0;z-index:50;display:none;flex-direction:column;align-items:center;
@@ -144,14 +145,14 @@
   <!-- DONE -->
   <section id="done" class="screen">
     <div class="medal" id="medalEmoji">🥇</div>
-    <h2 id="doneTitle">결승선 통과!</h2>
-    <p class="res" id="doneRes">멋지게 완주했어요</p>
-    <div class="scards">
-      <div class="scard"><div class="v" id="sSpeedSc">0</div><div class="l">⚡ 스피드 점수</div></div>
-      <div class="scard"><div class="v" id="sMissionSc">0</div><div class="l">🎯 미션 점수</div></div>
-      <div class="scard"><div class="v" id="sHit">0</div><div class="l">미션 성공</div></div>
-    </div>
-    <div class="rp"><span class="l">총 레이스 포인트</span><span class="v" id="sRP">0 RP</span></div>
+    <div class="big-time" id="rTime">0.00초</div>
+    <div class="self-best" id="rBest">—</div>
+    <div class="r-divider"></div>
+    <div class="world-rank" id="rRank"></div>
+    <div class="r-divider"></div>
+    <div class="mission-report" id="rReport"></div>
+    <div class="coaching" id="rCoach"></div>
+    <div class="r-divider"></div>
     <button class="btn btn-primary" id="againBtn" style="max-width:380px;">다시 달리기</button>
     <button class="btn btn-ghost" id="homeBtn" style="max-width:380px;">처음으로</button>
   </section>
@@ -810,17 +811,58 @@ function saveBest(t){ try{ localStorage.setItem('fl_best', t.toFixed(2)); }catch
 const MEDAL_GOLD=55, MEDAL_SILVER=70;          // 시간 기준 메달(트랙 700m 기준, 조정 가능)
 function medalFor(t){ return t<MEDAL_GOLD?'🥇':(t<MEDAL_SILVER?'🥈':'🥉'); }
 
+function missionTotals(){
+  const tot={hurdle:0,arrow:0,food:0,monster:0};
+  G.obstacles.forEach(o=>tot[o.type]++); return tot;
+}
+function missionReport(){
+  const tot=missionTotals(), parts=[];
+  if(tot.food)    parts.push('😮 음식 '+G.tally.food+'/'+tot.food);
+  if(tot.monster) parts.push('👹 괴물 '+G.tally.monster+'/'+tot.monster);
+  if(tot.hurdle)  parts.push('🙇 허들 '+G.tally.hurdle+'/'+tot.hurdle);
+  if(tot.arrow){ const m=tot.arrow-G.tally.arrow; parts.push('↔️ 화살 '+(m>0? m+'회 피격':'완벽')); }
+  return parts.join('  ·  ');
+}
+function coachingLine(){            // 점수 아님 — "이걸 깨면 더 빠르다"는 재도전 유도
+  const tot=missionTotals();
+  const miss={ arrow:tot.arrow-G.tally.arrow, monster:tot.monster-G.tally.monster,
+               hurdle:tot.hurdle-G.tally.hurdle, food:tot.food-G.tally.food };
+  const phrase={ arrow:'화살만 피했다면', monster:'괴물만 처치했다면', hurdle:'허들만 넘었다면', food:'음식만 먹었다면' };
+  let worst=null, wn=0;
+  for(const k of ['arrow','monster','hurdle','food']) if(miss[k]>wn){ wn=miss[k]; worst=k; }
+  if(!worst) return '거의 최선이었어요! 완벽한 질주 👏';
+  return phrase[worst]+' 더 빨랐어요 (−'+(wn*0.4).toFixed(1)+'초)';
+}
+function fakeRank(t){               // 더미 세계순위(작업 6에서 실제 연동). 빠를수록 상위.
+  return { rank:Math.max(1, Math.round(t*28)+372), up:40+Math.round((t*7)%170) };
+}
+
 function finish(){
   G.running=false; bgmStop();
   const t=G.raceTime;
-  const best=loadBest(); const isBest=(best==null||t<best); if(isBest) saveBest(t);
+  const prevBest=loadBest();
+  const isBest=(prevBest==null || t<prevBest);
+  if(isBest) saveBest(t);
+
   $("medalEmoji").textContent=medalFor(t);
-  $("doneTitle").textContent=t.toFixed(2)+'초';
-  $("doneRes").textContent = isBest? '🎉 자기최고 기록!' : (best!=null? '이전 최고 '+best.toFixed(2)+'초' : '완주!');
-  // 점수 카드/총점은 작업 2에서 결과화면 재설계 시 교체 → 임시 숨김
-  var sc=document.querySelector('#done .scards'); if(sc) sc.style.display='none';
-  var rp=document.querySelector('#done .rp'); if(rp) rp.style.display='none';
-  show('done'); fireConfetti();
+  $("rTime").textContent=t.toFixed(2)+'초';
+
+  const bestEl=$("rBest");
+  if(isBest){
+    bestEl.textContent = (prevBest==null) ? '첫 기록! 🎉' : '🎉 자기최고! ↓'+(prevBest-t).toFixed(2)+'초';
+    bestEl.className='self-best beat';
+  }else{
+    bestEl.textContent = '이전 최고 '+prevBest.toFixed(2)+'초 (+'+(t-prevBest).toFixed(2)+')';
+    bestEl.className='self-best';
+  }
+
+  const rk=fakeRank(t);
+  $("rRank").innerHTML='전 세계 <b>'+rk.rank.toLocaleString()+'등</b> <span class="rk-up">↑'+rk.up+'</span>';
+  $("rReport").textContent=missionReport();
+  $("rCoach").textContent=coachingLine();
+
+  show('done');
+  if(isBest) fireConfetti();      // 자기최고 경신 시에만 축하
 }
 
 // 폭죽 (숨-핏 패턴)
