@@ -424,7 +424,7 @@ function makeObstacles(ev, seed){
     const slot=startD + span*(i+0.5)/n;          // 균등 슬롯
     const at=slot + (rng()-0.5)*(span/n)*0.7;     // 간격 지터
     const type=pool[i];
-    arr.push({ type, at, lane: type==='arrow'? (rng()<0.5?-1:1):0,
+    arr.push({ type, at, lane: 0,   // 화살 포함 모두 중앙(정면)으로 — 좌우로 비켜 회피
       resolved:false, charge:0, bites:0, result:null });
   }
   return arr;
@@ -474,7 +474,7 @@ function resolve(o){
   o.resolved=true;
   let ok=false;
   if(o.type==='hurdle') ok = !G.grounded;
-  else if(o.type==='arrow') ok = (G.px*o.lane < -0.15) && Math.abs(G.px)>0.35;
+  else if(o.type==='arrow') ok = Math.abs(G.px) > 0.4;   // 중앙으로 오는 화살 — 좌우 어느 쪽이든 비키면 회피
   else if(o.type==='monster') ok = o.charge>=1; // 입 오므리기 1회로 격파
   else if(o.type==='food') ok = o.bites>=1;     // 입 벌리기 1회로 먹기
   o.result=ok;
