@@ -929,8 +929,30 @@ function coachingLine(){            // 점수 아님 — "이걸 깨면 더 빠�
   if(!worst) return '거의 최선이었어요! 완벽한 질주 👏';
   return phrase[worst]+' 더 빨랐어요 (−'+(wn*0.4).toFixed(1)+'초)';
 }
-function fakeRank(t){               // 더미 세계순위(작업 6에서 실제 연동). 빠를수록 상위.
-  return { rank:Math.max(1, Math.round(t*28)+372), up:40+Math.round((t*7)%170) };
+// ----- 세계 순위 (Supabase) -----
+const SB_URL='https://yixigkpyncjmbfyaocjl.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpeGlna3B5bmNqbWJmeWFvY2psIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0OTg2NjksImV4cCI6MjA5NDA3NDY2OX0.7XDv1emSYABdYDcdGa54MCLH-iAiwEPHr43HiWP_kD4';
+const SB_H={ apikey:SB_KEY, Authorization:'Bearer '+SB_KEY };
+async function sbCount(eventId, day, extra){    // 조건에 맞는 기록 개수
+  const q=SB_URL+'/rest/v1/fl_scores?select=id&event_id=eq.'+eventId+'&day=eq.'+day+(extra?'&'+extra:'');
+  const res=await fetch(q,{headers:{...SB_H,'Range':'0-0','Prefer':'count=exact'}});
+  const cr=res.headers.get('content-range')||'/0';
+  return parseInt(cr.split('/')[1]||'0',10)||0;
+}
+async function updateWorldRank(eventId, time, day){   // 기록 등록 + 오늘의 트랙 기준 등수
+  try{
+    await fetch(SB_URL+'/rest/v1/fl_scores',{method:'POST',
+      headers:{...SB_H,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body:JSON.stringify({event_id:eventId, time_sec:time, day})});
+    const faster=await sbCount(eventId, day, 'time_sec=lt.'+time);
+    const total =await sbCount(eventId, day, null);
+    const rank=faster+1;
+    const lk='fl_rank_'+eventId+'_'+day; const prev=parseInt(lsGet(lk)||'',10); let delta='';
+    if(!isNaN(prev) && prev!==rank){ const d=prev-rank; delta=d>0?' <span class="rk-up">↑'+d+'</span>':' <span class="rk-down">↓'+(-d)+'</span>'; }
+    lsSet(lk,String(rank));
+    $("rRank").innerHTML='🌍 전 세계 <b>'+rank.toLocaleString()+'등</b>'+delta+
+      ' <span style="color:var(--faint)">· 오늘 '+total+'명</span>';
+  }catch(e){ $("rRank").innerHTML='<span style="color:var(--faint)">전 세계 순위는 잠시 후</span>'; }
 }
 
 function finish(){
@@ -952,8 +974,8 @@ function finish(){
     bestEl.className='self-best';
   }
 
-  const rk=fakeRank(t);
-  $("rRank").innerHTML='전 세계 <b>'+rk.rank.toLocaleString()+'등</b> <span class="rk-up">↑'+rk.up+'</span>';
+  $("rRank").innerHTML='🌍 전 세계 순위 집계 중…';
+  updateWorldRank(curEvent.id, t, todayStr());   // 등록 + 실제 등수(비동기로 채워짐)
   $("rReport").textContent=missionReport();
   $("rCoach").textContent=coachingLine();
 
