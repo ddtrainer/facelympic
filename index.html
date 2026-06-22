@@ -424,9 +424,13 @@ const FINISH_VIEW=72;    // 결승 테이프가 멀리서부터 보이는 거리
 // 종목 3종 — 길이가 아니라 성격으로 구분. 선택/해금은 작업 2.
 // mix = 미션 배분(food:monster:arrow + 점프용 hurdle 가볍게). 기록 단위는 '초' 유지.
 const EVENTS = [
-  { id:'sprint', name:'단거리', emoji:'⚡', dist:200, gold:17, silver:23, mix:{food:2,monster:2,arrow:2,hurdle:1} },
-  { id:'middle', name:'중거리', emoji:'🎵', dist:400, gold:35, silver:46, mix:{food:3,monster:3,arrow:3,hurdle:2} },
-  { id:'long',   name:'장거리', emoji:'🔥', dist:700, gold:62, silver:80, mix:{food:4,monster:4,arrow:5,hurdle:3} },
+  // foodBoost=미션 임팩트(부스터/감속 강도 기준), penalty=실패 감속배율, foods=음식 종류
+  { id:'sprint', name:'단거리', emoji:'⚡', dist:200, gold:17, silver:23, mix:{food:2,monster:2,arrow:2,hurdle:1},
+    foodBoost:5.0, penalty:0.40, foods:['🍔','🍗'] },                                // 폭발: 한 방이 큼
+  { id:'middle', name:'중거리', emoji:'🎵', dist:400, gold:35, silver:46, mix:{food:3,monster:3,arrow:3,hurdle:2},
+    foodBoost:3.2, penalty:0.50, foods:['🍔','🍗'] },                                // 리듬: 음식 콤보
+  { id:'long',   name:'장거리', emoji:'🔥', dist:700, gold:62, silver:80, mix:{food:4,monster:4,arrow:5,hurdle:3},
+    foodBoost:2.6, penalty:0.58, foods:['🍔','🍗','🍕','🍣','🥟','🌮','🍜','🥨'] },   // 변화: 나라별 음식
 ];
 let curEvent = EVENTS[0];   // 작업 1: 단거리 고정 (선택화면은 작업 2)
 
@@ -464,7 +468,7 @@ function startGame(){
     dist:0, speed:4, px:0, py:0, vy:0, grounded:true, sN:0, boosting:false,
     jumpReady:true, hitDist:9, fx:[], pops:[],
     obstacles:makeObstacles(curEvent, seed),
-    raceTime:0, hits:0, tally:{hurdle:0,arrow:0,food:0,monster:0},
+    raceTime:0, hits:0, foodCombo:0, tally:{hurdle:0,arrow:0,food:0,monster:0},
     flash:null, flashT:0, shake:0, cue:null, feed:null, feedT:0, slow:1,
     running:true, t:performance.now(), started:false, countdown:3.0,
   };
@@ -508,13 +512,21 @@ function resolve(o){
   else if(o.type==='food') ok = o.bites>=1;     // 입 벌리기 1회로 먹기
   o.result=ok;
   const sx = o._sx||cssW/2, sy = o._sy||cssH*0.5;
+  const B=curEvent.foodBoost;            // 종목별 미션 임팩트 기준
   if(ok){
     G.hits++; G.tally[o.type]++;
     // 미션 성공 = 물리적 이득(전진 부스트). 점수 없음 → 빨라져서 기록이 좋아짐
-    const fwd = o.type==='monster'? 10 : 3;
+    let fwd, pop, popCol='#9be635';
+    if(o.type==='food'){
+      G.foodCombo++;
+      fwd = B * (1 + (G.foodCombo-1)*0.4);                 // 연속으로 먹을수록 커지는 콤보 부스터
+      pop = G.foodCombo>1 ? '🍔 콤보 ×'+G.foodCombo+'!' : '🍔 냠냠!';
+      if(G.foodCombo>1) popCol='#ffd34e';
+    } else if(o.type==='monster'){ fwd=B*2.6; pop='💥 꽝!'; }
+    else if(o.type==='arrow'){ fwd=B*0.8; pop='↔️ 피함!'; }
+    else { fwd=B*0.8; pop='⬆️ 점프!'; }
     G.dist += fwd; G.speed = Math.min(20, G.speed + (o.type==='monster'?5:2));
-    const OKTXT={ monster:'💥 꽝!', food:'🍔 냠냠!', arrow:'↔️ 피함!', hurdle:'⬆️ 점프!' };
-    spawnPop(sx, sy, OKTXT[o.type]||'성공!', '#9be635');
+    spawnPop(sx, sy, pop, popCol);
     setFlash('rgba(110,235,90,.28)');
     if(o.type==='monster'){ sfx.boom(); spawnBoom(sx,sy); G.shake=16; setFlash('rgba(255,170,50,.35)'); }
     else if(o.type==='food'){ sfx.coin(); }
@@ -524,7 +536,8 @@ function resolve(o){
     // 미션 실패 = 물리적 손해(감속). 점수 페널티 없음 → 느려져서 기록이 나빠짐
     const FAILTXT={ monster:'👹 막힘!', food:'놓침', arrow:'🏹 맞음!', hurdle:'🚧 쿵!' };
     spawnPop(sx, sy, FAILTXT[o.type]||'실패', o.type==='food'?'#9fb3d8':'#ff5d6c');
-    if(o.type!=='food'){ G.speed=Math.max(3,G.speed*0.45); setFlash('rgba(255,80,90,.32)'); G.shake=12; sfx.hit(); }
+    if(o.type==='food'){ G.foodCombo=0; }                  // 음식 놓치면 콤보 끊김
+    else { G.speed=Math.max(3, G.speed*curEvent.penalty); setFlash('rgba(255,80,90,.32)'); G.shake=12; sfx.hit(); }  // 종목별 감속
   }
 }
 
@@ -608,8 +621,7 @@ function gameLoop(now, gen){
 // ============================================================
 //  렌더링 (2.5D)
 // ============================================================
-const ICON = { hurdle:'🚧', food:'🍔', monster:'👹' };
-const FOODS=['🍔','🍗'];   // 햄버거 · 치킨
+const ICON = { hurdle:'🚧', monster:'👹' };   // 음식은 종목별 curEvent.foods 사용
 function drawScene(sig, speed){
   const W=cssW,H=cssH, cx=W/2, horizon=H*0.40;
   let sx=0,sy=0; if(G && G.shake>0){ sx=(Math.random()-.5)*G.shake; sy=(Math.random()-.5)*G.shake; }
@@ -664,7 +676,7 @@ function drawScene(sig, speed){
       if(o.type==='arrow'){
         drawArrow(ox, oy-14*sc, sc);
       } else {
-        const em = o.type==='food'? FOODS[(o.at|0)%FOODS.length] : ICON[o.type];
+        const em = o.type==='food'? curEvent.foods[(o.at|0)%curEvent.foods.length] : ICON[o.type];
         ctx.font=`${Math.round(30*sc)}px serif`; ctx.textAlign='center'; ctx.textBaseline='alphabetic';
         ctx.fillText(em, ox, oy);
       }
@@ -1033,7 +1045,7 @@ $("againBtn").addEventListener('click', ()=>{ if(actx&&actx.state==='suspended')
 $("homeBtn").addEventListener('click', ()=>{ goSelect(); });   // 결과 → 종목 선택
 
 updateStreakIntro();   // 로드 시 streak 배지 표시
-window.__fl={ CAL, startGame, get G(){return G;} };
+window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curEvent(v){curEvent=v;}, get G(){return G;} };
 </script>
 </body>
 </html>
