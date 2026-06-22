@@ -78,6 +78,7 @@
   .ev-diff{color:var(--gold);font-size:15px;margin-left:6px;letter-spacing:1px;}
   .ev-sub{font-size:13px;color:var(--faint);margin-top:2px;}
   .ev-rec{font-size:14px;color:var(--cyan);font-weight:700;margin-top:5px;}
+  .ev-world{font-size:13px;font-weight:700;color:var(--gold);margin-top:3px;}
   .ev-card.locked .ev-rec{color:var(--dim);}
   .sel-err{color:var(--coral);font-size:14px;text-align:center;margin-top:14px;display:none;}
 
@@ -1041,10 +1042,18 @@ function renderEventCards(){
     c.className='ev-card'+(unlocked?'':' locked');
     c.innerHTML='<div class="ev-emoji">'+ev.emoji+'</div><div class="ev-main">'+
       '<div class="ev-name">'+ev.name+'<span class="ev-diff">'+diff+'</span></div>'+
-      '<div class="ev-sub">'+ev.dist+'m</div><div class="ev-rec">'+rec+'</div></div>';
+      '<div class="ev-sub">'+ev.dist+'m</div><div class="ev-rec">'+rec+'</div>'+
+      (unlocked?'<div class="ev-world" id="evw_'+ev.id+'"></div>':'')+'</div>';
     if(unlocked) c.addEventListener('click', ()=>pickEvent(ev));
     wrap.appendChild(c);
   });
+  EVENTS.forEach((ev,i)=>{ if(isUnlocked(i)) fillWorldRec(ev); });   // 카드에 세계 1등 기록 채우기
+}
+async function fillWorldRec(ev){
+  const el=$('evw_'+ev.id); if(!el) return;
+  try{ const t=await sbTop(ev.id, todayStr());
+    el.textContent = t!=null ? '🥇 오늘 세계 1등 '+t.toFixed(2)+'초' : '🥇 오늘 첫 기록에 도전!';
+  }catch(e){ el.textContent=''; }
 }
 function goSelect(){ renderEventCards(); $("selErr").style.display='none'; show('select'); }
 function pickEvent(ev){ curEvent=ev; beginEvent(); }
