@@ -427,9 +427,9 @@ const EVENTS = [
   // foodBoost=미션 임팩트(부스터/감속 강도 기준), penalty=실패 감속배율, foods=음식 종류
   { id:'sprint', name:'단거리', emoji:'⚡', dist:200, gold:17, silver:23, mix:{food:2,monster:2,arrow:2,hurdle:1},
     foodBoost:5.0, penalty:0.40, foods:['🍔','🍗'] },                                // 폭발: 한 방이 큼
-  { id:'middle', name:'중거리', emoji:'🎵', dist:400, gold:35, silver:46, mix:{food:3,monster:3,arrow:3,hurdle:2},
+  { id:'middle', name:'중거리', emoji:'🎵', dist:500, gold:43, silver:56, mix:{food:4,monster:4,arrow:4,hurdle:2},
     foodBoost:3.2, penalty:0.50, foods:['🍔','🍗'] },                                // 리듬: 음식 콤보
-  { id:'long',   name:'장거리', emoji:'🔥', dist:700, gold:62, silver:80, mix:{food:4,monster:4,arrow:5,hurdle:3},
+  { id:'long',   name:'장거리', emoji:'🔥', dist:1000, gold:85, silver:110, mix:{food:6,monster:6,arrow:7,hurdle:4},
     foodBoost:2.6, penalty:0.58, foods:['🍔','🍗','🍕','🍣','🥟','🌮','🍜','🥨'] },   // 변화: 나라별 음식
 ];
 let curEvent = EVENTS[0];   // 작업 1: 단거리 고정 (선택화면은 작업 2)
