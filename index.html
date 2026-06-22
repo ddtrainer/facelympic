@@ -436,7 +436,7 @@ function startGame(){
   const seed = Math.floor(Math.random()*1e9);      // 매판 다른 배치(작업 4: 오늘의 트랙 시드)
   G = {
     dist:0, speed:4, px:0, py:0, vy:0, grounded:true, sN:0, boosting:false,
-    jumpReady:true, hitDist:9, fx:[],
+    jumpReady:true, hitDist:9, fx:[], pops:[],
     obstacles:makeObstacles(curEvent, seed),
     raceTime:0, hits:0, tally:{hurdle:0,arrow:0,food:0,monster:0},
     flash:null, flashT:0, shake:0, cue:null, feed:null, feedT:0, slow:1,
@@ -462,6 +462,9 @@ function activeObstacle(){
   return best;
 }
 
+// 성공/실패 팝업 텍스트(오브젝트 위치에서 떠올라 사라짐)
+function spawnPop(x,y,text,color){ if(G&&G.pops) G.pops.push({x,y,text,color,life:1,vy:-42}); }
+
 // 괴물 격파 폭발 입자 생성
 function spawnBoom(x,y){
   const cols=['#ff7a30','#ffd34e','#ff5d6c','#fff2a0'];
@@ -478,20 +481,24 @@ function resolve(o){
   else if(o.type==='monster') ok = o.charge>=1; // 입 오므리기 1회로 격파
   else if(o.type==='food') ok = o.bites>=1;     // 입 벌리기 1회로 먹기
   o.result=ok;
+  const sx = o._sx||cssW/2, sy = o._sy||cssH*0.5;
   if(ok){
     G.hits++; G.tally[o.type]++;
     // 미션 성공 = 물리적 이득(전진 부스트). 점수 없음 → 빨라져서 기록이 좋아짐
     const fwd = o.type==='monster'? 10 : 3;
     G.dist += fwd; G.speed = Math.min(20, G.speed + (o.type==='monster'?5:2));
-    setFlash('rgba(120,230,90,.25)');
-    if(o.type==='monster'){ sfx.boom(); spawnBoom(o._sx||cssW/2, o._sy||cssH*0.55); G.shake=18; setFlash('rgba(255,170,50,.35)'); setFeed('💥 꽝!','#ffd34e'); }
-    else if(o.type==='food'){ sfx.coin(); setFeed('냠냠!','#ffd34e'); }
-    else if(o.type==='arrow'){ sfx.dodge(); setFeed('NICE!','#37d6ff'); }
-    else { sfx.nice(); setFeed('점프!','#37d6ff'); }
+    const OKTXT={ monster:'💥 꽝!', food:'🍔 냠냠!', arrow:'↔️ 피함!', hurdle:'⬆️ 점프!' };
+    spawnPop(sx, sy, OKTXT[o.type]||'성공!', '#9be635');
+    setFlash('rgba(110,235,90,.28)');
+    if(o.type==='monster'){ sfx.boom(); spawnBoom(sx,sy); G.shake=16; setFlash('rgba(255,170,50,.35)'); }
+    else if(o.type==='food'){ sfx.coin(); }
+    else if(o.type==='arrow'){ sfx.dodge(); }
+    else { sfx.nice(); }
   }else{
     // 미션 실패 = 물리적 손해(감속). 점수 페널티 없음 → 느려져서 기록이 나빠짐
-    if(o.type!=='food'){ G.speed=Math.max(3,G.speed*0.45); setFlash('rgba(255,80,90,.3)'); G.shake=10; sfx.hit(); setFeed('MISS','#ff5d6c'); }
-    else { setFeed('놓침','#9fb3d8'); }
+    const FAILTXT={ monster:'👹 막힘!', food:'놓침', arrow:'🏹 맞음!', hurdle:'🚧 쿵!' };
+    spawnPop(sx, sy, FAILTXT[o.type]||'실패', o.type==='food'?'#9fb3d8':'#ff5d6c');
+    if(o.type!=='food'){ G.speed=Math.max(3,G.speed*0.45); setFlash('rgba(255,80,90,.32)'); G.shake=12; sfx.hit(); }
   }
 }
 
@@ -540,10 +547,13 @@ function gameLoop(now, gen){
   if(browEff<0.2) G.jumpReady=true;                // 눈썹 내리면 다음 점프 준비
   if(!G.grounded){ G.vy-=20*dt; G.py+=G.vy*dt; if(G.py<=0){ G.py=0; G.grounded=true; G.vy=0; sfx.land(); } }
 
-  // ---- 폭발 입자 업데이트 ----
+  // ---- 폭발 입자 + 결과 팝업 업데이트 ----
   for(let i=G.fx.length-1;i>=0;i--){ const p=G.fx[i];
     p.vy+=40*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.life-=dt*1.6;
     if(p.life<=0) G.fx.splice(i,1); }
+  for(let i=G.pops.length-1;i>=0;i--){ const p=G.pops[i];
+    p.y+=p.vy*dt; p.vy*=0.9; p.life-=dt*1.2;
+    if(p.life<=0) G.pops.splice(i,1); }
 
   // ---- 먹기/괴물: 명중 거리 속도 비례(반응 ~1초) + 관대한 판정 ----
   // 가까울 때 해당 표정을 '짓고 있으면' 처리 → 미리 짓고 기다려도, 도착할 때 지어도 OK
@@ -683,6 +693,14 @@ function drawScene(sig, speed){
     for(const p of G.fx){ ctx.globalAlpha=Math.max(0,Math.min(1,p.life));
       ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,7); ctx.fill(); }
     ctx.globalAlpha=1;
+  }
+  // 성공/실패 결과 팝업
+  if(G && G.pops.length){
+    ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font='900 27px Pretendard';
+    ctx.shadowColor='rgba(0,0,0,.6)'; ctx.shadowBlur=8;
+    for(const p of G.pops){ ctx.globalAlpha=Math.max(0,Math.min(1,p.life*1.4));
+      ctx.fillStyle=p.color; ctx.fillText(p.text, p.x, p.y); }
+    ctx.shadowBlur=0; ctx.globalAlpha=1;
   }
 
   // HUD
