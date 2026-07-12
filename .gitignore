@@ -2,3 +2,9 @@ dev.out.log
 dev.err.log
 node_modules/
 .vercel/
+Unity/Library/
+Unity/Temp/
+Unity/Logs/
+Unity/Obj/
+Unity/UserSettings/
+unity-web/

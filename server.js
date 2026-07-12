@@ -17,8 +17,9 @@ const mimeTypes = {
 
 function createServer() {
   return http.createServer((request, response) => {
-    const requestedPath = request.url === "/" ? "/index.html" : request.url;
-    const filePath = path.join(root, decodeURIComponent(requestedPath.split("?")[0]));
+    const pathname = decodeURIComponent(request.url.split("?")[0]);
+    const requestedPath = pathname === "/" ? "/index.html" : pathname;
+    const filePath = path.join(root, requestedPath);
 
     if (!filePath.startsWith(root)) {
       response.writeHead(403);
