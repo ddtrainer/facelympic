@@ -123,21 +123,6 @@
   #loading p{color:var(--dim);font-size:14px;}
   .confetti{position:absolute;inset:0;z-index:60;pointer-events:none;display:none;}
   .confetti.on{display:block;}
-  .tech-debug{position:fixed;z-index:90;left:8px;bottom:8px;max-width:calc(100vw - 16px);
-    padding:8px 10px;border:1px solid rgba(71,214,255,.55);border-radius:9px;
-    background:rgba(4,10,24,.88);color:#dff8ff;font:700 11px/1.5 ui-monospace,monospace;
-    pointer-events:none;white-space:pre-wrap;box-shadow:0 8px 30px rgba(0,0,0,.35);}
-  .unity-proof{position:absolute;inset:0;z-index:40;display:none;flex-direction:column;background:#050b18;color:#fff;}
-  .unity-proof.active{display:flex;}
-  .unity-proof-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;
-    background:#0b1730;border-bottom:1px solid rgba(255,255,255,.14);}
-  .unity-proof-head strong{color:var(--gold);font-size:16px;letter-spacing:.8px;}
-  .unity-proof-head button{border:0;border-radius:8px;padding:9px 13px;background:rgba(255,255,255,.12);color:#fff;font-weight:800;}
-  .unity-canvas-wrap{position:relative;flex:1;min-height:0;background:linear-gradient(#06142e,#0b2d2d);}
-  #unityCanvas{display:block;width:100%;height:100%;background:#06142e;}
-  .unity-proof-ui{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:11px 14px;background:#0b1730;}
-  .unity-proof-ui span{font-size:13px;color:#b9cae8;}
-  .unity-proof-ui button{border:0;border-radius:9px;padding:11px 15px;background:var(--lime);color:#07120b;font-weight:900;}
 </style>
 </head>
 <body>
@@ -210,12 +195,6 @@
   <!-- LOADING -->
   <div id="loading"><div class="spin"></div><p id="loadText">AI 모델을 불러오는 중…</p></div>
   <canvas class="confetti" id="confetti"></canvas>
-  <output id="techDebug" class="tech-debug" hidden aria-live="polite"></output>
-  <section id="unityProof" class="unity-proof" aria-label="Facelympic Unity 3D 기술 검증">
-    <header class="unity-proof-head"><strong>FACELYMPIC UNITY 3D PROOF</strong><button id="unityBack" type="button">기존 앱</button></header>
-    <div class="unity-canvas-wrap"><canvas id="unityCanvas" tabindex="-1"></canvas></div>
-    <footer class="unity-proof-ui"><span id="unityStatus">Unity Web 빌드를 확인하는 중…</span><button id="unityCamera" type="button">카메라 연결</button></footer>
-  </section>
 </div>
 
 <script type="module">
@@ -239,80 +218,6 @@ const CAL = {
 };
 function norm(sig,v){ const c=CAL[sig]; const d=Math.max(c.max-c.min,1e-3); return Math.min(1,Math.max(0,(v-c.min)/d)); }
 
-// 웹 MediaPipe와 Unity Web이 공유하는 얼굴 입력 계약. 영상 자체는 전달하지 않는다.
-const DEBUG_MODE = new URLSearchParams(location.search).get('debug')==='1';
-const UNITY_MODE = new URLSearchParams(location.search).get('unity')==='1';
-const debugEl=$('techDebug'); if(DEBUG_MODE) debugEl.hidden=false;
-let debugLast=0, debugCount=0, debugFps=0, debugSupabase='대기';
-const faceBridge={ unityInstance:null, frameWindow:null, lastFrame:null,
-  register(instance){ this.unityInstance=instance; if(this.lastFrame)this.send(this.lastFrame); },
-  attachFrame(frameWindow){ this.frameWindow=frameWindow; if(this.lastFrame)this.send(this.lastFrame); },
-  send(frame){ this.lastFrame=frame;
-    const json=JSON.stringify(frame);
-    if(this.unityInstance&&this.unityInstance.SendMessage)
-      this.unityInstance.SendMessage('FaceInputReceiver','OnFaceInputFrame',json);
-    if(this.frameWindow) this.frameWindow.postMessage({type:'facelympic-face-input',frame},location.origin);
-  }
-};
-window.facelympicUnityBridge=faceBridge;
-window.registerFacelympicUnity=(instance)=>faceBridge.register(instance);
-window.addEventListener('message',(event)=>{
-  if(event.origin===location.origin && event.data&&event.data.type==='facelympic-unity-ready')
-    faceBridge.attachFrame(event.source);
-});
-function publishFaceFrame(sig,now){
-  const smile=norm('smile',sig.smile||0), brow=norm('brow',sig.brow||0);
-  const jaw=norm('jaw',sig.jaw||0), pucker=norm('pucker',sig.pucker||0);
-  const frame={ timestampMs:Math.round(now), faceDetected:!!sig.ok, quality:sig.ok?1:0,
-    neutral:Math.max(0,1-Math.max(smile,brow,jaw,pucker)), smile,
-    boost:Math.max(0,Math.min(1,(smile-.72)/.28)), browRaise:brow,
-    headRoll:Math.max(-1,Math.min(1,(sig.roll||0)/.4)), jawOpen:jaw, pucker };
-  faceBridge.send(frame);
-  if(!DEBUG_MODE||sig._stale)return;
-  debugCount++;
-  if(!debugLast)debugLast=now;
-  if(now-debugLast>=1000){ debugFps=Math.round(debugCount*1000/(now-debugLast)); debugCount=0; debugLast=now; }
-  debugEl.textContent='FACELYMPIC PHONE TEST\n얼굴 '+(sig.ok?'인식':'미검출')+' · '+debugFps+'fps · Supabase '+debugSupabase+
-    '\nsmile '+smile.toFixed(2)+' · roll '+frame.headRoll.toFixed(2)+' · brow '+brow.toFixed(2)+
-    '\njaw '+jaw.toFixed(2)+' · pucker '+pucker.toFixed(2);
-}
-function setDebugSupabase(status){ debugSupabase=status; }
-let unityProofRAF=null;
-async function loadUnityProof(){
-  const status=$('unityStatus'), canvas=$('unityCanvas');
-  try{
-    const loaderUrl='./unity-web/Build/unity-web.loader.js';
-    const response=await fetch(loaderUrl,{method:'HEAD'});
-    if(!response.ok) throw new Error('Unity Web 빌드가 아직 없습니다.');
-    await new Promise((resolve,reject)=>{ const script=document.createElement('script'); script.src=loaderUrl;
-      script.onload=resolve; script.onerror=reject; document.body.appendChild(script); });
-    const instance=await createUnityInstance(canvas,{
-      dataUrl:'./unity-web/Build/unity-web.data',
-      frameworkUrl:'./unity-web/Build/unity-web.framework.js',
-      codeUrl:'./unity-web/Build/unity-web.wasm',
-      streamingAssetsUrl:'./unity-web/StreamingAssets', companyName:'Facelympic', productName:'Facelympic3D', productVersion:'0.1.0'
-    },(progress)=>{status.textContent='Unity 로딩 '+Math.round(progress*100)+'%';});
-    registerFacelympicUnity(instance); status.textContent='3D 연결 완료 · 카메라를 연결하세요';
-  }catch(error){ status.textContent=error.message||'Unity Web 빌드 로드 실패'; }
-}
-function startUnitySignalLoop(){
-  if(unityProofRAF)return;
-  const frame=(now)=>{ if(UNITY_MODE&&detVideo)readSignals(now); unityProofRAF=requestAnimationFrame(frame); };
-  unityProofRAF=requestAnimationFrame(frame);
-}
-if(UNITY_MODE){
-  Object.values(screens).forEach((screen)=>screen.classList.remove('active'));
-  $('unityProof').classList.add('active');
-  $('unityBack').addEventListener('click',()=>{ location.href='./'; });
-  $('unityCamera').addEventListener('click',async()=>{
-    const status=$('unityStatus');
-    try{ if(!faceLM)await loadModel(); if(!stream)await startCamera(calVideo); $('loading').classList.remove('active');
-      status.textContent='카메라·얼굴 입력 연결 완료'; startUnitySignalLoop(); $('unityCamera').disabled=true;
-    }catch(error){ $('loading').classList.remove('active'); status.textContent='카메라 연결 실패: '+(error.message||error); }
-  });
-  loadUnityProof();
-}
-
 // ============================================================
 //  MediaPipe
 // ============================================================
@@ -326,7 +231,6 @@ async function loadModel(){
       "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
       delegate:"GPU" },
     runningMode:"VIDEO", numFaces:1, outputFaceBlendshapes:true,
-    outputFacialTransformationMatrixes:true,
   });
 }
 async function startCamera(videoEl){
@@ -376,7 +280,6 @@ function readSignals(now){
     if(++lostFrames < 6){ out.ok=true; for(const k of SM_KEYS) out[k]=SM[k]; }
     else { for(const k in SM) SM[k]=0; }
   }
-  publishFaceFrame(out,now);
   return out;
 }
 
@@ -567,7 +470,7 @@ function startGame(){
   const seed = hashStr(todayStr()+'_'+curEvent.id);   // 오늘의 트랙: 그날·종목별 고정 배치(전원 동일, 매일 변경)
   G = {
     dist:0, speed:4, px:0, py:0, vy:0, grounded:true, sN:0, boosting:false,
-    jumpReady:true, hitDist:9, fx:[], pops:[],
+    jumpReady:true, hitDist:9, fx:[], pops:[], squashT:0, lean:0, prevSpeed:4, landFx:false,
     obstacles:makeObstacles(curEvent, seed),
     raceTime:0, hits:0, foodCombo:0, tally:{hurdle:0,arrow:0,food:0,monster:0},
     flash:null, flashT:0, shake:0, cue:null, feed:null, feedT:0, slow:1,
@@ -685,7 +588,11 @@ function gameLoop(now, gen){
     G.vy=10.8; G.grounded=false; G.jumpReady=false; sfx.jump();
   }
   if(browEff<0.2) G.jumpReady=true;                // 눈썹 내리면 다음 점프 준비
-  if(!G.grounded){ G.vy-=20*dt; G.py+=G.vy*dt; if(G.py<=0){ G.py=0; G.grounded=true; G.vy=0; sfx.land(); } }
+  if(!G.grounded){ G.vy-=20*dt; G.py+=G.vy*dt; if(G.py<=0){ G.py=0; G.grounded=true; G.vy=0; sfx.land(); G.squashT=0.16; G.landFx=true; } }
+  // 관성: 감속 시 앞으로 쏠림 + 착지 압축 타이머
+  const _accel=G.speed-G.prevSpeed; G.prevSpeed=G.speed;
+  G.lean += ((-_accel*3)-G.lean)*Math.min(1,dt*6); G.lean=Math.max(-0.22,Math.min(0.22,G.lean));
+  if(G.squashT>0) G.squashT-=dt;
 
   // ---- 폭발 입자 + 결과 팝업 업데이트 ----
   for(let i=G.fx.length-1;i>=0;i--){ const p=G.fx[i];
@@ -726,6 +633,7 @@ const ICON = { hurdle:'🚧', monster:'👹' };   // 음식은 종목별 curEven
 function drawScene(sig, speed){
   const W=cssW,H=cssH, cx=W/2, horizon=H*0.40;
   let sx=0,sy=0; if(G && G.shake>0){ sx=(Math.random()-.5)*G.shake; sy=(Math.random()-.5)*G.shake; }
+  if(G && speed>15){ const m=(speed-15)*0.5; sx+=(Math.random()-.5)*m; sy+=(Math.random()-.5)*m; }  // 최고속 미세 흔들림
   ctx.save(); ctx.translate(sx,sy);
 
   // 하늘
@@ -761,6 +669,11 @@ function drawScene(sig, speed){
   // 중앙 차선
   ctx.strokeStyle='rgba(255,255,255,.35)'; ctx.lineWidth=2;
   ctx.beginPath(); ctx.moveTo(cx,yD(0)); ctx.lineTo(cx,yD(1)); ctx.stroke();
+  // 3레인 구분선 (좌/우) — 위치 판단 쉽게
+  ctx.strokeStyle='rgba(255,255,255,.15)'; ctx.setLineDash([14,12]); ctx.lineWidth=2;
+  for(const Lf of [-0.5,0.5]){ ctx.beginPath();
+    ctx.moveTo(cx+Lf*bottomHalf*0.62, yD(0)); ctx.lineTo(cx+Lf*topHalf*0.62, yD(1)); ctx.stroke(); }
+  ctx.setLineDash([]);
 
   // 오브젝트 (먼 것부터)
   if(G){
@@ -774,6 +687,14 @@ function drawScene(sig, speed){
       const oy=yD(d);
       const sc=0.5+ff*2.6;
       o._sx=ox; o._sy=oy;   // 즉시 격파 시 폭발 위치로 사용
+      // 그림자(바닥에 붙임)
+      ctx.fillStyle='rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(ox, oy+7*sc, 15*sc, 5*sc, 0,0,7); ctx.fill();
+      // 근접 위협(빨간 펄스) — 허들·화살·괴물
+      if(o.type!=='food' && ahead<G.hitDist*1.4){
+        const pulse=0.35+0.3*Math.sin(G.raceTime*12);
+        ctx.strokeStyle='rgba(255,70,80,'+pulse+')'; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.arc(ox, oy-8*sc, 24*sc, 0, 7); ctx.stroke();
+      }
       if(o.type==='arrow'){
         drawArrow(ox, oy-14*sc, sc);
       } else {
@@ -811,8 +732,19 @@ function drawScene(sig, speed){
     const pxs=cx + G.px*bottomHalf*0.62;
     // 그림자
     ctx.fillStyle='rgba(0,0,0,.32)'; ctx.beginPath();
-    ctx.ellipse(pxs, yD(0)-4, 30-G.py*8, 10, 0,0,7); ctx.fill();
-    drawRunner(pxs, footY, G.dist);
+    ctx.ellipse(pxs, yD(0)-4, 34-G.py*10, 11, 0,0,7); ctx.fill();
+    // 스쿼시/스트레치
+    let syq=1, sxq=1;
+    if(!G.grounded){ syq=1+Math.max(0,G.vy)*0.03; sxq=1/Math.sqrt(syq); }   // 상승 시 늘어남
+    if(G.squashT>0){ const q=G.squashT/0.16; syq=1-0.25*q; sxq=1+0.2*q; }    // 착지 압축
+    drawRunner(pxs, footY, G.dist, 1.25*sxq, 1.25*syq, G.lean);
+    // 착지 먼지
+    if(G.landFx){ G.landFx=false;
+      for(let i=0;i<7;i++){ const a=Math.PI+(Math.random()-.5)*Math.PI, sp=40+Math.random()*70;
+        G.fx.push({x:pxs+(Math.random()-.5)*20, y:yD(0)-4, vx:Math.cos(a)*sp, vy:-Math.random()*30, life:.5, size:2+Math.random()*3, color:'rgba(210,220,235,0.9)'}); } }
+    // 부스터 파티클
+    if(G.boosting){ for(let i=0;i<2;i++){
+      G.fx.push({x:pxs+(Math.random()-.5)*34, y:footY-34-Math.random()*40, vx:(Math.random()-.5)*30, vy:60+Math.random()*60, life:.4, size:2+Math.random()*2, color:'rgba(120,230,255,0.85)'}); } }
   }
 
   // 속도선(부스터)
@@ -874,10 +806,11 @@ function drawArrow(x,y,sc){
 }
 
 // 러너 캐릭터 (발 위치 = x,y 기준, 위로 그림)
-function drawRunner(x,y,dist){
+function drawRunner(x,y,dist,sx,sy,lean){
+  sx=sx||1; sy=sy||1; lean=lean||0;
   const bob=Math.sin(dist*2.6)*2.5;
   const ph=Math.sin(dist*9), arm=Math.sin(dist*9+Math.PI);
-  ctx.save(); ctx.translate(x,y+bob); ctx.lineCap='round';
+  ctx.save(); ctx.translate(x,y+bob); ctx.rotate(lean*0.5); ctx.scale(sx,sy); ctx.lineCap='round';
   // 다리
   ctx.strokeStyle='#13294d'; ctx.lineWidth=11;
   ctx.beginPath(); ctx.moveTo(0,-30); ctx.lineTo(10*ph,-2); ctx.stroke();
@@ -1035,16 +968,12 @@ const SB_H={ apikey:SB_KEY, Authorization:'Bearer '+SB_KEY };
 async function sbCount(eventId, day, extra){    // 조건에 맞는 기록 개수
   const q=SB_URL+'/rest/v1/fl_scores?select=id&event_id=eq.'+eventId+'&day=eq.'+day+(extra?'&'+extra:'');
   const res=await fetch(q,{headers:{...SB_H,'Range':'0-0','Prefer':'count=exact'}});
-  if(!res.ok){ setDebugSupabase('오류 '+res.status); throw new Error('Supabase '+res.status); }
-  setDebugSupabase('연결');
   const cr=res.headers.get('content-range')||'/0';
   return parseInt(cr.split('/')[1]||'0',10)||0;
 }
 async function sbTop(eventId, day){             // 오늘의 트랙 1등 기록(최소 시간)
   const q=SB_URL+'/rest/v1/fl_scores?select=time_sec&event_id=eq.'+eventId+'&day=eq.'+day+'&order=time_sec.asc&limit=1';
-  const res=await fetch(q,{headers:SB_H});
-  if(!res.ok){ setDebugSupabase('오류 '+res.status); throw new Error('Supabase '+res.status); }
-  setDebugSupabase('연결'); const arr=await res.json();
+  const res=await fetch(q,{headers:SB_H}); const arr=await res.json();
   return (arr&&arr[0])? +arr[0].time_sec : null;
 }
 async function updateWorldRank(eventId, time, day){   // 기록 등록 + 오늘의 트랙 기준 등수
