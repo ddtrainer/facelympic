@@ -20,6 +20,13 @@ test('phone diagnostics and existing Supabase leaderboard remain wired', () => {
   assert.match(html, /fl_scores/);
 });
 
+test('Unity proof route loads the generated Web build into the same page', () => {
+  assert.match(html, /UNITY_MODE/);
+  assert.match(html, /id="unityCanvas"/);
+  assert.match(html, /unity-web\.loader\.js/);
+  assert.match(html, /createUnityInstance/);
+});
+
 test('local preview serves the debug query at the root page', async (t) => {
   const server = createServer();
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));

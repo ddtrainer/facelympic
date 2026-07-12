@@ -7,4 +7,5 @@ Unity/Temp/
 Unity/Logs/
 Unity/Obj/
 Unity/UserSettings/
-unity-web/
+UnityHubSetup-*.exe
+unity-build.log

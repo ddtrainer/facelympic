@@ -1,5 +1,8 @@
 mergeInto(LibraryManager.library, {
   FacelympicBridgeReady: function () {
+    // The host registers a same-page Unity instance directly. The message
+    // bridge is only needed when this build is embedded in an iframe.
+    if (window.parent === window) return;
     if (window.__facelympicBridgeReady) return;
     window.__facelympicBridgeReady = true;
     window.addEventListener("message", function (event) {
