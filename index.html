@@ -275,12 +275,13 @@ const SM_KEYS = ['smile','jaw','pucker','roll','brow'];
 let lostSince = 0;          // 얼굴 놓친 시각(ms)
 const GRACE_MS = 3000;      // 3초 유예 — 카메라 오류로 기록 잃고 이탈하는 것 방지
 
-// 매 프레임 blendshape + 머리자세 신호 추출
+// blendshape + 머리자세 신호. 같은 비디오 프레임이면 추론 스킵 → 추론=카메라fps, 렌더=60fps 분리(저사양 대응)
+let lastSig = { ok:false, smile:0, jaw:0, pucker:0, roll:0, brow:0 };
 function readSignals(now){
-  const out = { ok:false, smile:0, jaw:0, pucker:0, roll:0, brow:0 };
-  if(!detVideo || detVideo.readyState<2) return out;
-  if(detVideo.currentTime===lastVT) { out._stale=true; }
+  if(!detVideo || detVideo.readyState<2) return { ok:false, smile:0, jaw:0, pucker:0, roll:0, brow:0 };
+  if(detVideo.currentTime===lastVT) return lastSig;   // 새 프레임 아님 → 직전 신호 재사용(추론 스킵)
   lastVT = detVideo.currentTime;
+  const out = { ok:false, smile:0, jaw:0, pucker:0, roll:0, brow:0 };
   const res = faceLM.detectForVideo(detVideo, now);
   let raw=null;
   if(res.faceBlendshapes && res.faceBlendshapes.length){
@@ -306,6 +307,7 @@ function readSignals(now){
     if(now-lostSince < GRACE_MS){ out.ok=true; out._grace=true; for(const k of SM_KEYS) out[k]=SM[k]; }
     else { for(const k in SM) SM[k]=0; }
   }
+  lastSig = out;   // 스킵 프레임에서 재사용
   return out;
 }
 
