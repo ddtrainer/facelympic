@@ -79,6 +79,16 @@
   .ev-sub{font-size:13px;color:var(--faint);margin-top:2px;}
   .ev-rec{font-size:14px;color:var(--cyan);font-weight:700;margin-top:5px;}
   .ev-world{font-size:13px;font-weight:700;color:var(--gold);margin-top:3px;}
+  .intro-set{position:absolute;top:14px;right:14px;z-index:4;width:40px;height:40px;border-radius:12px;
+    border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:18px;cursor:pointer;}
+  #settings{padding:24px;justify-content:flex-start;padding-top:64px;}
+  .set-body{max-width:420px;margin:0 auto 18px;width:100%;display:flex;flex-direction:column;gap:16px;}
+  .set-row{display:flex;flex-direction:column;gap:6px;}
+  .set-row label,.set-toggle label{font-size:15px;font-weight:700;}
+  .set-row input[type=range]{width:100%;accent-color:var(--cyan);height:26px;}
+  .set-toggle{display:flex;justify-content:space-between;align-items:center;gap:12px;}
+  .set-toggle input[type=checkbox]{width:22px;height:22px;accent-color:var(--cyan);flex-shrink:0;}
+  .set-note{font-size:13px;color:var(--dim);line-height:1.5;margin-top:4px;}
   .ev-card.locked .ev-rec{color:var(--dim);}
   .sel-err{color:var(--coral);font-size:14px;text-align:center;margin-top:14px;display:none;}
 
@@ -131,16 +141,14 @@
   <!-- INTRO -->
   <section id="intro" class="screen active">
     <div class="streak-top" id="streakIntro"></div>
+    <button class="intro-set" id="openSet" aria-label="설정">⚙️</button>
     <div class="logo">페이셀림픽<br>FACELYMPIC</div>
     <div class="tagline">웃으면 빨라진다</div>
-    <p class="lead">얼굴과 고개로 트랙을 질주하세요.<br>웃으면 달리고 무표정이면 멈춰요. 눈썹 올려 점프, 고개 기울여 피하고, 입으로 먹고 터뜨립니다.</p>
+    <p class="lead">웃으면 달리는 표정 달리기.<br>나머지 동작은 달리면서 자연스럽게 배워요.</p>
     <div class="moves">
-      <div class="move"><span class="e">😊</span><div><b>웃기</b><span>달리기 · 부스터</span></div></div>
-      <div class="move"><span class="e">😐</span><div><b>무표정</b><span>멈춤</span></div></div>
+      <div class="move"><span class="e">😊</span><div><b>웃기</b><span>웃을수록 빨라져요</span></div></div>
       <div class="move"><span class="e">🤨</span><div><b>눈썹 올리기</b><span>점프</span></div></div>
-      <div class="move"><span class="e">↔️</span><div><b>고개 기울이기</b><span>좌우 피하기</span></div></div>
-      <div class="move"><span class="e">😮</span><div><b>입 벌리기</b><span>음식 먹기</span></div></div>
-      <div class="move"><span class="e">😗</span><div><b>입 오므리기</b><span>괴물 꽝!</span></div></div>
+      <div class="move"><span class="e">↔️</span><div><b>고개 기울이기</b><span>좌우 이동</span></div></div>
     </div>
     <button class="btn btn-primary" id="startBtn">시작하기</button>
     <p class="err" id="introErr"></p>
@@ -149,7 +157,7 @@
   <!-- CALIBRATION -->
   <section id="calib" class="screen">
     <h2>표정·동작 익히기</h2>
-    <p class="sub">5가지 동작을 따라 하며 내 얼굴을 맞춰볼게요.</p>
+    <p class="sub">동작을 따라 하며 내 얼굴에 맞춰볼게요. (선택 사항)</p>
     <div class="calvid-wrap">
       <video id="calvid" playsinline autoplay muted></video>
     </div>
@@ -158,7 +166,23 @@
     <div class="cal-instr" id="calInstr">화면 안에 얼굴을 맞춰 주세요</div>
     <div class="cal-meter"><div class="cal-fill" id="calFill"></div></div>
     <div class="cal-dots" id="calDots"></div>
-    <button class="btn btn-ghost" id="calSkip" style="max-width:380px;">기본값으로 건너뛰기</button>
+    <button class="btn btn-ghost" id="calSkip" style="max-width:380px;">바로 게임하기</button>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="settings" class="screen">
+    <button class="sel-back" id="setBack">‹</button>
+    <h2 class="sel-title">설정</h2>
+    <div class="set-body">
+      <div class="set-row"><label>😊 웃음 민감도</label><input type="range" id="sSmile" min="60" max="160" value="100"></div>
+      <div class="set-row"><label>🤨 눈썹 민감도</label><input type="range" id="sBrow" min="60" max="160" value="100"></div>
+      <div class="set-row"><label>↔️ 고개 기울기 민감도</label><input type="range" id="sRoll" min="60" max="160" value="100"></div>
+      <div class="set-toggle"><label>좌우 반전 (피하기 방향)</label><input type="checkbox" id="tFlip"></div>
+      <div class="set-toggle"><label>저사양 모드 (파티클·흔들림 끔)</label><input type="checkbox" id="tLow"></div>
+      <div class="set-toggle"><label>시작 전 얼굴 맞추기 (선택)</label><input type="checkbox" id="tCal"></div>
+      <p class="set-note">민감도를 높이면 작은 표정도 인식돼요. 잘 안 되면 올리고, 오작동하면 내리세요.</p>
+    </div>
+    <button class="btn btn-primary" id="setDone" style="max-width:380px;">완료</button>
   </section>
 
   <!-- SELECT -->
@@ -202,7 +226,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 const $ = (id)=>document.getElementById(id);
-const screens = { intro:$("intro"), select:$("select"), calib:$("calib"), game:$("game"), done:$("done") };
+const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
 
 // ============================================================
@@ -565,7 +589,7 @@ function gameLoop(now, gen){
   G.raceTime += dt;          // 기록 = 완주 시간(유일한 지표)
 
   // ---- 속도(연속): 무표정=멈춤, 웃을수록 빨라짐 ----
-  const sN = sig.ok? norm('smile',sig.smile):0;
+  const sN = Math.min(1, (sig.ok? norm('smile',sig.smile):0) * SENS.smile);   // 감도 반영
   const STOP_TH=0.08, MOVE_MIN=6, MAXSP=19;
   let targetSpeed;
   if(sN < STOP_TH) targetSpeed = 0;                                  // 무표정 = 멈춤
@@ -577,15 +601,15 @@ function gameLoop(now, gen){
   G.speed += (targetSpeed-G.speed)*Math.min(1,dt*6);   // 반응 더 빠르게
 
   // ---- 좌우 이동(화살 회피): 고개 기울이기(roll) ----
-  const ROLL_SIGN=-1, deadR=0.10;       // rad(~6°). 좌우 반대면 부호 뒤집기(현재 -1)
+  const ROLL_SIGN=FLIP?1:-1, deadR=0.10;   // 설정 '좌우 반전'으로 부호 전환(기본 -1)
   const roll = sig.roll*ROLL_SIGN;
-  let tx = Math.abs(roll)>deadR ? Math.max(-1,Math.min(1,roll*4.5)) : 0;
+  let tx = Math.abs(roll)>deadR ? Math.max(-1,Math.min(1,roll*4.5*SENS.roll)) : 0;   // 감도 반영
   if(!(act && act.type==='arrow')) tx=tx*0.45; // 회피 구간 아니면 약하게
   G.px += (tx-G.px)*Math.min(1,dt*9);
 
   // ---- 점프: 눈썹 올리기(brow). 웃을 때 눈썹이 같이 올라가는 오발동 방지 → 웃음 성분 빼기 ----
   const BROW_TH=0.55, SMILE_SUPPRESS=0.5;          // 오발동 잦으면 BROW_TH↑ 또는 SMILE_SUPPRESS↑
-  const browEff = (sig.ok ? norm('brow', sig.brow) : 0) - sN*SMILE_SUPPRESS;  // 웃음 강하면 상쇄
+  const browEff = (sig.ok ? norm('brow', sig.brow)*SENS.brow : 0) - sN*SMILE_SUPPRESS;  // 감도 반영 + 웃음 상쇄
   if(G.jumpReady && browEff>BROW_TH && G.grounded){
     G.vy=10.8; G.grounded=false; G.jumpReady=false; sfx.jump();
   }
@@ -634,8 +658,11 @@ function gameLoop(now, gen){
 const ICON = { hurdle:'🚧', monster:'👹' };   // 음식은 종목별 curEvent.foods 사용
 function drawScene(sig, speed){
   const W=cssW,H=cssH, cx=W/2, horizon=H*0.40;
-  let sx=0,sy=0; if(G && G.shake>0){ sx=(Math.random()-.5)*G.shake; sy=(Math.random()-.5)*G.shake; }
-  if(G && speed>15){ const m=(speed-15)*0.5; sx+=(Math.random()-.5)*m; sy+=(Math.random()-.5)*m; }  // 최고속 미세 흔들림
+  let sx=0,sy=0;
+  if(!LOWSPEC && G){
+    if(G.shake>0){ sx=(Math.random()-.5)*G.shake; sy=(Math.random()-.5)*G.shake; }
+    if(speed>15){ const m=(speed-15)*0.5; sx+=(Math.random()-.5)*m; sy+=(Math.random()-.5)*m; }  // 최고속 미세 흔들림
+  }
   ctx.save(); ctx.translate(sx,sy);
 
   // 하늘
@@ -692,7 +719,7 @@ function drawScene(sig, speed){
       // 그림자(바닥에 붙임)
       ctx.fillStyle='rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(ox, oy+7*sc, 15*sc, 5*sc, 0,0,7); ctx.fill();
       // 근접 위협(빨간 펄스) — 허들·화살·괴물
-      if(o.type!=='food' && ahead<G.hitDist*1.4){
+      if(o.type!=='food' && ahead<G.hitDist*1.4 && !LOWSPEC){
         const pulse=0.35+0.3*Math.sin(G.raceTime*12);
         ctx.strokeStyle='rgba(255,70,80,'+pulse+')'; ctx.lineWidth=3;
         ctx.beginPath(); ctx.arc(ox, oy-8*sc, 24*sc, 0, 7); ctx.stroke();
@@ -742,10 +769,10 @@ function drawScene(sig, speed){
     drawRunner(pxs, footY, G.dist, 1.25*sxq, 1.25*syq, G.lean);
     // 착지 먼지
     if(G.landFx){ G.landFx=false;
-      for(let i=0;i<7;i++){ const a=Math.PI+(Math.random()-.5)*Math.PI, sp=40+Math.random()*70;
+      if(!LOWSPEC) for(let i=0;i<7;i++){ const a=Math.PI+(Math.random()-.5)*Math.PI, sp=40+Math.random()*70;
         G.fx.push({x:pxs+(Math.random()-.5)*20, y:yD(0)-4, vx:Math.cos(a)*sp, vy:-Math.random()*30, life:.5, size:2+Math.random()*3, color:'rgba(210,220,235,0.9)'}); } }
     // 부스터 파티클
-    if(G.boosting){ for(let i=0;i<2;i++){
+    if(G.boosting && !LOWSPEC){ for(let i=0;i<2;i++){
       G.fx.push({x:pxs+(Math.random()-.5)*34, y:footY-34-Math.random()*40, vx:(Math.random()-.5)*30, vy:60+Math.random()*60, life:.4, size:2+Math.random()*2, color:'rgba(120,230,255,0.85)'}); } }
   }
 
@@ -1069,6 +1096,19 @@ function fireConfetti(){
 //  종목 선택 + 단계적 해금
 // ============================================================
 let calibrated=false;   // 표정 맞추기는 세션당 1회만(종목 바꿔도 재측정 안 함)
+
+// ----- 설정: 감도 슬라이더 / 좌우반전 / 저사양 / 선택 캘리브 (localStorage) -----
+let SENS={smile:1,brow:1,roll:1}, FLIP=false, LOWSPEC=false, CAL_FIRST=false;
+function loadSettings(){
+  try{ const s=JSON.parse(lsGet('fl_sens')||'null'); if(s&&s.smile) SENS=s; }catch(e){}
+  FLIP=lsGet('fl_flip')==='1'; LOWSPEC=lsGet('fl_low')==='1'; CAL_FIRST=lsGet('fl_cal')==='1';
+}
+function saveSettings(){ lsSet('fl_sens',JSON.stringify(SENS)); lsSet('fl_flip',FLIP?'1':'0'); lsSet('fl_low',LOWSPEC?'1':'0'); lsSet('fl_cal',CAL_FIRST?'1':'0'); }
+function openSettings(){
+  $("sSmile").value=Math.round(SENS.smile*100); $("sBrow").value=Math.round(SENS.brow*100); $("sRoll").value=Math.round(SENS.roll*100);
+  $("tFlip").checked=FLIP; $("tLow").checked=LOWSPEC; $("tCal").checked=CAL_FIRST;
+  show('settings');
+}
 function bestFor(id){ try{ const v=localStorage.getItem('fl_best_'+id); return v?parseFloat(v):null; }catch(e){ return null; } }
 function isUnlocked(i){ return i===0 || bestFor(EVENTS[i-1].id)!=null; }   // 직전 종목 완주 시 해금
 function medalForEv(ev,t){ return t<ev.gold?'🥇':(t<ev.silver?'🥈':'🥉'); }
@@ -1106,7 +1146,7 @@ async function beginEvent(){
     $("loadText").textContent='카메라를 켜는 중…';
     if(!stream) await startCamera(calVideo);
     $("loading").classList.remove('active');
-    if(!calibrated) runCalibration(); else startGame();   // 첫 회만 표정 맞추기
+    if(CAL_FIRST && !calibrated) runCalibration(); else startGame();   // 기본은 바로 게임, 설정 ON 시에만 표정 맞추기
   }catch(e){
     $("loading").classList.remove('active'); console.error(e);
     let msg='오류가 발생했어요: '+(e.message||e);
@@ -1126,7 +1166,18 @@ $("gExit").addEventListener('click', ()=>{ if(G)G.running=false; bgmStop(); goSe
 $("gMute").addEventListener('click', ()=>{ muted=!muted; $("gMute").textContent=muted?'🔇':'🔊'; if(master)master.gain.value=muted?0:.5; });
 $("againBtn").addEventListener('click', ()=>{ if(actx&&actx.state==='suspended')actx.resume(); startGame(); });   // 같은 종목 다시
 $("homeBtn").addEventListener('click', ()=>{ goSelect(); });   // 결과 → 종목 선택
+// 설정
+$("openSet").addEventListener('click', openSettings);
+$("setBack").addEventListener('click', ()=>{ show('intro'); updateStreakIntro(); });
+$("setDone").addEventListener('click', ()=>{ show('intro'); updateStreakIntro(); });
+$("sSmile").addEventListener('input', e=>{ SENS.smile=e.target.value/100; saveSettings(); });
+$("sBrow").addEventListener('input', e=>{ SENS.brow=e.target.value/100; saveSettings(); });
+$("sRoll").addEventListener('input', e=>{ SENS.roll=e.target.value/100; saveSettings(); });
+$("tFlip").addEventListener('change', e=>{ FLIP=e.target.checked; saveSettings(); });
+$("tLow").addEventListener('change', e=>{ LOWSPEC=e.target.checked; saveSettings(); });
+$("tCal").addEventListener('change', e=>{ CAL_FIRST=e.target.checked; saveSettings(); });
 
+loadSettings();        // 저장된 설정 적용
 updateStreakIntro();   // 로드 시 streak 배지 표시
 window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curEvent(v){curEvent=v;}, get G(){return G;} };
 </script>
