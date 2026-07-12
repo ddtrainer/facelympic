@@ -1119,14 +1119,14 @@ function renderEventCards(){
   EVENTS.forEach((ev,i)=>{
     const unlocked=isUnlocked(i), best=bestFor(ev.id), diff='★'.repeat(i+1);
     let rec;
-    if(!unlocked) rec='🔒 '+EVENTS[i-1].name+' 완주하면 열려요';
+    if(!unlocked) rec='🔒 '+EVENTS[i-1].name+' 완주하면 열려요 (0/1)';
     else if(best!=null) rec='내 최고 '+best.toFixed(2)+'초 '+medalForEv(ev,best);
     else rec='첫 도전을 기다려요';
     const c=document.createElement('div');
     c.className='ev-card'+(unlocked?'':' locked');
     c.innerHTML='<div class="ev-emoji">'+ev.emoji+'</div><div class="ev-main">'+
       '<div class="ev-name">'+ev.name+'<span class="ev-diff">'+diff+'</span></div>'+
-      '<div class="ev-sub">'+ev.dist+'m</div><div class="ev-rec">'+rec+'</div>'+
+      '<div class="ev-sub">'+ev.dist+'m · 약 '+ev.gold+'초</div><div class="ev-rec">'+rec+'</div>'+
       (unlocked?'<div class="ev-world" id="evw_'+ev.id+'"></div>':'')+'</div>';
     if(unlocked) c.addEventListener('click', ()=>pickEvent(ev));
     wrap.appendChild(c);
