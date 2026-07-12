@@ -160,7 +160,7 @@
   <!-- CALIBRATION -->
   <section id="calib" class="screen">
     <h2>표정·동작 익히기</h2>
-    <p class="sub">동작을 따라 하며 내 얼굴에 맞춰볼게요. (선택 사항)</p>
+    <p class="sub">달리기 전, 표정·동작을 워밍업해요.</p>
     <div class="calvid-wrap">
       <video id="calvid" playsinline autoplay muted></video>
     </div>
@@ -169,7 +169,7 @@
     <div class="cal-instr" id="calInstr">화면 안에 얼굴을 맞춰 주세요</div>
     <div class="cal-meter"><div class="cal-fill" id="calFill"></div></div>
     <div class="cal-dots" id="calDots"></div>
-    <button class="btn btn-ghost" id="calSkip" style="max-width:380px;">바로 게임하기</button>
+    <button class="btn btn-ghost" id="calSkip" style="max-width:380px;">건너뛰기</button>
   </section>
 
   <!-- SETTINGS -->
@@ -182,7 +182,6 @@
       <div class="set-row"><label>↔️ 고개 기울기 민감도</label><input type="range" id="sRoll" min="60" max="160" value="100"></div>
       <div class="set-toggle"><label>좌우 반전 (피하기 방향)</label><input type="checkbox" id="tFlip"></div>
       <div class="set-toggle"><label>저사양 모드 (파티클·흔들림 끔)</label><input type="checkbox" id="tLow"></div>
-      <div class="set-toggle"><label>시작 전 얼굴 맞추기 (선택)</label><input type="checkbox" id="tCal"></div>
       <p class="set-note">민감도를 높이면 작은 표정도 인식돼요. 잘 안 되면 올리고, 오작동하면 내리세요.</p>
     </div>
     <button class="btn btn-primary" id="setDone" style="max-width:380px;">완료</button>
@@ -426,7 +425,7 @@ async function runCalibration(){
         }
         sfx.coin();
         idx++;
-        if(idx>=CAL_STEPS.length){ calibrated=true; startGame(); return; }
+        if(idx>=CAL_STEPS.length){ calibrated=true; goSelect(); return; }   // 워밍업 끝 → 종목 선택
         setTimeout(doStep,300); return;
       }
       calRAF=requestAnimationFrame(frame);
@@ -1111,7 +1110,7 @@ function loadSettings(){
 function saveSettings(){ lsSet('fl_sens',JSON.stringify(SENS)); lsSet('fl_flip',FLIP?'1':'0'); lsSet('fl_low',LOWSPEC?'1':'0'); lsSet('fl_cal',CAL_FIRST?'1':'0'); }
 function openSettings(){
   $("sSmile").value=Math.round(SENS.smile*100); $("sBrow").value=Math.round(SENS.brow*100); $("sRoll").value=Math.round(SENS.roll*100);
-  $("tFlip").checked=FLIP; $("tLow").checked=LOWSPEC; $("tCal").checked=CAL_FIRST;
+  $("tFlip").checked=FLIP; $("tLow").checked=LOWSPEC;
   show('settings');
 }
 function bestFor(id){ try{ const v=localStorage.getItem('fl_best_'+id); return v?parseFloat(v):null; }catch(e){ return null; } }
@@ -1151,7 +1150,7 @@ async function beginEvent(){
     $("loadText").textContent='카메라를 켜는 중…';
     if(!stream) await startCamera(calVideo);
     $("loading").classList.remove('active');
-    if(CAL_FIRST && !calibrated) runCalibration(); else startGame();   // 기본은 바로 게임, 설정 ON 시에만 표정 맞추기
+    startGame();   // 워밍업은 종목 선택 전에 이미 끝남
   }catch(e){
     $("loading").classList.remove('active'); console.error(e);
     let msg='오류가 발생했어요: '+(e.message||e);
@@ -1164,9 +1163,24 @@ async function beginEvent(){
 // ============================================================
 //  이벤트
 // ============================================================
-$("startBtn").addEventListener('click', ()=>{ goSelect(); });   // 시작 → 종목 선택
+$("startBtn").addEventListener('click', async ()=>{   // 시작 → (워밍업) → 종목 선택
+  const err=$("introErr"); err.style.display='none';
+  try{
+    if(!faceLM) await loadModel();
+    $("loadText").textContent='카메라를 켜는 중…';
+    if(!stream) await startCamera(calVideo);
+    $("loading").classList.remove('active');
+    if(!calibrated) runCalibration(); else goSelect();   // 세션 첫 진입에 표정·동작 워밍업
+  }catch(e){
+    $("loading").classList.remove('active'); console.error(e);
+    let msg='오류가 발생했어요: '+(e.message||e);
+    if(e.name==='NotAllowedError') msg='카메라 권한이 필요해요. 브라우저 설정에서 허용해 주세요.';
+    if(e.name==='NotFoundError') msg='카메라를 찾을 수 없어요.';
+    err.textContent=msg; err.style.display='block';
+  }
+});
 $("selBack").addEventListener('click', ()=>{ stopCamera(); show('intro'); updateStreakIntro(); });
-$("calSkip").addEventListener('click', ()=>{ if(calRAF)cancelAnimationFrame(calRAF); calibrated=true; startGame(); });
+$("calSkip").addEventListener('click', ()=>{ if(calRAF)cancelAnimationFrame(calRAF); calibrated=true; goSelect(); });
 $("gExit").addEventListener('click', ()=>{ if(G)G.running=false; bgmStop(); goSelect(); });   // 게임 중 ‹ → 종목 선택(카메라 유지)
 $("gMute").addEventListener('click', ()=>{ muted=!muted; $("gMute").textContent=muted?'🔇':'🔊'; if(master)master.gain.value=muted?0:.5; });
 $("againBtn").addEventListener('click', ()=>{ if(actx&&actx.state==='suspended')actx.resume(); startGame(); });   // 같은 종목 다시
@@ -1180,7 +1194,6 @@ $("sBrow").addEventListener('input', e=>{ SENS.brow=e.target.value/100; saveSett
 $("sRoll").addEventListener('input', e=>{ SENS.roll=e.target.value/100; saveSettings(); });
 $("tFlip").addEventListener('change', e=>{ FLIP=e.target.checked; saveSettings(); });
 $("tLow").addEventListener('change', e=>{ LOWSPEC=e.target.checked; saveSettings(); });
-$("tCal").addEventListener('change', e=>{ CAL_FIRST=e.target.checked; saveSettings(); });
 
 loadSettings();        // 저장된 설정 적용
 updateStreakIntro();   // 로드 시 streak 배지 표시
