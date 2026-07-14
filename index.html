@@ -156,6 +156,9 @@
   .mission-report{font-size:14px;color:var(--dim);line-height:1.5;margin-bottom:7px;}
   .coaching{font-size:15.5px;font-weight:700;color:var(--cyan);}
   .streak-result{font-size:16px;font-weight:800;color:var(--gold);margin-top:12px;}
+  .ep-earn{margin-top:12px;text-align:center;line-height:1.55;}
+  .ep-earn .ep-amt{font-size:22px;font-weight:900;color:var(--lime);}
+  .ep-earn small{display:block;color:var(--faint);font-weight:600;font-size:12.5px;margin-top:3px;}
   .streak-top{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:3;
     font-size:13.5px;font-weight:800;color:var(--gold);background:rgba(255,211,78,.12);
     border:1px solid rgba(255,211,78,.32);padding:6px 14px;border-radius:999px;white-space:nowrap;}
@@ -309,6 +312,7 @@
     <div class="mission-report" id="rReport"></div>
     <div class="coaching" id="rCoach"></div>
     <div class="streak-result" id="streakResult"></div>
+    <div class="ep-earn" id="rEP"></div>
     <div class="r-divider"></div>
     <button class="btn btn-primary" id="againBtn" style="max-width:380px;">다시 달리기</button>
     <button class="btn btn-ghost" id="homeBtn" style="max-width:380px;">종목 선택</button>
@@ -1075,7 +1079,44 @@ function markPlayedToday(){      // 완주 시 호출: 오늘 첫 플레이면 s
 function updateStreakIntro(){
   const el=$("streakIntro"); if(!el) return;
   const s=currentStreak();
-  el.textContent = s>=1 ? '🔥 '+s+'일 연속 도전 중' : '🌱 오늘, 한 판 어때요?';
+  let txt = s>=1 ? '🔥 '+s+'일 연속 도전 중' : '🌱 오늘, 한 판 어때요?';
+  const ep=epTotal(); if(ep>0) txt += '  ·  ⚡ '+ep.toLocaleString()+' EP';
+  el.textContent = txt;
+}
+
+// ----- EP (활동 포인트) : 로컬 우선 — 서버 원장/안티치트는 후속(Pi 로그인 후) -----
+// EP는 순수 진행/꾸미기 통화. 속도·기록·순위에 영향 없음. 교환·전송·현금가치 없음.
+const EP_DAILY_CAP=300;
+const EP_BASE={ sprint:10, middle:25, long:50 };
+const EP_MEDAL={ '🥇':30, '🥈':15, '🥉':5 };
+function epTotal(){ return parseInt(lsGet('fl_ep')||'0',10)||0; }
+function epToday(){ if(lsGet('fl_ep_day')!==todayStr()) return 0; return parseInt(lsGet('fl_ep_today')||'0',10)||0; }
+function awardEP(items){        // items:[{label,ep}] → {gross,net,capped,items}
+  const today=todayStr();
+  if(lsGet('fl_ep_day')!==today){ lsSet('fl_ep_day',today); lsSet('fl_ep_today','0'); }
+  const already=parseInt(lsGet('fl_ep_today')||'0',10)||0;
+  const room=Math.max(0, EP_DAILY_CAP-already);
+  const gross=items.reduce((a,i)=>a+i.ep,0);
+  const net=Math.min(gross, room);          // 일일 상한 적용
+  lsSet('fl_ep_today', String(already+net));
+  lsSet('fl_ep', String(epTotal()+net));
+  return { gross, net, capped: net<gross, items };
+}
+function computeRaceEP(t, isBest, streak){   // 이번 완주의 EP 내역 계산
+  const items=[];
+  items.push({ label:'완주', ep: EP_BASE[curEvent.id]||10 });
+  const med=medalFor(t), medEP=EP_MEDAL[med]||0;
+  if(medEP) items.push({ label:med+' 메달', ep:medEP });
+  if(G.hits>0) items.push({ label:'미션 '+G.hits+'개', ep:G.hits });
+  if(isBest){                                // 개인최고 +20 (종목별 1일 1회)
+    const bk='fl_ep_best_'+curEvent.id;
+    if(lsGet(bk)!==todayStr()){ lsSet(bk,todayStr()); items.push({ label:'개인최고', ep:20 }); }
+  }
+  if(lsGet('fl_ep_sb')!==todayStr()){        // 오늘 첫 완주 연속 보너스 +min(연속,20)
+    lsSet('fl_ep_sb', todayStr());
+    const sb=Math.min(streak,20); if(sb>0) items.push({ label:'연속 '+streak+'일', ep:sb });
+  }
+  return awardEP(items);
 }
 
 function missionTotals(){
@@ -1164,6 +1205,13 @@ function finish(){
   const streak=markPlayedToday();
   $("streakResult").textContent = streak<=1 ? '🌱 '+streak+'일째 시작! 내일 또 만나요'
                                             : '🔥 연속 '+streak+'일째!';
+
+  const ep=computeRaceEP(t, isBest, streak);   // EP 계산·적립(일일 상한 300)
+  let epHtml='<span class="ep-amt">⚡ +'+ep.net+' EP</span>';
+  if(!ep.capped) epHtml+='<small>'+ep.items.map(i=>i.label+' +'+i.ep).join('  ·  ')+'</small>';
+  else epHtml+='<small style="color:var(--gold)">오늘 상한(300 EP) 도달 — 내일 또 만나요</small>';
+  epHtml+='<small>누적 '+epTotal().toLocaleString()+' EP · 오늘 '+epToday()+'/'+EP_DAILY_CAP+'</small>';
+  $("rEP").innerHTML=epHtml;
 
   show('done');
   if(isBest) fireConfetti();      // 자기최고 경신 시에만 축하
@@ -1428,7 +1476,8 @@ $("tLow").addEventListener('change', e=>{ LOWSPEC=e.target.checked; saveSettings
 
 loadSettings();        // 저장된 설정 적용
 updateStreakIntro();   // 로드 시 streak 배지 표시
-window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curEvent(v){curEvent=v;}, get G(){return G;} };
+window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curEvent(v){curEvent=v;}, get G(){return G;},
+  awardEP, epTotal, epToday, EP_DAILY_CAP };
 </script>
 </body>
 </html>
