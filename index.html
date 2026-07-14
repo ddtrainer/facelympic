@@ -84,8 +84,9 @@
   /* ---------- Settings (그룹 리스트, CiDi식) ---------- */
   #settings{padding:0;justify-content:flex-start;}
   .set-header{font-size:22px;font-weight:800;text-align:center;padding:16px 0 8px;flex-shrink:0;}
-  .set-scroll{flex:1;width:100%;max-width:460px;margin:0 auto;overflow-y:auto;
+  .set-scroll{flex:1 1 0;min-height:0;width:100%;max-width:460px;margin:0 auto;overflow-y:auto;
     padding:4px 16px 10px;display:flex;flex-direction:column;gap:18px;-webkit-overflow-scrolling:touch;}
+  .set-scroll>*{flex-shrink:0;}   /* 그룹이 눌리지 않게 → 넘치면 스크롤 */
   .set-group{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;}
   .set-glabel{font-size:12px;font-weight:800;color:var(--faint);padding:13px 16px 5px;letter-spacing:.4px;}
   .set-item{display:flex;align-items:center;gap:12px;width:100%;padding:15px 16px;background:none;
