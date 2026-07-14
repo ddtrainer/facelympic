@@ -1109,16 +1109,19 @@ async function sbCount(eventId, day, extra){    // 조건에 맞는 기록 개�
   const cr=res.headers.get('content-range')||'/0';
   return parseInt(cr.split('/')[1]||'0',10)||0;
 }
-async function sbTop(eventId, day){             // 오늘의 트랙 1등 기록(최소 시간)
-  const q=SB_URL+'/rest/v1/fl_scores?select=time_sec&event_id=eq.'+eventId+'&day=eq.'+day+'&order=time_sec.asc&limit=1';
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function sbTop(eventId, day){             // 오늘의 트랙 1등 기록(최소 시간 + 닉네임)
+  const q=SB_URL+'/rest/v1/fl_scores?select=time_sec,player_name&event_id=eq.'+eventId+'&day=eq.'+day+'&order=time_sec.asc&limit=1';
   const res=await fetch(q,{headers:SB_H}); const arr=await res.json();
-  return (arr&&arr[0])? +arr[0].time_sec : null;
+  if(arr&&arr[0]) return { time:+arr[0].time_sec, name:(arr[0].player_name||'').trim() };
+  return null;
 }
 async function updateWorldRank(eventId, time, day){   // 기록 등록 + 오늘의 트랙 기준 등수
   try{
+    const myNick=(getNick()||'').slice(0,12);
     await fetch(SB_URL+'/rest/v1/fl_scores',{method:'POST',
       headers:{...SB_H,'Content-Type':'application/json','Prefer':'return=minimal'},
-      body:JSON.stringify({event_id:eventId, time_sec:time, day})});
+      body:JSON.stringify({event_id:eventId, time_sec:time, day, player_name:myNick||null})});
     const faster=await sbCount(eventId, day, 'time_sec=lt.'+time);
     const total =await sbCount(eventId, day, null);
     const top   =await sbTop(eventId, day);
@@ -1126,9 +1129,10 @@ async function updateWorldRank(eventId, time, day){   // 기록 등록 + 오늘�
     const lk='fl_rank_'+eventId+'_'+day; const prev=parseInt(lsGet(lk)||'',10); let delta='';
     if(!isNaN(prev) && prev!==rank){ const d=prev-rank; delta=d>0?' <span class="rk-up">↑'+d+'</span>':' <span class="rk-down">↓'+(-d)+'</span>'; }
     lsSet(lk,String(rank));
+    const topName = (top&&top.name) ? esc(top.name)+' ' : '';
     $("rRank").innerHTML='🌍 전 세계 <b>'+rank.toLocaleString()+'등</b>'+delta+
       ' <span style="color:var(--faint)">· 오늘 '+total+'명</span>'+
-      (top!=null? '<div class="rank-top">'+(rank===1?'🏆 내가 1등! ':'🥇 1등 기록 ')+top.toFixed(2)+'초</div>':'');
+      (top!=null? '<div class="rank-top">'+(rank===1?'🏆 내가 1등! ':'🥇 1등 '+topName)+top.time.toFixed(2)+'초</div>':'');
   }catch(e){ $("rRank").innerHTML='<span style="color:var(--faint)">전 세계 순위는 잠시 후</span>'; }
 }
 
@@ -1237,7 +1241,7 @@ function renderEventCards(){
 async function fillWorldRec(ev){
   const el=$('evw_'+ev.id); if(!el) return;
   try{ const t=await sbTop(ev.id, todayStr());
-    el.textContent = t!=null ? '🥇 오늘 세계 1등 '+t.toFixed(2)+'초' : '🥇 오늘 첫 기록에 도전!';
+    el.textContent = t!=null ? '🥇 오늘 세계 1등 '+(t.name?t.name+' ':'')+t.time.toFixed(2)+'초' : '🥇 오늘 첫 기록에 도전!';
   }catch(e){ el.textContent=''; }
 }
 function goSelect(){ renderEventCards(); $("selErr").style.display='none'; show('select'); }
