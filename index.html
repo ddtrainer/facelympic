@@ -154,7 +154,10 @@
     backdrop-filter:blur(6px);}
 
   /* ---------- Done (훅 결과 화면) ---------- */
-  #done{padding:30px 26px;align-items:center;justify-content:center;text-align:center;}
+  #done{padding:26px;align-items:center;justify-content:flex-start;text-align:center;overflow-y:auto;}
+  #done>*{flex-shrink:0;}
+  .done-row{display:flex;gap:10px;max-width:380px;width:100%;}
+  .done-row .btn{flex:1;min-width:0;}
   .medal{font-size:58px;margin-bottom:0;animation:pop .5s cubic-bezier(.2,1.4,.4,1);line-height:1;}
   @keyframes pop{0%{transform:scale(0)}100%{transform:scale(1)}}
   .big-time{font-size:62px;font-weight:900;letter-spacing:-.02em;line-height:1.05;margin:2px 0 6px;}
@@ -338,7 +341,10 @@
     <div class="ep-earn" id="rEP"></div>
     <div class="r-divider"></div>
     <button class="btn btn-primary" id="againBtn" style="max-width:380px;">다시 달리기</button>
-    <button class="btn btn-ghost" id="homeBtn" style="max-width:380px;">종목 선택</button>
+    <div class="done-row">
+      <button class="btn btn-ghost" id="homeBtn">종목 선택</button>
+      <button class="btn btn-ghost" id="mainBtn">🏠 홈</button>
+    </div>
   </section>
 
   <!-- LOADING -->
@@ -1559,6 +1565,7 @@ $("gExit").addEventListener('click', ()=>{ if(G)G.running=false; bgmStop(); goSe
 $("gMute").addEventListener('click', ()=>{ muted=!muted; $("gMute").textContent=muted?'🔇':'🔊'; if(master)master.gain.value=muted?0:.5; });
 $("againBtn").addEventListener('click', ()=>{ if(actx&&actx.state==='suspended')actx.resume(); startGame(); });   // 같은 종목 다시
 $("homeBtn").addEventListener('click', ()=>{ goSelect(); });   // 결과 → 종목 선택
+$("mainBtn").addEventListener('click', ()=>{ stopCamera(); show('intro'); updateStreakIntro(); });   // 결과 → 메인(홈)
 // 설정
 $("openSet").addEventListener('click', openSettings);
 $("setBack").addEventListener('click', ()=>{ show('intro'); updateStreakIntro(); });
