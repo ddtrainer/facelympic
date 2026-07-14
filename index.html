@@ -81,16 +81,39 @@
   .ev-world{font-size:13px;font-weight:700;color:var(--gold);margin-top:3px;}
   .intro-set{position:absolute;top:14px;right:14px;z-index:4;width:40px;height:40px;border-radius:12px;
     border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:18px;cursor:pointer;}
-  #settings{padding:24px;justify-content:flex-start;padding-top:64px;}
-  .set-body{max-width:420px;margin:0 auto 18px;width:100%;display:flex;flex-direction:column;gap:16px;}
-  .set-row{display:flex;flex-direction:column;gap:6px;}
-  .set-row label,.set-toggle label{font-size:15px;font-weight:700;}
-  .set-row input[type=range]{width:100%;accent-color:var(--cyan);height:26px;}
-  .set-toggle{display:flex;justify-content:space-between;align-items:center;gap:12px;}
-  .set-toggle input[type=checkbox]{width:22px;height:22px;accent-color:var(--cyan);flex-shrink:0;}
-  .set-note{font-size:13px;color:var(--dim);line-height:1.5;margin-top:4px;}
-  .set-links{font-size:13px;text-align:center;margin-top:14px;}
-  .set-links a{color:var(--cyan);text-decoration:underline;cursor:pointer;}
+  /* ---------- Settings (그룹 리스트, CiDi식) ---------- */
+  #settings{padding:0;justify-content:flex-start;}
+  .set-header{font-size:22px;font-weight:800;text-align:center;padding:16px 0 8px;flex-shrink:0;}
+  .set-scroll{flex:1;width:100%;max-width:460px;margin:0 auto;overflow-y:auto;
+    padding:4px 16px 10px;display:flex;flex-direction:column;gap:18px;-webkit-overflow-scrolling:touch;}
+  .set-group{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;}
+  .set-glabel{font-size:12px;font-weight:800;color:var(--faint);padding:13px 16px 5px;letter-spacing:.4px;}
+  .set-item{display:flex;align-items:center;gap:12px;width:100%;padding:15px 16px;background:none;
+    border:none;border-top:1px solid var(--line);color:var(--ink);font-size:16px;font-weight:600;
+    text-align:left;cursor:pointer;font-family:inherit;}
+  .set-group>.set-item:first-child,.set-glabel+.set-item,.set-glabel+.si-slider{border-top:none;}
+  .set-item:active{background:rgba(255,255,255,.04);}
+  .si-ic{font-size:20px;width:26px;text-align:center;flex-shrink:0;}
+  .si-label{flex:1;}
+  .si-val{color:var(--faint);font-size:14px;font-weight:600;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .si-arw{color:var(--faint);font-size:22px;line-height:1;margin-left:2px;}
+  .si-toggle input[type=checkbox]{width:24px;height:24px;accent-color:var(--cyan);flex-shrink:0;}
+  .si-slider{flex-direction:column;align-items:stretch;gap:9px;border-top:1px solid var(--line);
+    padding:14px 16px;}
+  .si-slider .sis-top{display:flex;align-items:center;gap:12px;font-weight:600;}
+  .si-slider input[type=range]{width:100%;accent-color:var(--cyan);height:26px;}
+  .set-hint{font-size:12.5px;color:var(--dim);line-height:1.5;padding:2px 16px 13px;}
+  .si-danger{color:var(--coral);justify-content:center;font-weight:800;}
+  .si-danger .si-ic{color:var(--coral);width:auto;}
+  #setDone{flex-shrink:0;margin:8px auto 16px;}
+  /* 프로필 편집 */
+  #profileEdit{padding:24px;padding-top:56px;justify-content:flex-start;}
+  .pe-body{max-width:400px;margin:0 auto;width:100%;}
+  .pe-label{font-size:14px;font-weight:700;color:var(--dim);margin-bottom:8px;}
+  .pe-input{width:100%;box-sizing:border-box;padding:15px 16px;border-radius:14px;background:var(--card);
+    border:1px solid var(--line);color:var(--ink);font-size:18px;font-family:inherit;font-weight:700;text-align:center;}
+  .pe-input:focus{outline:none;border-color:var(--cyan);}
+  .pe-note{font-size:13px;color:var(--faint);margin-top:10px;line-height:1.5;text-align:center;}
   #consent{padding:24px;padding-top:52px;justify-content:flex-start;}
   .consent-body{max-width:440px;margin:0 auto 16px;width:100%;color:var(--dim);font-size:15px;line-height:1.6;}
   .consent-body b{color:var(--ink);}
@@ -188,18 +211,52 @@
   <!-- SETTINGS -->
   <section id="settings" class="screen">
     <button class="sel-back" id="setBack">‹</button>
-    <h2 class="sel-title">설정</h2>
-    <div class="set-body">
-      <div class="set-row"><label>😊 웃음 민감도</label><input type="range" id="sSmile" min="60" max="160" value="100"></div>
-      <div class="set-row"><label>🤨 눈썹 민감도</label><input type="range" id="sBrow" min="60" max="160" value="100"></div>
-      <div class="set-row"><label>↔️ 고개 기울기 민감도</label><input type="range" id="sRoll" min="60" max="160" value="100"></div>
-      <div class="set-toggle"><label>좌우 반전 (피하기 방향)</label><input type="checkbox" id="tFlip"></div>
-      <div class="set-toggle"><label>저사양 모드 (파티클·흔들림 끔)</label><input type="checkbox" id="tLow"></div>
-      <p class="set-note">민감도를 높이면 작은 표정도 인식돼요. 잘 안 되면 올리고, 오작동하면 내리세요.</p>
-      <div class="set-links"><a id="setTerms">이용약관</a> · <a id="setPrivacy">개인정보 처리방침</a></div>
-      <button class="btn btn-ghost" id="delData" style="margin-top:2px;">🗑 내 데이터 삭제</button>
+    <h2 class="set-header">설정</h2>
+    <div class="set-scroll">
+
+      <!-- 프로필 -->
+      <div class="set-group">
+        <button class="set-item" id="setProfile"><span class="si-ic">👤</span><span class="si-label">프로필 편집</span><span class="si-val" id="setNickVal">이름 없음</span><span class="si-arw">›</span></button>
+      </div>
+
+      <!-- 게임 조작 -->
+      <div class="set-group">
+        <div class="set-glabel">게임 조작</div>
+        <div class="set-item si-slider"><div class="sis-top"><span class="si-ic">😊</span><span class="si-label">웃음 민감도</span></div><input type="range" id="sSmile" min="60" max="160" value="100"></div>
+        <div class="set-item si-slider"><div class="sis-top"><span class="si-ic">🤨</span><span class="si-label">눈썹 민감도</span></div><input type="range" id="sBrow" min="60" max="160" value="100"></div>
+        <div class="set-item si-slider"><div class="sis-top"><span class="si-ic">↔️</span><span class="si-label">고개 기울기 민감도</span></div><input type="range" id="sRoll" min="60" max="160" value="100"></div>
+        <label class="set-item si-toggle"><span class="si-ic">🔄</span><span class="si-label">좌우 반전 (피하기 방향)</span><input type="checkbox" id="tFlip"></label>
+        <label class="set-item si-toggle"><span class="si-ic">🐢</span><span class="si-label">저사양 모드</span><input type="checkbox" id="tLow"></label>
+        <p class="set-hint">민감도를 높이면 작은 표정도 인식돼요. 잘 안 되면 올리고, 오작동하면 내리세요.</p>
+      </div>
+
+      <!-- 정보 -->
+      <div class="set-group">
+        <button class="set-item" id="setAbout"><span class="si-ic">ℹ️</span><span class="si-label">페이셀림픽 소개</span><span class="si-arw">›</span></button>
+        <button class="set-item" id="setTerms"><span class="si-ic">📄</span><span class="si-label">이용약관</span><span class="si-arw">›</span></button>
+        <button class="set-item" id="setPrivacy"><span class="si-ic">🔒</span><span class="si-label">개인정보 처리방침</span><span class="si-arw">›</span></button>
+        <button class="set-item" id="setHelp"><span class="si-ic">💬</span><span class="si-label">도움말 및 피드백</span><span class="si-arw">›</span></button>
+      </div>
+
+      <!-- 계정 -->
+      <div class="set-group">
+        <button class="set-item si-danger" id="delData"><span class="si-ic">🗑</span><span class="si-label" style="flex:none;">내 데이터 삭제</span></button>
+      </div>
+
     </div>
     <button class="btn btn-primary" id="setDone" style="max-width:380px;">완료</button>
+  </section>
+
+  <!-- PROFILE EDIT (닉네임) -->
+  <section id="profileEdit" class="screen">
+    <button class="sel-back" id="peBack">‹</button>
+    <h2 class="sel-title">프로필 편집</h2>
+    <div class="pe-body">
+      <div class="pe-label">닉네임 (세계 순위에 표시돼요)</div>
+      <input type="text" id="nickInput" class="pe-input" maxlength="12" placeholder="예: 표정왕">
+      <p class="pe-note">최대 12자 · 비워두면 '익명'으로 표시돼요.<br>실명·연락처 등 개인정보는 넣지 마세요.</p>
+    </div>
+    <button class="btn btn-primary" id="peSave" style="max-width:380px;">저장</button>
   </section>
 
   <!-- CONSENT -->
@@ -266,7 +323,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 const $ = (id)=>document.getElementById(id);
-const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
+const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
 
 // ============================================================
@@ -1146,9 +1203,13 @@ function loadSettings(){
   FLIP=lsGet('fl_flip')==='1'; LOWSPEC=lsGet('fl_low')==='1'; CAL_FIRST=lsGet('fl_cal')==='1';
 }
 function saveSettings(){ lsSet('fl_sens',JSON.stringify(SENS)); lsSet('fl_flip',FLIP?'1':'0'); lsSet('fl_low',LOWSPEC?'1':'0'); lsSet('fl_cal',CAL_FIRST?'1':'0'); }
+function getNick(){ return (lsGet('fl_nick')||'').trim(); }
+function nickDisplay(){ const n=getNick(); return n||'익명'; }
+function refreshNickVal(){ const n=getNick(); const el=$("setNickVal"); if(el){ el.textContent=n||'이름 없음'; el.style.color=n?'var(--cyan)':'var(--faint)'; } }
 function openSettings(){
   $("sSmile").value=Math.round(SENS.smile*100); $("sBrow").value=Math.round(SENS.brow*100); $("sRoll").value=Math.round(SENS.roll*100);
   $("tFlip").checked=FLIP; $("tLow").checked=LOWSPEC;
+  refreshNickVal();
   show('settings');
 }
 function bestFor(id){ try{ const v=localStorage.getItem('fl_best_'+id); return v?parseFloat(v):null; }catch(e){ return null; } }
@@ -1279,7 +1340,45 @@ const LEGAL = {
 7. 삭제·문의
 - 데이터 삭제는 앱 내 '내 데이터 삭제' 또는 문의 채널로 요청할 수 있습니다.
 
-※ 본 방침은 초안이며, 정식 출시 전 법률 검토를 거쳐 확정됩니다.` }
+※ 본 방침은 초안이며, 정식 출시 전 법률 검토를 거쳐 확정됩니다.` },
+  about: { title:'페이셀림픽 소개', body:
+`페이셀림픽 (Facelympic)
+
+표정으로 달리는 얼굴 운동 게임이에요.
+웃고, 눈썹 올리고, 고개를 기울이며 트랙을 완주하세요.
+
+🎮 조작
+😊 웃기 → 앞으로 달리기
+😐 무표정 → 멈추기
+🤨 눈썹 올리기 → 점프
+↔️ 고개 기울이기 → 좌우 피하기
+😮 입 벌리기 → 음식 먹기
+😗 입 오므리기 → 몬스터 물리치기
+
+🏃 종목
+단거리 · 중거리 · 장거리 — 매일 바뀌는 '오늘의 트랙'에서 세계 순위에 도전!
+
+카메라 영상은 기기 안에서만 분석되고 저장되지 않아요.
+좋은 인상은 표정 근육에서 시작됩니다 :)` },
+  help: { title:'도움말 및 피드백', body:
+`도움말
+
+Q. 표정이 잘 인식되지 않아요.
+- 밝은 곳에서 얼굴이 화면에 잘 보이게 해주세요.
+- 설정 > 게임 조작에서 민감도를 올려보세요.
+- 잘 안 되면 워밍업(표정 익히기)을 다시 해보세요.
+
+Q. 피하기 방향이 반대예요.
+- 설정 > '좌우 반전'을 켜보세요.
+
+Q. 화면이 버벅여요.
+- 설정 > '저사양 모드'를 켜보세요.
+
+Q. 카메라가 안 켜져요.
+- 브라우저에서 카메라 권한을 허용했는지 확인해주세요.
+
+💬 피드백
+개선 의견은 언제든 환영해요. (문의 채널은 준비 중입니다.)` }
 };
 let legalFrom='consent';
 function showLegal(which, from){ legalFrom=from||'consent'; $("legalTitle").textContent=LEGAL[which].title; $("legalBody").textContent=LEGAL[which].body; $("legalBody").scrollTop=0; show('legal'); }
@@ -1287,7 +1386,14 @@ $("lnkTerms").addEventListener('click', ()=>showLegal('terms','consent'));
 $("lnkPrivacy").addEventListener('click', ()=>showLegal('privacy','consent'));
 $("setTerms").addEventListener('click', ()=>showLegal('terms','settings'));
 $("setPrivacy").addEventListener('click', ()=>showLegal('privacy','settings'));
+$("setAbout").addEventListener('click', ()=>showLegal('about','settings'));
+$("setHelp").addEventListener('click', ()=>showLegal('help','settings'));
 $("legalBack").addEventListener('click', ()=>{ show(legalFrom); });
+
+// --- 프로필 편집 (닉네임) ---
+$("setProfile").addEventListener('click', ()=>{ $("nickInput").value=getNick(); show('profileEdit'); setTimeout(()=>{ try{$("nickInput").focus();}catch(e){} },60); });
+$("peBack").addEventListener('click', ()=>{ refreshNickVal(); show('settings'); });
+$("peSave").addEventListener('click', ()=>{ const v=$("nickInput").value.trim().slice(0,12); lsSet('fl_nick',v); refreshNickVal(); show('settings'); });
 
 // --- 내 데이터 삭제 ---
 function clearMyData(){
