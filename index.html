@@ -81,6 +81,8 @@
   .ev-world{font-size:13px;font-weight:700;color:var(--gold);margin-top:3px;}
   .intro-set{position:absolute;top:14px;right:14px;z-index:4;width:40px;height:40px;border-radius:12px;
     border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:18px;cursor:pointer;}
+  .intro-shop{position:absolute;top:14px;left:14px;z-index:4;width:40px;height:40px;border-radius:12px;
+    border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:18px;cursor:pointer;}
   /* ---------- Settings (그룹 리스트, CiDi식) ---------- */
   #settings{padding:0;justify-content:flex-start;}
   .set-header{font-size:22px;font-weight:800;text-align:center;padding:16px 0 8px;flex-shrink:0;}
@@ -115,6 +117,18 @@
     border:1px solid var(--line);color:var(--ink);font-size:18px;font-family:inherit;font-weight:700;text-align:center;}
   .pe-input:focus{outline:none;border-color:var(--cyan);}
   .pe-note{font-size:13px;color:var(--faint);margin-top:10px;line-height:1.5;text-align:center;}
+  /* 상점 */
+  #shop{padding:0;justify-content:flex-start;}
+  .shop-ep{text-align:center;font-weight:900;color:var(--lime);font-size:18px;padding:2px 0 8px;flex-shrink:0;}
+  .shop-item{display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--line);}
+  .set-group>.set-glabel+.shop-item{border-top:none;}
+  .shop-sw{width:36px;height:36px;border-radius:9px;flex-shrink:0;border:1px solid rgba(255,255,255,.22);}
+  .shop-item .si-label{flex:1;font-size:15px;font-weight:700;}
+  .shop-btn{flex-shrink:0;padding:9px 14px;border-radius:10px;border:1px solid var(--cyan);
+    background:rgba(55,214,255,.12);color:var(--cyan);font-weight:800;font-size:14px;font-family:inherit;
+    cursor:pointer;min-width:70px;text-align:center;}
+  .shop-btn.eq{border-color:var(--faint);background:none;color:var(--faint);cursor:default;}
+  .shop-btn.cant{border-color:var(--faint);background:none;color:var(--faint);}
   #consent{padding:24px;padding-top:52px;justify-content:flex-start;}
   .consent-body{max-width:440px;margin:0 auto 16px;width:100%;color:var(--dim);font-size:15px;line-height:1.6;}
   .consent-body b{color:var(--ink);}
@@ -181,6 +195,7 @@
   <!-- INTRO -->
   <section id="intro" class="screen active">
     <div class="streak-top" id="streakIntro"></div>
+    <button class="intro-shop" id="openShop" aria-label="상점">🛍️</button>
     <button class="intro-set" id="openSet" aria-label="설정">⚙️</button>
     <div class="logo">페이셀림픽<br>FACELYMPIC</div>
     <div class="tagline">웃으면 빨라진다</div>
@@ -263,6 +278,14 @@
     <button class="btn btn-primary" id="peSave" style="max-width:380px;">저장</button>
   </section>
 
+  <!-- SHOP (EP 소비처) -->
+  <section id="shop" class="screen">
+    <button class="sel-back" id="shopBack">‹</button>
+    <h2 class="set-header">상점</h2>
+    <div class="shop-ep" id="shopEP">⚡ 0 EP</div>
+    <div class="set-scroll" id="shopScroll"></div>
+  </section>
+
   <!-- CONSENT -->
   <section id="consent" class="screen">
     <h2 class="sel-title">시작 전 안내</h2>
@@ -328,7 +351,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 const $ = (id)=>document.getElementById(id);
-const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
+const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), shop:$("shop"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
 
 // ============================================================
@@ -596,6 +619,7 @@ function makeObstacles(ev, seed){
 
 function startGame(){
   show('game'); resize(); initAudio(); if(actx.state==='suspended') actx.resume();
+  applyCosmetics();                                // 장착한 스킨·테마 적용
   TARGET = curEvent.dist;                          // 종목별 트랙 길이
   const seed = hashStr(todayStr()+'_'+curEvent.id);   // 오늘의 트랙: 그날·종목별 고정 배치(전원 동일, 매일 변경)
   G = {
@@ -770,17 +794,17 @@ function drawScene(sig, speed){
   ctx.save(); ctx.translate(sx,sy);
 
   // 하늘
-  const sky=ctx.createLinearGradient(0,0,0,horizon); sky.addColorStop(0,'#1a4fb0'); sky.addColorStop(1,'#7cc6ff');
+  const sky=ctx.createLinearGradient(0,0,0,horizon); sky.addColorStop(0,THEME.sky1); sky.addColorStop(1,THEME.sky2);
   ctx.fillStyle=sky; ctx.fillRect(-20,-20,W+40,horizon+20);
   // 먼 산 (패럴럭스 느림)
   const off1=(G?G.dist:0)*6;
-  ctx.fillStyle='#3a5a86';
+  ctx.fillStyle=THEME.hill1;
   drawHills(W,horizon,off1,42,horizon-40);
-  ctx.fillStyle='#2f4a72';
+  ctx.fillStyle=THEME.hill2;
   drawHills(W,horizon,off1*1.7,30,horizon-12);
 
   // 바닥(잔디)
-  ctx.fillStyle='#15351f'; ctx.fillRect(-20,horizon,W+40,H-horizon+20);
+  ctx.fillStyle=THEME.grass; ctx.fillRect(-20,horizon,W+40,H-horizon+20);
 
   // 트랙 (사다리꼴 + 스크롤 스트라이프)
   const bottomHalf=W*0.46, topHalf=W*0.045;
@@ -953,16 +977,16 @@ function drawRunner(x,y,dist,sx,sy,lean){
   ctx.beginPath(); ctx.moveTo(10*ph,-2); ctx.lineTo(10*ph+7,-1); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(-10*ph,-2); ctx.lineTo(-10*ph-7,-1); ctx.stroke();
   // 뒤쪽 팔
-  ctx.strokeStyle='#1488c4'; ctx.lineWidth=9;
+  ctx.strokeStyle=SKIN.c2; ctx.lineWidth=9;
   ctx.beginPath(); ctx.moveTo(0,-56); ctx.lineTo(-15,-40-10*arm); ctx.stroke();
   // 몸통(유니폼)
-  const g=ctx.createLinearGradient(0,-62,0,-26); g.addColorStop(0,'#46e0ff'); g.addColorStop(1,'#1488c4');
+  const g=ctx.createLinearGradient(0,-62,0,-26); g.addColorStop(0,SKIN.c1); g.addColorStop(1,SKIN.c2);
   ctx.fillStyle=g; roundRect(-14,-64,28,38,12); ctx.fill();
   // 등번호
   ctx.fillStyle='#eaf9ff'; ctx.font='900 15px Pretendard'; ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillText('1',0,-45);
   // 앞쪽 팔
-  ctx.strokeStyle='#37d6ff'; ctx.lineWidth=9;
+  ctx.strokeStyle=SKIN.c3; ctx.lineWidth=9;
   ctx.beginPath(); ctx.moveTo(0,-56); ctx.lineTo(15,-40+10*arm); ctx.stroke();
   // 머리
   ctx.fillStyle='#ffd9a8'; ctx.beginPath(); ctx.arc(0,-78,15,0,7); ctx.fill();
@@ -1118,6 +1142,31 @@ function computeRaceEP(t, isBest, streak){   // 이번 완주의 EP 내역 계�
   }
   return awardEP(items);
 }
+function epSpend(n){ if(epTotal()<n) return false; lsSet('fl_ep', String(epTotal()-n)); return true; }
+
+// ----- 꾸미기(스킨/테마) : EP 소비처. 경쟁엔 무영향 — 비주얼만 -----
+const SKINS={
+  basic: {name:'기본 블루',    price:0,   c1:'#46e0ff', c2:'#1488c4', c3:'#37d6ff'},
+  red:   {name:'레드 스프린터', price:200, c1:'#ff8a5c', c2:'#e0342f', c3:'#ff5d6c'},
+  green: {name:'라임 러너',    price:300, c1:'#c7f56b', c2:'#5fa81f', c3:'#9be635'},
+  purple:{name:'퍼플 에이스',  price:400, c1:'#c98cff', c2:'#7b2ff7', c3:'#a45cff'},
+  gold:  {name:'골드 챔피언',  price:800, c1:'#ffe89b', c2:'#e0a020', c3:'#ffd34e'},
+};
+const THEMES={
+  day:   {name:'한낮',      price:0,   sky1:'#1a4fb0', sky2:'#7cc6ff', hill1:'#3a5a86', hill2:'#2f4a72', grass:'#15351f'},
+  sunset:{name:'노을',      price:300, sky1:'#3a1a6b', sky2:'#ff9e6a', hill1:'#5a3a6e', hill2:'#42285a', grass:'#2a1f2e'},
+  forest:{name:'숲',        price:300, sky1:'#1a6b5a', sky2:'#a8e6c0', hill1:'#2f6a4a', hill2:'#245038', grass:'#0f2a18'},
+  night: {name:'야간 트랙',  price:500, sky1:'#0a1030', sky2:'#2a3a7a', hill1:'#1a2550', hill2:'#121a3a', grass:'#0e1a22'},
+};
+const DEFAULT_OWNED=new Set(['basic','day']);   // 기본 스킨·테마는 무료 보유
+let SKIN=SKINS.basic, THEME=THEMES.day;
+function ownedSet(){ try{ return new Set(JSON.parse(lsGet('fl_owned')||'[]')); }catch(e){ return new Set(); } }
+function isOwned(id){ return DEFAULT_OWNED.has(id) || ownedSet().has(id); }
+function addOwned(id){ const s=ownedSet(); s.add(id); lsSet('fl_owned', JSON.stringify([...s])); }
+function equippedSkin(){ const s=lsGet('fl_skin'); return (s&&SKINS[s])?s:'basic'; }
+function equippedTheme(){ const t=lsGet('fl_theme'); return (t&&THEMES[t])?t:'day'; }
+function applyCosmetics(){ SKIN=SKINS[equippedSkin()]||SKINS.basic; THEME=THEMES[equippedTheme()]||THEMES.day; }
+applyCosmetics();
 
 function missionTotals(){
   const tot={hurdle:0,arrow:0,food:0,monster:0};
@@ -1454,10 +1503,50 @@ $("setProfile").addEventListener('click', ()=>{ $("nickInput").value=getNick(); 
 $("peBack").addEventListener('click', ()=>{ refreshNickVal(); show('settings'); });
 $("peSave").addEventListener('click', ()=>{ const v=$("nickInput").value.trim().slice(0,12); lsSet('fl_nick',v); refreshNickVal(); show('settings'); });
 
+// --- 상점 (EP 소비처) ---
+function shopGroup(title, MAP, kind){
+  const equipped = kind==='skin' ? equippedSkin() : equippedTheme();
+  const g=document.createElement('div'); g.className='set-group';
+  const lbl=document.createElement('div'); lbl.className='set-glabel'; lbl.textContent=title; g.appendChild(lbl);
+  Object.keys(MAP).forEach(id=>{
+    const it=MAP[id], owned=isOwned(id), isEq=(id===equipped);
+    const row=document.createElement('div'); row.className='shop-item';
+    const sw=document.createElement('span'); sw.className='shop-sw';
+    sw.style.background = kind==='skin'
+      ? 'linear-gradient(135deg,'+it.c1+','+it.c2+')'
+      : 'linear-gradient(135deg,'+it.sky1+' 0%,'+it.sky2+' 55%,'+it.grass+' 56%)';
+    const name=document.createElement('span'); name.className='si-label'; name.textContent=it.name;
+    const btn=document.createElement('button'); btn.className='shop-btn';
+    if(isEq){ btn.textContent='장착중'; btn.classList.add('eq'); btn.disabled=true; }
+    else if(owned){ btn.textContent='장착'; btn.addEventListener('click',()=>equip(kind,id)); }
+    else { btn.textContent='⚡'+it.price; if(epTotal()<it.price) btn.classList.add('cant');
+           btn.addEventListener('click',()=>buy(kind,id,it)); }
+    row.appendChild(sw); row.appendChild(name); row.appendChild(btn); g.appendChild(row);
+  });
+  return g;
+}
+function renderShop(){
+  applyCosmetics();
+  $("shopEP").textContent='⚡ '+epTotal().toLocaleString()+' EP';
+  const wrap=$("shopScroll"); wrap.innerHTML='';
+  wrap.appendChild(shopGroup('캐릭터 스킨', SKINS, 'skin'));
+  wrap.appendChild(shopGroup('트랙 테마', THEMES, 'theme'));
+}
+function equip(kind,id){ lsSet(kind==='skin'?'fl_skin':'fl_theme', id); applyCosmetics(); renderShop(); }
+function buy(kind,id,it){
+  if(isOwned(id)||epTotal()<it.price) return;
+  if(!confirm(it.name+' 을(를) '+it.price+' EP에 살까요?')) return;
+  if(!epSpend(it.price)) return;
+  addOwned(id); equip(kind,id);        // 사면 바로 장착 + 다시 렌더
+  updateStreakIntro();                 // 인트로 EP 배지 갱신
+}
+$("openShop").addEventListener('click', ()=>{ renderShop(); show('shop'); });
+$("shopBack").addEventListener('click', ()=>{ show('intro'); updateStreakIntro(); });
+
 // --- 내 데이터 삭제 ---
 function clearMyData(){
   try{ Object.keys(localStorage).forEach(k=>{ if(k.indexOf('fl_')===0) localStorage.removeItem(k); }); }catch(e){}
-  SENS={smile:1,brow:1,roll:1}; FLIP=false; LOWSPEC=false; CAL_FIRST=false; calibrated=false;
+  SENS={smile:1,brow:1,roll:1}; FLIP=false; LOWSPEC=false; CAL_FIRST=false; calibrated=false; applyCosmetics();
 }
 $("delData").addEventListener('click', ()=>{
   if(confirm('내 기록·설정·동의를 모두 삭제할까요?\n(이 기기에 저장된 데이터가 지워지며 되돌릴 수 없어요)')){
@@ -1483,7 +1572,7 @@ $("tLow").addEventListener('change', e=>{ LOWSPEC=e.target.checked; saveSettings
 loadSettings();        // 저장된 설정 적용
 updateStreakIntro();   // 로드 시 streak 배지 표시
 window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curEvent(v){curEvent=v;}, get G(){return G;},
-  awardEP, epTotal, epToday, EP_DAILY_CAP };
+  awardEP, epTotal, epToday, EP_DAILY_CAP, SKINS, THEMES, get SKIN(){return SKIN;}, get THEME(){return THEME;} };
 </script>
 </body>
 </html>
