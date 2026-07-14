@@ -1207,9 +1207,15 @@ function finish(){
                                             : '🔥 연속 '+streak+'일째!';
 
   const ep=computeRaceEP(t, isBest, streak);   // EP 계산·적립(일일 상한 300)
-  let epHtml='<span class="ep-amt">⚡ +'+ep.net+' EP</span>';
-  if(!ep.capped) epHtml+='<small>'+ep.items.map(i=>i.label+' +'+i.ep).join('  ·  ')+'</small>';
-  else epHtml+='<small style="color:var(--gold)">오늘 상한(300 EP) 도달 — 내일 또 만나요</small>';
+  const atCap = epToday() >= EP_DAILY_CAP;      // 오늘 총합이 상한 도달?
+  let epHtml;
+  if(ep.net>0){
+    epHtml='<span class="ep-amt">⚡ +'+ep.net+' EP</span>';
+    if(!ep.capped) epHtml+='<small>'+ep.items.map(i=>i.label+' +'+i.ep).join('  ·  ')+'</small>';
+  }else{
+    epHtml='<span class="ep-amt" style="color:var(--faint)">⚡ 오늘 EP 다 모음</span>';
+  }
+  if(atCap) epHtml+='<small style="color:var(--gold)">🏁 오늘 상한(300 EP) 도달 — 내일 또 만나요</small>';
   epHtml+='<small>누적 '+epTotal().toLocaleString()+' EP · 오늘 '+epToday()+'/'+EP_DAILY_CAP+'</small>';
   $("rEP").innerHTML=epHtml;
 
