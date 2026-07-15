@@ -26,7 +26,8 @@
   .screen.active{display:flex;}
 
   /* ---------- Intro ---------- */
-  #intro{padding:34px 26px;justify-content:center;}
+  #intro{padding:64px 26px 30px;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  #intro>*{flex-shrink:0;}
   .logo{font-size:40px;font-weight:900;letter-spacing:-.02em;line-height:1.05;margin-bottom:6px;
     background:linear-gradient(100deg,var(--cyan),var(--lime),var(--gold),var(--magenta));
     -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
@@ -70,7 +71,8 @@
   .cal-dot.on{background:var(--cyan);}
 
   /* ---------- Select (종목 선택) ---------- */
-  #select{padding:24px;justify-content:center;}
+  #select{padding:56px 24px 28px;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  #select>*{flex-shrink:0;}
   .sel-back{position:absolute;top:14px;left:14px;width:40px;height:40px;border-radius:12px;
     border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:20px;cursor:pointer;}
   .sel-title{font-size:24px;font-weight:800;text-align:center;margin-bottom:20px;}
@@ -135,7 +137,8 @@
     cursor:pointer;min-width:70px;text-align:center;}
   .shop-btn.eq{border-color:var(--faint);background:none;color:var(--faint);cursor:default;}
   .shop-btn.cant{border-color:var(--faint);background:none;color:var(--faint);}
-  #consent{padding:24px;padding-top:52px;justify-content:flex-start;}
+  #consent{padding:52px 24px 28px;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  #consent>*{flex-shrink:0;}
   .consent-body{max-width:440px;margin:0 auto 16px;width:100%;color:var(--dim);font-size:15px;line-height:1.6;}
   .consent-body b{color:var(--ink);}
   .consent-body ul{margin:12px 0;padding-left:18px;}
