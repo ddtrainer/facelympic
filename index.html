@@ -2100,7 +2100,7 @@ async function sbTop(eventId, day){             // 오늘의 트랙 1등 기록(
 }
 async function updateWorldRank(eventId, time, day){   // 기록 등록 + 오늘의 트랙 기준 등수
   try{
-    const myNick=(getNick()||'').slice(0,12);
+    const myNick=(leaderboardName()||'').slice(0,12);
     await fetch(SB_URL+'/rest/v1/fl_scores',{method:'POST',
       headers:{...SB_H,'Content-Type':'application/json','Prefer':'return=minimal'},
       body:JSON.stringify({event_id:eventId, time_sec:time, day, player_name:myNick||null})});
@@ -2583,8 +2583,17 @@ $("tLow").addEventListener('change', e=>{ LOWSPEC=e.target.checked; saveSettings
 //  Pi가 없으면 조용히 스킵. 게임·기록·EP는 Pi 없이도 온전히 동작.
 // ============================================================
 const PI_SANDBOX = true;   // 테스트/App Studio/Testnet=true · 메인넷 출시 시 false로 변경
-let piReady=false, piUser=null, piInitTried=false;
+let piReady=false, piUser=null, piInitTried=false, piVerified=false;
 function onIncompletePaymentFound(payment){ /* 결제 미도입 — 콜백 자리만 */ }
+async function verifyPi(token){       // 서버(/api/verify)에서 /me 로 토큰 검증 → 신뢰된 신원
+  if(!token) return;
+  try{
+    const r = await fetch('/api/verify', { method:'POST', headers:{ 'Authorization':'Bearer '+token } });
+    if(!r.ok) return;                 // 서버 없음/프록시 미전달/무효 → 조용히(미검증 유지)
+    const j = await r.json();
+    if(j && j.ok && j.username){ piVerified=true; lsSet('fl_pi_user', j.username); updatePiUI(); }
+  }catch(e){ /* 검증 실패는 비차단 — 게임·표시엔 영향 없음 */ }
+}
 async function initPi(){
   if(piInitTried) return piReady;
   piInitTried=true;
@@ -2600,16 +2609,23 @@ async function piSignIn(manual){
   try{
     const auth = await window.Pi.authenticate(['username'], onIncompletePaymentFound);   // username 스코프
     piUser = (auth && auth.user) ? auth.user : null;
+    piVerified = false;
     if(piUser && piUser.username){ lsSet('fl_pi_user', piUser.username); }
     updatePiUI();
-    // (2단계) auth.accessToken 을 서버리스로 보내 GET /v2/me 검증 — 백엔드 준비 후
+    if(auth && auth.accessToken) verifyPi(auth.accessToken);   // 서버 검증(비차단)
   }catch(e){ console.warn('Pi.authenticate failed', e); }
 }
 function updatePiUI(){
   const b=$("piBtn"); if(!b) return;
   const name = piUser ? piUser.username : (lsGet('fl_pi_user')||'');
-  if(name){ b.textContent='π '+name; b.classList.add('signed'); b.removeAttribute('data-i18n'); }
+  if(name){ b.textContent='π '+name+(piVerified?' ✓':''); b.classList.add('signed'); b.removeAttribute('data-i18n'); }
   else { b.classList.remove('signed'); b.setAttribute('data-i18n','pi_signin'); b.textContent=T('pi_signin'); }
+}
+// 순위 표시 이름: 직접 정한 닉네임 우선 → 없으면 검증된 Pi 유저명 → 없으면 익명
+function leaderboardName(){
+  const nick=getNick(); if(nick) return nick;
+  if(piVerified && piUser && piUser.username) return piUser.username;
+  return '';
 }
 $("piBtn").addEventListener('click', ()=>{ if(!piUser) piSignIn(true); });
 
