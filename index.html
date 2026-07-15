@@ -2585,10 +2585,12 @@ $("tLow").addEventListener('change', e=>{ LOWSPEC=e.target.checked; saveSettings
 const PI_SANDBOX = true;   // 테스트/App Studio/Testnet=true · 메인넷 출시 시 false로 변경
 let piReady=false, piUser=null, piInitTried=false, piVerified=false;
 function onIncompletePaymentFound(payment){ /* 결제 미도입 — 콜백 자리만 */ }
-async function verifyPi(token){       // 서버(/api/verify)에서 /me 로 토큰 검증 → 신뢰된 신원
+// pinet.com 프록시는 /api/* 를 가로채므로(자체 Next.js) 절대 URL(Vercel)로 호출. CORS 허용됨.
+const PI_VERIFY_URL = 'https://facelympic.vercel.app/api/verify';
+async function verifyPi(token){       // 서버에서 /me 로 토큰 검증 → 신뢰된 신원
   if(!token) return;
   try{
-    const r = await fetch('/api/verify', { method:'POST', headers:{ 'Authorization':'Bearer '+token } });
+    const r = await fetch(PI_VERIFY_URL, { method:'POST', headers:{ 'Authorization':'Bearer '+token } });
     if(!r.ok) return;                 // 서버 없음/프록시 미전달/무효 → 조용히(미검증 유지)
     const j = await r.json();
     if(j && j.ok && j.username){ piVerified=true; lsSet('fl_pi_user', j.username); updatePiUI(); }
