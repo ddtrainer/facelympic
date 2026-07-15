@@ -2100,7 +2100,7 @@ async function sbTop(eventId, day){             // 오늘의 트랙 1등 기록(
 }
 async function updateWorldRank(eventId, time, day){   // 기록 등록 + 오늘의 트랙 기준 등수
   try{
-    const myNick=(leaderboardName()||'').slice(0,12);
+    const myNick=(leaderboardName()||'').slice(0,20);   // π+유저명 수용(닉네임은 이미 ≤12)
     await fetch(SB_URL+'/rest/v1/fl_scores',{method:'POST',
       headers:{...SB_H,'Content-Type':'application/json','Prefer':'return=minimal'},
       body:JSON.stringify({event_id:eventId, time_sec:time, day, player_name:myNick||null})});
@@ -2492,7 +2492,7 @@ $("legalBack").addEventListener('click', ()=>{ show(legalFrom); });
 // --- 프로필 편집 (닉네임) ---
 $("setProfile").addEventListener('click', ()=>{ $("nickInput").value=getNick(); show('profileEdit'); setTimeout(()=>{ try{$("nickInput").focus();}catch(e){} },60); });
 $("peBack").addEventListener('click', ()=>{ refreshNickVal(); show('settings'); });
-$("peSave").addEventListener('click', ()=>{ const v=$("nickInput").value.trim().slice(0,12); lsSet('fl_nick',v); refreshNickVal(); show('settings'); });
+$("peSave").addEventListener('click', ()=>{ const v=$("nickInput").value.trim().replace(/^π\s*/,'').slice(0,12); lsSet('fl_nick',v); refreshNickVal(); show('settings'); });
 
 // --- 언어 선택 (15개국) ---
 function renderLangList(){
@@ -2623,10 +2623,10 @@ function updatePiUI(){
   if(name){ b.textContent='π '+name+(piVerified?' ✓':''); b.classList.add('signed'); b.removeAttribute('data-i18n'); }
   else { b.classList.remove('signed'); b.setAttribute('data-i18n','pi_signin'); b.textContent=T('pi_signin'); }
 }
-// 순위 표시 이름: 직접 정한 닉네임 우선 → 없으면 검증된 Pi 유저명 → 없으면 익명
+// 순위 표시 이름: 직접 정한 닉네임 우선 → 없으면 검증된 Pi 유저명(π 접두사로 구분) → 없으면 익명
 function leaderboardName(){
-  const nick=getNick(); if(nick) return nick;
-  if(piVerified && piUser && piUser.username) return piUser.username;
+  const nick=getNick(); if(nick) return nick;                              // 자유 닉네임
+  if(piVerified && piUser && piUser.username) return 'π '+piUser.username;  // 검증된 Pi 계정 → π 표시
   return '';
 }
 $("piBtn").addEventListener('click', ()=>{ if(!piUser) piSignIn(true); });
