@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>페이셀림픽 · Facelympic</title>
+<script src="https://sdk.minepi.com/pi-sdk.js"></script>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <style>
   @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
@@ -43,6 +44,11 @@
   .btn-primary{background:linear-gradient(135deg,var(--cyan),var(--cyan-deep));color:#04243a;
     box-shadow:0 12px 32px -10px rgba(55,214,255,.6);}
   .btn-ghost{background:var(--card);color:var(--ink);border:1px solid var(--line);margin-top:10px;}
+  .pi-signin{margin-top:12px;width:100%;max-width:380px;padding:13px;border-radius:14px;cursor:pointer;
+    font-family:inherit;font-weight:800;font-size:15px;border:1px solid rgba(124,58,237,.5);
+    background:rgba(124,58,237,.14);color:#c4b5fd;transition:transform .12s;}
+  .pi-signin:active{transform:scale(.975);}
+  .pi-signin.signed{border-color:rgba(155,230,53,.5);background:rgba(155,230,53,.12);color:var(--lime);cursor:default;}
   .err{color:var(--coral);font-size:14px;margin-top:14px;text-align:center;display:none;}
 
   /* ---------- Calibration ---------- */
@@ -212,6 +218,7 @@
       <div class="move"><span class="e">😗</span><div><b data-i18n="mv_pucker_t">Pucker</b><span data-i18n="mv_pucker_d">Blast monster!</span></div></div>
     </div>
     <button class="btn btn-primary" id="startBtn" data-i18n="start">Start</button>
+    <button class="pi-signin" id="piBtn" data-i18n="pi_signin">Sign in with Pi</button>
     <p class="err" id="introErr"></p>
   </section>
 
@@ -434,7 +441,7 @@ I18N.en = {
   pop_blast:"💥 Blast!", pop_dodge:"↔️ Dodge!", pop_jump:"⬆️ Jump!", pop_yum:"🍔 Yum!", pop_combo:"🍔 Combo ×{n}!",
   unit_sec:"s", load_model:"Loading AI model…", load_cam:"Starting camera…",
   err_generic:"Something went wrong: {m}", err_denied:"Camera permission needed. Please allow it in your browser settings.",
-  err_notfound:"No camera found.",
+  err_notfound:"No camera found.", pi_signin:"Sign in with Pi",
 };
 I18N.ko = {
   brand:"페이셀림픽<br>FACELYMPIC", tagline:"웃으면 빨라진다",
@@ -490,7 +497,7 @@ I18N.ko = {
   pop_blast:"💥 꽝!", pop_dodge:"↔️ 피함!", pop_jump:"⬆️ 점프!", pop_yum:"🍔 냠냠!", pop_combo:"🍔 콤보 ×{n}!",
   unit_sec:"초", load_model:"AI 모델을 불러오는 중…", load_cam:"카메라를 켜는 중…",
   err_generic:"오류가 발생했어요: {m}", err_denied:"카메라 권한이 필요해요. 브라우저 설정에서 허용해 주세요.",
-  err_notfound:"카메라를 찾을 수 없어요.",
+  err_notfound:"카메라를 찾을 수 없어요.", pi_signin:"Pi로 로그인",
 };
 I18N.zh = {
   brand:"FACELYMPIC", tagline:"微笑跑得更快",
@@ -2568,13 +2575,50 @@ $("sRoll").addEventListener('input', e=>{ SENS.roll=e.target.value/100; saveSett
 $("tFlip").addEventListener('change', e=>{ FLIP=e.target.checked; saveSettings(); });
 $("tLow").addEventListener('change', e=>{ LOWSPEC=e.target.checked; saveSettings(); });
 
+// ============================================================
+//  Pi Network 로그인 (전역 window.Pi — Pi Browser 안에서만 동작)
+//  Pi가 없으면 조용히 스킵. 게임·기록·EP는 Pi 없이도 온전히 동작.
+// ============================================================
+const PI_SANDBOX = true;   // 테스트/App Studio/Testnet=true · 메인넷 출시 시 false로 변경
+let piReady=false, piUser=null, piInitTried=false;
+function onIncompletePaymentFound(payment){ /* 결제 미도입 — 콜백 자리만 */ }
+async function initPi(){
+  if(piInitTried) return piReady;
+  piInitTried=true;
+  if(typeof window.Pi==='undefined') return false;       // Pi Browser 아님 → 스킵
+  try{ await window.Pi.init({ version:"2.0", sandbox:PI_SANDBOX }); piReady=true; }
+  catch(e){ console.warn('Pi.init failed', e); piReady=false; }
+  return piReady;
+}
+async function piSignIn(manual){
+  if(typeof window.Pi==='undefined'){ if(manual){ try{ alert(T('pi_signin')+' — Pi Browser'); }catch(e){} } return; }
+  if(!piReady) await initPi();
+  if(!piReady) return;
+  try{
+    const auth = await window.Pi.authenticate(['username'], onIncompletePaymentFound);   // username 스코프
+    piUser = (auth && auth.user) ? auth.user : null;
+    if(piUser && piUser.username){ lsSet('fl_pi_user', piUser.username); }
+    updatePiUI();
+    // (2단계) auth.accessToken 을 서버리스로 보내 GET /v2/me 검증 — 백엔드 준비 후
+  }catch(e){ console.warn('Pi.authenticate failed', e); }
+}
+function updatePiUI(){
+  const b=$("piBtn"); if(!b) return;
+  const name = piUser ? piUser.username : (lsGet('fl_pi_user')||'');
+  if(name){ b.textContent='π '+name; b.classList.add('signed'); b.removeAttribute('data-i18n'); }
+  else { b.classList.remove('signed'); b.setAttribute('data-i18n','pi_signin'); b.textContent=T('pi_signin'); }
+}
+$("piBtn").addEventListener('click', ()=>{ if(!piUser) piSignIn(true); });
+
 initLang();            // 언어 초기화 (기본 영어)
 applyI18n();           // 정적 텍스트 다국어 적용
 loadSettings();        // 저장된 설정 적용
 updateStreakIntro();   // 로드 시 streak 배지 표시
+updatePiUI();          // 이전 Pi 로그인 상태 반영
+initPi().then(ok=>{ if(ok) piSignIn(false); });   // 로드 시 자동 로그인 시도(비차단·조용히 실패)
 window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curEvent(v){curEvent=v;}, get G(){return G;},
   awardEP, epTotal, epToday, EP_DAILY_CAP, SKINS, THEMES, get SKIN(){return SKIN;}, get THEME(){return THEME;},
-  T, setLang, get LANG(){return LANG;}, LANGS };
+  T, setLang, get LANG(){return LANG;}, LANGS, initPi, piSignIn, get piUser(){return piUser;} };
 </script>
 </body>
 </html>
