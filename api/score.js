@@ -1,10 +1,13 @@
-// Facelympic — 서버 경유 점수 제출 (안티치트 Phase 1)
-// ① 시간 타당성 검사(불가능한 기록 거부) ② Pi 토큰 검증(/me)으로 신원 확인 →
-//    검증되면 서버가 'π <유저명>' + verified=true 로 기록(클라가 π/검증 위조 불가).
-// (Phase 1은 공개 anon 키로 삽입. RLS 잠금 + 서비스롤은 Phase 1.5에서 — 직접 우회 완전 차단용.)
+// Facelympic — server-gated score submission (anti-cheat Phase 1)
+// (1) plausibility check (reject impossible times), (2) verify Pi token via /me
+//     -> if verified, server sets the name to 'π <username>' + verified=true so the
+//        client cannot forge the verified marker. Unverified names get any leading
+//        π (U+03C0) stripped. Inserts into fl_scores.
+// (Phase 1 uses the public anon key. RLS lockdown + service role = Phase 1.5.)
 const SB_URL = 'https://yixigkpyncjmbfyaocjl.supabase.co';
 const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpeGlna3B5bmNqbWJmeWFvY2psIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0OTg2NjksImV4cCI6MjA5NDA3NDY2OX0.7XDv1emSYABdYDcdGa54MCLH-iAiwEPHr43HiWP_kD4';
-const EV_MIN = { sprint: 4, middle: 10, long: 20 };   // 물리적으로 불가능한 시간 하한(초)
+const PI_PREFIX = String.fromCharCode(0x03c0);   // π
+const EV_MIN = { sprint: 4, middle: 10, long: 20 };   // impossible-time floor (seconds)
 const EV_MAX = 3600;
 
 export default async function handler(req, res) {
@@ -20,20 +23,24 @@ export default async function handler(req, res) {
     if (b) { event_id = b.event_id || ''; time_sec = b.time_sec; day = b.day || ''; nickname = b.nickname || ''; accessToken = b.accessToken || ''; }
   } catch (e) {}
 
-  // ① 타당성 검사
+  // (1) plausibility
   const floor = EV_MIN[event_id];
   if (!floor || typeof time_sec !== 'number' || !isFinite(time_sec) || time_sec < floor || time_sec > EV_MAX || !day) {
-    res.status(400).json({ error: 'implausible' });   // 불가능/이상한 기록 거부
+    res.status(400).json({ error: 'implausible' });
     return;
   }
 
-  // ② 신원 검증(선택): 유효한 Pi 토큰이면 서버가 π+유저명 부여
+  // strip any leading whitespace / π (U+03C0) from an unverified name so it can't fake the marker
+  let name = String(nickname || '');
+  while (name.length && (name.charCodeAt(0) === 0x03c0 || name.charCodeAt(0) === 32)) name = name.slice(1);   // strip leading pi(U+03C0)/space so unverified can't fake the marker
+  name = name.slice(0, 20);
   let verified = false;
-  let name = String(nickname || '').replace(/^π\s*/, '').slice(0, 20);   // 미검증은 앞 π 제거(위조 방지)
+
+  // (2) identity verification (optional): valid Pi token -> server assigns π + username
   if (accessToken) {
     try {
       const me = await fetch('https://api.minepi.com/v2/me', { headers: { Authorization: 'Bearer ' + accessToken } });
-      if (me.ok) { const u = await me.json(); if (u && u.username) { verified = true; name = 'π ' + String(u.username).slice(0, 18); } }
+      if (me.ok) { const u = await me.json(); if (u && u.username) { verified = true; name = PI_PREFIX + ' ' + String(u.username).slice(0, 18); } }
     } catch (e) {}
   }
 
