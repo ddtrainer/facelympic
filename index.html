@@ -1295,9 +1295,12 @@ let noFaceStreak=0, delegateSwitching=false;
 async function fallbackToCPU(reason){
   if(delegateSwitching || window.__flDelegate!=='GPU') return;
   delegateSwitching=true;
-  try{ const nm=await makeFaceLM("CPU"); const old=faceLM; faceLM=nm; window.__flDelegate='CPU'; noFaceStreak=0;
-    if(old&&old.close){ try{ old.close(); }catch(e){} } console.warn('FaceLM → CPU ('+reason+')'); }
-  catch(e){ console.warn('CPU fallback failed', e); }
+  try{
+    if(faceLM&&faceLM.close){ try{ faceLM.close(); }catch(e){} }   // 메모리 확보 위해 먼저 해제(저사양/폴더블 대비)
+    faceLM=null;
+    faceLM = await makeFaceLM("CPU"); window.__flDelegate='CPU'; noFaceStreak=0;
+    console.warn('FaceLM → CPU ('+reason+')');
+  }catch(e){ console.warn('CPU fallback failed', e); }
   delegateSwitching=false;
 }
 async function startCamera(videoEl){
@@ -1318,6 +1321,22 @@ const SM_KEYS = ['smile','jaw','pucker','roll','brow'];
 let lostSince = 0;          // 얼굴 놓친 시각(ms)
 const GRACE_MS = 3000;      // 3초 유예 — 카메라 오류로 기록 잃고 이탈하는 것 방지
 
+// 일부 기기(폴드 등)는 video 요소를 GPU가 직접 읽는 단계에서 'ROI NaN' 에러 발생
+// → 안전 모드: 비디오를 캔버스에 복사한 뒤 캔버스로 인식(깨끗한 픽셀 경로)
+let safeInput=false, inCv=null, inCtx=null;
+function detectFrame(el, now){
+  if(!safeInput) return faceLM.detectForVideo(el, now);
+  if(!inCv){ inCv=document.createElement('canvas'); inCtx=inCv.getContext('2d'); }
+  const w=el.videoWidth||480, h=el.videoHeight||640;
+  if(inCv.width!==w||inCv.height!==h){ inCv.width=w; inCv.height=h; }
+  inCtx.drawImage(el,0,0,w,h);
+  return faceLM.detectForVideo(inCv, now);
+}
+function escalateDetect(){   // 인식 에러 시 단계적 우회: ①캔버스 입력 → ②CPU 전환
+  if(!safeInput){ safeInput=true; console.warn('detect → canvas input'); return; }
+  if(window.__flDelegate==='GPU') fallbackToCPU('err');
+}
+
 // blendshape + 머리자세 신호. 같은 비디오 프레임이면 추론 스킵 → 추론=카메라fps, 렌더=60fps 분리(저사양 대응)
 let lastSig = { ok:false, smile:0, jaw:0, pucker:0, roll:0, brow:0 };
 function readSignals(now){
@@ -1326,12 +1345,12 @@ function readSignals(now){
   lastInferMs = now;
   const out = { ok:false, smile:0, jaw:0, pucker:0, roll:0, brow:0 };
   let res;
-  try{ res = faceLM.detectForVideo(detVideo, now); }
-  catch(e){ if(window.__flDelegate==='GPU') fallbackToCPU('err');   // GPU 런타임 에러(ROI NaN 등) → 즉시 CPU 전환
+  try{ res = detectFrame(detVideo, now); }
+  catch(e){ escalateDetect();   // ①캔버스 입력 → ②CPU 전환 단계적 우회
     return lastSig; }   // 이 프레임은 직전 신호 재사용(루프 유지, 멈춤 방지)
-  // GPU가 얼굴을 계속 0개로 반환하면(폴드7 등) CPU로 자동 전환
+  // 얼굴을 계속 0개로 반환하면(폴드7 등) 단계적 우회(캔버스→CPU)
   if(res.faceLandmarks && res.faceLandmarks.length){ noFaceStreak=0; }
-  else if(++noFaceStreak>90 && window.__flDelegate==='GPU'){ fallbackToCPU('game'); }
+  else if(++noFaceStreak>90){ noFaceStreak=0; escalateDetect(); }
   let raw=null;
   if(res.faceBlendshapes && res.faceBlendshapes.length){
     const m={}; for(const c of res.faceBlendshapes[0].categories) m[c.categoryName]=c.score;
@@ -2544,7 +2563,7 @@ async function openDiag(){
   let modelInfo='loading…', camInfo='loading…', frames=0, detErr='none';
   const render=(extra)=>{ out.textContent=[
     'model: '+modelInfo,
-    'delegate: '+(window.__flDelegate||'?'),
+    'delegate: '+(window.__flDelegate||'?')+'   input: '+(safeInput?'canvas':'video'),
     'camera: '+camInfo,
     'video: '+(v.videoWidth||0)+'x'+(v.videoHeight||0)+'  readyState:'+v.readyState+'  paused:'+v.paused,
     'currentTime: '+(v.currentTime||0).toFixed(3)+'  (advancing: '+(diagCTmoved?'YES':'NO')+')',
@@ -2573,15 +2592,15 @@ async function openDiag(){
     let faces='?', bs='?', smile='?', jaw='?', brow='?', pucker='?';
     if(faceLM && v.readyState>=2 && v.videoWidth){
       try{
-        const res=faceLM.detectForVideo(v, now);
+        const res=detectFrame(v, now);
         faces=res.faceLandmarks?res.faceLandmarks.length:0;
         bs=res.faceBlendshapes?res.faceBlendshapes.length:0;
-        if(faces===0 && window.__flDelegate==='GPU'){ if(++noFaceStreak>90) fallbackToCPU('diag'); } else noFaceStreak=0;
+        if(faces===0){ if(++noFaceStreak>90) escalateDetect(); } else noFaceStreak=0;
         if(bs){ const m={}; for(const c of res.faceBlendshapes[0].categories) m[c.categoryName]=c.score;
           smile=(((m.mouthSmileLeft||0)+(m.mouthSmileRight||0))/2).toFixed(3); jaw=(m.jawOpen||0).toFixed(3);
           brow=(((m.browInnerUp||0)+(m.browOuterUpLeft||0)+(m.browOuterUpRight||0))/3).toFixed(3);
           pucker=(Math.max(m.mouthPucker||0,m.mouthFunnel||0)).toFixed(3); }
-      }catch(e){ detErr=((e&&e.message)||e)+''; if(window.__flDelegate==='GPU') fallbackToCPU('err'); }
+      }catch(e){ detErr=((e&&e.message)||e).toString().slice(0,200); escalateDetect(); }
     }
     render({faces,bs,smile,jaw,brow,pucker});
     diagRAF=requestAnimationFrame(loop);
