@@ -2542,13 +2542,15 @@ async function openDiag(){
   ].join('\n'); };
   render(null);
   stopCamera();                                  // 게임 카메라 정리(중복 방지)
-  try{ if(!faceLM) await loadModel(); modelInfo='OK'; }catch(e){ modelInfo='FAIL: '+((e&&e.message)||e); }
-  try{
-    diagStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user', width:{ideal:640}, height:{ideal:480} }, audio:false });
-    v.srcObject=diagStream; await new Promise(r=>{ v.onloadedmetadata=()=>{ v.play(); r(); }; }); camInfo='OK';
-  }catch(e){ camInfo='FAIL: '+((e&&e.name)||'')+' '+((e&&e.message)||e); }
   diagLastCT=-1; diagCTmoved=false;
+  // 모델·카메라는 백그라운드 로드(루프를 막지 않음 → 느리거나 멈춰도 무한로딩 안 됨)
+  (async()=>{ try{ if(!faceLM) await loadModel(); modelInfo='OK'; }catch(e){ modelInfo='FAIL: '+((e&&e.message)||e); } })();
+  (async()=>{ try{
+      diagStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user', width:{ideal:640}, height:{ideal:480} }, audio:false });
+      v.srcObject=diagStream; await new Promise(r=>{ v.onloadedmetadata=()=>{ v.play(); r(); }; }); camInfo='OK';
+    }catch(e){ camInfo='FAIL: '+((e&&e.name)||'')+' '+((e&&e.message)||e); } })();
   function loop(now){
+    $("loading").classList.remove('active');     // 진단 중엔 로딩 오버레이 항상 숨김(무한로딩 방지)
     frames++;
     const ct=v.currentTime; if(ct!==diagLastCT){ if(diagLastCT!==-1) diagCTmoved=true; diagLastCT=ct; }
     let faces='?', bs='?', smile='?', jaw='?', brow='?', pucker='?';
