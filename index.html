@@ -237,6 +237,7 @@
     <div class="cal-fn" id="calFn" style="display:none;"></div>
     <div class="cal-instr" id="calInstr" data-i18n="cal_fit">Fit your face in the frame</div>
     <div class="cal-meter"><div class="cal-fill" id="calFill"></div></div>
+    <div id="calDbg" style="font-size:11px;color:var(--faint);font-family:monospace;margin:-6px 0 8px;min-height:14px;"></div>
     <div class="cal-dots" id="calDots"></div>
     <button class="btn btn-ghost" id="calSkip" style="max-width:380px;" data-i18n="skip">Skip</button>
   </section>
@@ -1349,6 +1350,7 @@ function readSignals(now){
   catch(e){ escalateDetect();   // ①캔버스 입력 → ②CPU 전환 단계적 우회
     return lastSig; }   // 이 프레임은 직전 신호 재사용(루프 유지, 멈춤 방지)
   // (전환은 detect '에러'시에만 — 얼굴이 단순히 화면 밖인 건 정상 상황이라 전환 사유 아님)
+  window.__flLm = (res.faceLandmarks&&res.faceLandmarks.length)?res.faceLandmarks[0].length:0;   // 진단용: 랜드마크 개수
   let raw=null;
   if(res.faceBlendshapes && res.faceBlendshapes.length){
     const m={}; for(const c of res.faceBlendshapes[0].categories) m[c.categoryName]=c.score;
@@ -1472,6 +1474,9 @@ async function runCalibration(){
     function frame(now){
       const s=readSignals(now);
       const p=Math.min(1,(now-t0)/st.dur);
+      $("calDbg").textContent = (window.__flDelegate||'?')+'/'+(safeInput?'cv':'vid')
+        +' ok:'+(s.ok?1:0)+' lm:'+(window.__flLm!=null?window.__flLm:'?')
+        +' roll:'+(s.roll!=null?s.roll.toFixed(2):'?')+' smile:'+(s.smile!=null?s.smile.toFixed(2):'?');
       if(st.key==='neutral'){
         if(s.ok){ neutralAcc.smile.push(s.smile); neutralAcc.jaw.push(s.jaw);
           neutralAcc.pucker.push(s.pucker); neutralAcc.brow.push(s.brow); }
