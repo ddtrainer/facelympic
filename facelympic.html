@@ -1327,7 +1327,8 @@ function readSignals(now){
   const out = { ok:false, smile:0, jaw:0, pucker:0, roll:0, brow:0 };
   let res;
   try{ res = faceLM.detectForVideo(detVideo, now); }
-  catch(e){ return lastSig; }   // 이 프레임 인식 실패 → 직전 신호 재사용(루프 유지, 멈춤 방지)
+  catch(e){ if(window.__flDelegate==='GPU') fallbackToCPU('err');   // GPU 런타임 에러(ROI NaN 등) → 즉시 CPU 전환
+    return lastSig; }   // 이 프레임은 직전 신호 재사용(루프 유지, 멈춤 방지)
   // GPU가 얼굴을 계속 0개로 반환하면(폴드7 등) CPU로 자동 전환
   if(res.faceLandmarks && res.faceLandmarks.length){ noFaceStreak=0; }
   else if(++noFaceStreak>90 && window.__flDelegate==='GPU'){ fallbackToCPU('game'); }
@@ -2580,7 +2581,7 @@ async function openDiag(){
           smile=(((m.mouthSmileLeft||0)+(m.mouthSmileRight||0))/2).toFixed(3); jaw=(m.jawOpen||0).toFixed(3);
           brow=(((m.browInnerUp||0)+(m.browOuterUpLeft||0)+(m.browOuterUpRight||0))/3).toFixed(3);
           pucker=(Math.max(m.mouthPucker||0,m.mouthFunnel||0)).toFixed(3); }
-      }catch(e){ detErr=((e&&e.message)||e)+''; }
+      }catch(e){ detErr=((e&&e.message)||e)+''; if(window.__flDelegate==='GPU') fallbackToCPU('err'); }
     }
     render({faces,bs,smile,jaw,brow,pucker});
     diagRAF=requestAnimationFrame(loop);
