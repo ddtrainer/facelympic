@@ -1275,17 +1275,30 @@ function norm(sig,v){ const c=CAL[sig]; const d=Math.max(c.max-c.min,1e-3); retu
 async function loadModel(){
   $("loading").classList.add("active");
   $("loadText").textContent=T('load_model');
-  const fileset = await FilesetResolver.forVisionTasks(
+  try{ faceLM = await makeFaceLM("GPU"); window.__flDelegate='GPU'; }   // GPU 생성 실패 시 →
+  catch(e){ console.warn('GPU create failed → CPU', e);
+    faceLM = await makeFaceLM("CPU"); window.__flDelegate='CPU'; }      // CPU로
+}
+let visionFileset=null;
+async function makeFaceLM(delegate){
+  if(!visionFileset) visionFileset = await FilesetResolver.forVisionTasks(
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm");
-  const mk = (delegate)=> FaceLandmarker.createFromOptions(fileset,{
+  return FaceLandmarker.createFromOptions(visionFileset,{
     baseOptions:{ modelAssetPath:
       "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
       delegate },
     runningMode:"VIDEO", numFaces:1, outputFaceBlendshapes:true,
   });
-  try{ faceLM = await mk("GPU"); window.__flDelegate='GPU'; }        // 일부 기기(폴드7 등)에서 GPU 실패 →
-  catch(e){ console.warn('GPU delegate failed → CPU', e);
-    faceLM = await mk("CPU"); window.__flDelegate='CPU'; }           // CPU로 폴백
+}
+// 일부 기기(폴드7 등)는 GPU 생성은 되지만 런타임에 얼굴을 계속 0개로 반환 → CPU로 자동 전환
+let noFaceStreak=0, delegateSwitching=false;
+async function fallbackToCPU(reason){
+  if(delegateSwitching || window.__flDelegate!=='GPU') return;
+  delegateSwitching=true;
+  try{ const nm=await makeFaceLM("CPU"); const old=faceLM; faceLM=nm; window.__flDelegate='CPU'; noFaceStreak=0;
+    if(old&&old.close){ try{ old.close(); }catch(e){} } console.warn('FaceLM → CPU ('+reason+')'); }
+  catch(e){ console.warn('CPU fallback failed', e); }
+  delegateSwitching=false;
 }
 async function startCamera(videoEl){
   stream = await navigator.mediaDevices.getUserMedia({
@@ -1315,6 +1328,9 @@ function readSignals(now){
   let res;
   try{ res = faceLM.detectForVideo(detVideo, now); }
   catch(e){ return lastSig; }   // 이 프레임 인식 실패 → 직전 신호 재사용(루프 유지, 멈춤 방지)
+  // GPU가 얼굴을 계속 0개로 반환하면(폴드7 등) CPU로 자동 전환
+  if(res.faceLandmarks && res.faceLandmarks.length){ noFaceStreak=0; }
+  else if(++noFaceStreak>90 && window.__flDelegate==='GPU'){ fallbackToCPU('game'); }
   let raw=null;
   if(res.faceBlendshapes && res.faceBlendshapes.length){
     const m={}; for(const c of res.faceBlendshapes[0].categories) m[c.categoryName]=c.score;
@@ -2559,6 +2575,7 @@ async function openDiag(){
         const res=faceLM.detectForVideo(v, now);
         faces=res.faceLandmarks?res.faceLandmarks.length:0;
         bs=res.faceBlendshapes?res.faceBlendshapes.length:0;
+        if(faces===0 && window.__flDelegate==='GPU'){ if(++noFaceStreak>90) fallbackToCPU('diag'); } else noFaceStreak=0;
         if(bs){ const m={}; for(const c of res.faceBlendshapes[0].categories) m[c.categoryName]=c.score;
           smile=(((m.mouthSmileLeft||0)+(m.mouthSmileRight||0))/2).toFixed(3); jaw=(m.jawOpen||0).toFixed(3);
           brow=(((m.browInnerUp||0)+(m.browOuterUpLeft||0)+(m.browOuterUpRight||0))/3).toFixed(3);
