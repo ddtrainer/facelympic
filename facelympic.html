@@ -137,6 +137,7 @@
     cursor:pointer;min-width:70px;text-align:center;}
   .shop-btn.eq{border-color:var(--faint);background:none;color:var(--faint);cursor:default;}
   .shop-btn.cant{border-color:var(--faint);background:none;color:var(--faint);}
+  .shop-btn.pi{border-color:rgba(124,58,237,.55);background:rgba(124,58,237,.16);color:#c4b5fd;}
   #consent{padding:52px 24px 28px;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;}
   #consent>*{flex-shrink:0;}
   .consent-body{max-width:440px;margin:0 auto 16px;width:100%;color:var(--dim);font-size:15px;line-height:1.6;}
@@ -415,7 +416,7 @@ I18N.en = {
   nick_note:"Up to 12 characters · Blank shows as \"Anonymous\".<br>Don't enter real names, contacts, or personal info.", save:"Save",
   shop:"Shop", shop_skins:"Character skins", shop_themes:"Track themes", shop_equip:"Equip", shop_equipped:"Equipped",
   shop_buy_confirm:"Buy {name} for {price} EP?",
-  skin_basic:"Basic Blue", skin_red:"Red Sprinter", skin_green:"Lime Runner", skin_purple:"Purple Ace", skin_gold:"Gold Champion",
+  skin_basic:"Basic Blue", skin_red:"Red Sprinter", skin_green:"Lime Runner", skin_purple:"Purple Ace", skin_gold:"Gold Champion", skin_holo:"Hologram Runner",
   theme_day:"Daytime", theme_sunset:"Sunset", theme_forest:"Forest", theme_night:"Night Track",
   consent_title:"Before you start",
   consent_p1:"Facelympic uses your phone <b>camera to read facial movements</b> to control the game.",
@@ -471,7 +472,7 @@ I18N.ko = {
   nick_note:"최대 12자 · 비워두면 '익명'으로 표시돼요.<br>실명·연락처 등 개인정보는 넣지 마세요.", save:"저장",
   shop:"상점", shop_skins:"캐릭터 스킨", shop_themes:"트랙 테마", shop_equip:"장착", shop_equipped:"장착중",
   shop_buy_confirm:"{name} 을(를) {price} EP에 살까요?",
-  skin_basic:"기본 블루", skin_red:"레드 스프린터", skin_green:"라임 러너", skin_purple:"퍼플 에이스", skin_gold:"골드 챔피언",
+  skin_basic:"기본 블루", skin_red:"레드 스프린터", skin_green:"라임 러너", skin_purple:"퍼플 에이스", skin_gold:"골드 챔피언", skin_holo:"홀로그램 러너",
   theme_day:"한낮", theme_sunset:"노을", theme_forest:"숲", theme_night:"야간 트랙",
   consent_title:"시작 전 안내",
   consent_p1:"페이셀림픽은 휴대폰 <b>카메라로 표정 움직임을 인식</b>해 게임을 조작합니다.",
@@ -2042,6 +2043,7 @@ const SKINS={
   green: {name:'라임 러너',    price:300, c1:'#c7f56b', c2:'#5fa81f', c3:'#9be635'},
   purple:{name:'퍼플 에이스',  price:400, c1:'#c98cff', c2:'#7b2ff7', c3:'#a45cff'},
   gold:  {name:'골드 챔피언',  price:800, c1:'#ffe89b', c2:'#e0a020', c3:'#ffd34e'},
+  holo:  {name:'홀로그램 러너', piPrice:1, c1:'#a6f6ff', c2:'#7b5cff', c3:'#ff6ad5'},   // Pi 전용(Test-Pi)
 };
 const THEMES={
   day:   {name:'한낮',      price:0,   sky1:'#1a4fb0', sky2:'#7cc6ff', hill1:'#3a5a86', hill2:'#2f4a72', grass:'#15351f'},
@@ -2527,6 +2529,8 @@ function shopGroup(title, MAP, kind){
     const btn=document.createElement('button'); btn.className='shop-btn';
     if(isEq){ btn.textContent=T('shop_equipped'); btn.classList.add('eq'); btn.disabled=true; }
     else if(owned){ btn.textContent=T('shop_equip'); btn.addEventListener('click',()=>equip(kind,id)); }
+    else if(it.piPrice){ btn.textContent='π '+it.piPrice; btn.classList.add('pi');   // Pi 결제 상품
+           btn.addEventListener('click',()=>buyWithPi(kind,id,it)); }
     else { btn.textContent='⚡'+it.price; if(epTotal()<it.price) btn.classList.add('cant');
            btn.addEventListener('click',()=>buy(kind,id,it)); }
     row.appendChild(sw); row.appendChild(name); row.appendChild(btn); g.appendChild(row);
@@ -2584,17 +2588,56 @@ $("tLow").addEventListener('change', e=>{ LOWSPEC=e.target.checked; saveSettings
 // ============================================================
 const PI_SANDBOX = true;   // 테스트/App Studio/Testnet=true · 메인넷 출시 시 false로 변경
 let piReady=false, piUser=null, piInitTried=false, piVerified=false;
-function onIncompletePaymentFound(payment){ /* 결제 미도입 — 콜백 자리만 */ }
 // pinet.com 프록시는 /api/* 를 가로채므로(자체 Next.js) 절대 URL(Vercel)로 호출. CORS 허용됨.
-const PI_VERIFY_URL = 'https://facelympic.vercel.app/api/verify';
+const PI_API_BASE = 'https://facelympic.vercel.app';
 async function verifyPi(token){       // 서버에서 /me 로 토큰 검증 → 신뢰된 신원
   if(!token) return;
   try{
-    const r = await fetch(PI_VERIFY_URL, { method:'POST', headers:{ 'Authorization':'Bearer '+token } });
+    const r = await fetch(PI_API_BASE+'/api/verify', { method:'POST', headers:{ 'Authorization':'Bearer '+token } });
     if(!r.ok) return;                 // 서버 없음/프록시 미전달/무효 → 조용히(미검증 유지)
     const j = await r.json();
     if(j && j.ok && j.username){ piVerified=true; lsSet('fl_pi_user', j.username); updatePiUI(); }
   }catch(e){ /* 검증 실패는 비차단 — 게임·표시엔 영향 없음 */ }
+}
+// ----- Pi 결제 (Test-Pi) : 서버 승인/완료 필요(앱 API키는 서버 환경변수) -----
+function onIncompletePaymentFound(payment){   // 미완료 결제 있으면 서버로 완료 처리
+  try{
+    const pid = payment && (payment.identifier || payment.paymentId);
+    const txid = payment && payment.transaction && payment.transaction.txid;
+    if(pid) piComplete(pid, txid, payment && payment.metadata);
+  }catch(e){}
+}
+async function piApprove(paymentId){
+  try{ await fetch(PI_API_BASE+'/api/approve', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ paymentId }) }); }
+  catch(e){ console.warn('approve failed', e); }
+}
+async function piComplete(paymentId, txid, meta){
+  try{
+    const r = await fetch(PI_API_BASE+'/api/complete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ paymentId, txid }) });
+    if(!r.ok) return;
+    if(meta && meta.type==='skin' && meta.id && SKINS[meta.id]){ addOwned(meta.id); equip('skin', meta.id); renderShop(); }   // 결제 완료 → 지급
+  }catch(e){ console.warn('complete failed', e); }
+}
+async function buyWithPi(kind, id, it){
+  if(typeof window.Pi==='undefined'){ alert('Pi Browser에서 열어주세요.'); return; }
+  if(!piReady) await initPi();
+  if(!piReady){ alert('Pi 로그인이 필요해요.'); return; }
+  try{
+    const auth = await window.Pi.authenticate(['username','payments'], onIncompletePaymentFound);   // 결제 권한 확보
+    piUser=(auth&&auth.user)?auth.user:null; if(piUser&&piUser.username) lsSet('fl_pi_user',piUser.username);
+    if(auth&&auth.accessToken) verifyPi(auth.accessToken);
+    const meta={ type:kind, id:id };
+    window.Pi.createPayment({
+      amount: it.piPrice,
+      memo: 'Facelympic - '+shopItemName(kind,id),
+      metadata: meta
+    }, {
+      onReadyForServerApproval: (paymentId)=> piApprove(paymentId),
+      onReadyForServerCompletion: (paymentId, txid)=> piComplete(paymentId, txid, meta),
+      onCancel: (paymentId)=>{ /* 사용자 취소 */ },
+      onError: (err)=>{ console.warn('payment error', err); alert('결제를 완료하지 못했어요. 잠시 후 다시 시도해 주세요.'); }
+    });
+  }catch(e){ console.warn('buyWithPi failed', e); }
 }
 async function initPi(){
   if(piInitTried) return piReady;
