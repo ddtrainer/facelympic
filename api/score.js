@@ -40,7 +40,7 @@ export default async function handler(req, res) {
   if (accessToken) {
     try {
       const me = await fetch('https://api.minepi.com/v2/me', { headers: { Authorization: 'Bearer ' + accessToken } });
-      if (me.ok) { const u = await me.json(); if (u && u.username) { verified = true; name = PI_PREFIX + ' ' + String(u.username).slice(0, 18); } }
+      if (me.ok) { const u = await me.json(); if (u && u.username) { verified = true; if (!name) name = PI_PREFIX + ' ' + String(u.username).slice(0, 18); } }   // 닉네임 있으면 우선, 없으면 π 유저명
     } catch (e) {}
   }
 

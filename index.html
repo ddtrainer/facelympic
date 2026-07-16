@@ -1267,12 +1267,14 @@ async function loadModel(){
   $("loadText").textContent=T('load_model');
   const fileset = await FilesetResolver.forVisionTasks(
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm");
-  faceLM = await FaceLandmarker.createFromOptions(fileset,{
+  const mk = (delegate)=> FaceLandmarker.createFromOptions(fileset,{
     baseOptions:{ modelAssetPath:
       "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-      delegate:"GPU" },
+      delegate },
     runningMode:"VIDEO", numFaces:1, outputFaceBlendshapes:true,
   });
+  try{ faceLM = await mk("GPU"); }                            // 일부 기기(폴드7 등)에서 GPU 실패 →
+  catch(e){ console.warn('GPU delegate failed → CPU', e); faceLM = await mk("CPU"); }   // CPU로 폴백
 }
 async function startCamera(videoEl){
   stream = await navigator.mediaDevices.getUserMedia({
@@ -1299,7 +1301,9 @@ function readSignals(now){
   if(detVideo.currentTime===lastVT) return lastSig;   // 새 프레임 아님 → 직전 신호 재사용(추론 스킵)
   lastVT = detVideo.currentTime;
   const out = { ok:false, smile:0, jaw:0, pucker:0, roll:0, brow:0 };
-  const res = faceLM.detectForVideo(detVideo, now);
+  let res;
+  try{ res = faceLM.detectForVideo(detVideo, now); }
+  catch(e){ return lastSig; }   // 이 프레임 인식 실패 → 직전 신호 재사용(루프 유지, 멈춤 방지)
   let raw=null;
   if(res.faceBlendshapes && res.faceBlendshapes.length){
     const m={}; for(const c of res.faceBlendshapes[0].categories) m[c.categoryName]=c.score;
@@ -1457,7 +1461,9 @@ const cv=$("gcanvas"), ctx=cv.getContext('2d');
 let cssW=0,cssH=0,DPR=1;
 function resize(){
   DPR=Math.min(2,window.devicePixelRatio||1);
-  cssW=cv.clientWidth; cssH=cv.clientHeight;
+  const p=cv.parentElement;
+  cssW=cv.clientWidth || (p&&p.clientWidth) || window.innerWidth || 360;    // 폴더블서 레이아웃 미계산 시 폴백
+  cssH=cv.clientHeight || (p&&p.clientHeight) || window.innerHeight || 640;
   cv.width=cssW*DPR; cv.height=cssH*DPR; ctx.setTransform(DPR,0,0,DPR,0,0);
 }
 window.addEventListener('resize',()=>{ if(screens.game.classList.contains('active')) resize(); });
@@ -1593,6 +1599,7 @@ function resolve(o){
 
 function gameLoop(now, gen){
   if(!G || !G.running || gen!==loopGen) return;
+  if(!cv.width || !cv.height || cv.clientWidth!==cssW) resize();   // 폴더블/지연 레이아웃서 캔버스 0·변경 시 재보정
   const dt=Math.min(.05,(now-G.t)/1000); G.t=now;
   const sig=readSignals(now);
 
