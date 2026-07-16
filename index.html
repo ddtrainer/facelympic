@@ -1348,9 +1348,7 @@ function readSignals(now){
   try{ res = detectFrame(detVideo, now); }
   catch(e){ escalateDetect();   // ①캔버스 입력 → ②CPU 전환 단계적 우회
     return lastSig; }   // 이 프레임은 직전 신호 재사용(루프 유지, 멈춤 방지)
-  // 얼굴을 계속 0개로 반환하면(폴드7 등) 단계적 우회(캔버스→CPU)
-  if(res.faceLandmarks && res.faceLandmarks.length){ noFaceStreak=0; }
-  else if(++noFaceStreak>90){ noFaceStreak=0; escalateDetect(); }
+  // (전환은 detect '에러'시에만 — 얼굴이 단순히 화면 밖인 건 정상 상황이라 전환 사유 아님)
   let raw=null;
   if(res.faceBlendshapes && res.faceBlendshapes.length){
     const m={}; for(const c of res.faceBlendshapes[0].categories) m[c.categoryName]=c.score;
@@ -2599,7 +2597,7 @@ async function openDiag(){
         faces=res.faceLandmarks?res.faceLandmarks.length:0;
         bs=res.faceBlendshapes?res.faceBlendshapes.length:0;
         if(faces) rollV=computeHeadPose(res.faceLandmarks[0], v.videoWidth, v.videoHeight).roll.toFixed(3);
-        if(faces===0){ if(++noFaceStreak>90) escalateDetect(); } else noFaceStreak=0;
+        // (전환은 detect '에러'시에만 — 얼굴 미검출은 정상 상황일 수 있어 전환 안 함)
         if(bs){ const m={}; for(const c of res.faceBlendshapes[0].categories) m[c.categoryName]=c.score;
           smile=(((m.mouthSmileLeft||0)+(m.mouthSmileRight||0))/2).toFixed(3); jaw=(m.jawOpen||0).toFixed(3);
           brow=(((m.browInnerUp||0)+(m.browOuterUpLeft||0)+(m.browOuterUpRight||0))/3).toFixed(3);
