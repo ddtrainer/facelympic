@@ -1332,9 +1332,9 @@ function detectFrame(el, now){
   inCtx.drawImage(el,0,0,w,h);
   return faceLM.detectForVideo(inCv, now);
 }
-function escalateDetect(){   // 인식 에러 시 단계적 우회: ①캔버스 입력 → ②CPU 전환
-  if(!safeInput){ safeInput=true; console.warn('detect → canvas input'); return; }
-  if(window.__flDelegate==='GPU') fallbackToCPU('err');
+function escalateDetect(){   // 인식 에러 = GPU 파이프라인 고장 신호 → 검증된 안전 경로(캔버스+CPU)로 한 번에 전환
+  if(!safeInput){ safeInput=true; console.warn('detect → canvas input'); }
+  if(window.__flDelegate==='GPU') fallbackToCPU('err');   // GPU+canvas 중간단계는 랜드마크(roll)가 부정확한 기기가 있어 건너뜀
 }
 
 // blendshape + 머리자세 신호. 같은 비디오 프레임이면 추론 스킵 → 추론=카메라fps, 렌더=60fps 분리(저사양 대응)
