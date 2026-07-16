@@ -1354,7 +1354,7 @@ function readSignals(now){
   let raw=null;
   if(res.faceBlendshapes && res.faceBlendshapes.length){
     const m={}; for(const c of res.faceBlendshapes[0].categories) m[c.categoryName]=c.score;
-    const hp = (res.faceLandmarks && res.faceLandmarks.length) ? computeHeadPose(res.faceLandmarks[0]) : {roll:SM.roll};
+    const hp = (res.faceLandmarks && res.faceLandmarks.length) ? computeHeadPose(res.faceLandmarks[0], detVideo.videoWidth, detVideo.videoHeight) : {roll:SM.roll};
     raw = {
       smile : ((m.mouthSmileLeft||0)+(m.mouthSmileRight||0))/2,
       jaw   : m.jawOpen||0,
@@ -1380,9 +1380,11 @@ function readSignals(now){
 }
 
 // 머리 좌우 기울기(roll) — 화살 회피. 눈 양끝(33,263) 선의 기울기
-function computeHeadPose(lm){
+function computeHeadPose(lm, vw, vh){
   const eL=lm[33], eR=lm[263];
-  return { roll: Math.atan2(eR.y-eL.y, eR.x-eL.x) };   // 똑바로면 ~0
+  // 정규화 좌표는 화면비만큼 각도가 왜곡됨(세로영상=실제보다 작게) → 픽셀 비율로 보정해 실제 기울기 각도
+  const w=vw||1, h=vh||1;
+  return { roll: Math.atan2((eR.y-eL.y)*h, (eR.x-eL.x)*w) };   // 똑바로면 ~0
 }
 
 // ============================================================
@@ -2573,6 +2575,7 @@ async function openDiag(){
     'blendshapes: '+(extra&&extra.bs!=null?extra.bs:'?'),
     'smile: '+(extra?extra.smile:'?')+'   jaw: '+(extra?extra.jaw:'?'),
     'brow:  '+(extra?extra.brow:'?')+'   pucker: '+(extra?extra.pucker:'?'),
+    'roll(tilt): '+(extra?extra.rollV:'?')+'  (need >0.10 or <-0.10)',
     'detectError: '+detErr,
     'frames: '+frames
   ].join('\n'); };
@@ -2589,12 +2592,13 @@ async function openDiag(){
     $("loading").classList.remove('active');     // 진단 중엔 로딩 오버레이 항상 숨김(무한로딩 방지)
     frames++;
     const ct=v.currentTime; if(ct!==diagLastCT){ if(diagLastCT!==-1) diagCTmoved=true; diagLastCT=ct; }
-    let faces='?', bs='?', smile='?', jaw='?', brow='?', pucker='?';
+    let faces='?', bs='?', smile='?', jaw='?', brow='?', pucker='?', rollV='?';
     if(faceLM && v.readyState>=2 && v.videoWidth){
       try{
         const res=detectFrame(v, now);
         faces=res.faceLandmarks?res.faceLandmarks.length:0;
         bs=res.faceBlendshapes?res.faceBlendshapes.length:0;
+        if(faces) rollV=computeHeadPose(res.faceLandmarks[0], v.videoWidth, v.videoHeight).roll.toFixed(3);
         if(faces===0){ if(++noFaceStreak>90) escalateDetect(); } else noFaceStreak=0;
         if(bs){ const m={}; for(const c of res.faceBlendshapes[0].categories) m[c.categoryName]=c.score;
           smile=(((m.mouthSmileLeft||0)+(m.mouthSmileRight||0))/2).toFixed(3); jaw=(m.jawOpen||0).toFixed(3);
@@ -2602,7 +2606,7 @@ async function openDiag(){
           pucker=(Math.max(m.mouthPucker||0,m.mouthFunnel||0)).toFixed(3); }
       }catch(e){ detErr=((e&&e.message)||e).toString().slice(0,200); escalateDetect(); }
     }
-    render({faces,bs,smile,jaw,brow,pucker});
+    render({faces,bs,smile,jaw,brow,pucker,rollV});
     diagRAF=requestAnimationFrame(loop);
   }
   diagRAF=requestAnimationFrame(loop);
