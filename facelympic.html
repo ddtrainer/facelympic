@@ -270,6 +270,7 @@
         <button class="set-item" id="setTerms"><span class="si-ic">📄</span><span class="si-label" data-i18n="menu_terms">Terms of Service</span><span class="si-arw">›</span></button>
         <button class="set-item" id="setPrivacy"><span class="si-ic">🔒</span><span class="si-label" data-i18n="menu_privacy">Privacy Policy</span><span class="si-arw">›</span></button>
         <button class="set-item" id="setHelp"><span class="si-ic">💬</span><span class="si-label" data-i18n="menu_help">Help &amp; Feedback</span><span class="si-arw">›</span></button>
+        <button class="set-item" id="setDiag"><span class="si-ic">🔍</span><span class="si-label">카메라 진단 / Camera check</span><span class="si-arw">›</span></button>
       </div>
 
       <!-- 계정 -->
@@ -298,6 +299,15 @@
     <button class="sel-back" id="langBack">‹</button>
     <h2 class="set-header" data-i18n="menu_language">Language</h2>
     <div class="set-scroll"><div class="set-group" id="langList"></div></div>
+  </section>
+
+  <!-- CAMERA DIAGNOSTICS -->
+  <section id="diag" class="screen" style="padding:56px 20px 24px;justify-content:flex-start;overflow-y:auto;">
+    <button class="sel-back" id="diagBack">‹</button>
+    <h2 class="set-header">카메라 진단 · Camera check</h2>
+    <video id="diagVid" playsinline autoplay muted style="width:150px;height:112px;object-fit:cover;border-radius:12px;background:#000;display:block;margin:6px auto 12px;transform:scaleX(-1);"></video>
+    <pre id="diagOut" style="max-width:460px;margin:0 auto;width:100%;font-size:12.5px;line-height:1.8;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;white-space:pre-wrap;word-break:break-word;">준비 중… / preparing…</pre>
+    <p style="max-width:460px;margin:12px auto 0;color:var(--dim);font-size:12.5px;text-align:center;line-height:1.6;">이 화면을 캡처해서 개발자에게 보내주세요.<br>Screenshot this and send it to the developer.</p>
   </section>
 
   <!-- SHOP (EP 소비처) -->
@@ -376,7 +386,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 const $ = (id)=>document.getElementById(id);
-const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), shop:$("shop"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
+const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), diag:$("diag"), shop:$("shop"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
 
 // ============================================================
@@ -1273,8 +1283,9 @@ async function loadModel(){
       delegate },
     runningMode:"VIDEO", numFaces:1, outputFaceBlendshapes:true,
   });
-  try{ faceLM = await mk("GPU"); }                            // 일부 기기(폴드7 등)에서 GPU 실패 →
-  catch(e){ console.warn('GPU delegate failed → CPU', e); faceLM = await mk("CPU"); }   // CPU로 폴백
+  try{ faceLM = await mk("GPU"); window.__flDelegate='GPU'; }        // 일부 기기(폴드7 등)에서 GPU 실패 →
+  catch(e){ console.warn('GPU delegate failed → CPU', e);
+    faceLM = await mk("CPU"); window.__flDelegate='CPU'; }           // CPU로 폴백
 }
 async function startCamera(videoEl){
   stream = await navigator.mediaDevices.getUserMedia({
@@ -2507,6 +2518,59 @@ $("setTerms").addEventListener('click', ()=>showLegal('terms','settings'));
 $("setPrivacy").addEventListener('click', ()=>showLegal('privacy','settings'));
 $("setAbout").addEventListener('click', ()=>showLegal('about','settings'));
 $("setHelp").addEventListener('click', ()=>showLegal('help','settings'));
+
+// --- 카메라 진단 (기기별 인식 문제 원격 진단용) ---
+let diagRAF=null, diagStream=null, diagLastCT=-1, diagCTmoved=false;
+async function openDiag(){
+  show('diag');
+  const out=$("diagOut"), v=$("diagVid");
+  let modelInfo='loading…', camInfo='loading…', frames=0, detErr='none';
+  const render=(extra)=>{ out.textContent=[
+    'model: '+modelInfo,
+    'delegate: '+(window.__flDelegate||'?'),
+    'camera: '+camInfo,
+    'video: '+(v.videoWidth||0)+'x'+(v.videoHeight||0)+'  readyState:'+v.readyState+'  paused:'+v.paused,
+    'currentTime: '+(v.currentTime||0).toFixed(3)+'  (advancing: '+(diagCTmoved?'YES':'NO')+')',
+    'UA: '+navigator.userAgent.slice(0,60),
+    '— detection —',
+    'face detected: '+(extra&&extra.faces!=null?extra.faces:'?'),
+    'blendshapes: '+(extra&&extra.bs!=null?extra.bs:'?'),
+    'smile: '+(extra?extra.smile:'?')+'   jaw: '+(extra?extra.jaw:'?'),
+    'brow:  '+(extra?extra.brow:'?')+'   pucker: '+(extra?extra.pucker:'?'),
+    'detectError: '+detErr,
+    'frames: '+frames
+  ].join('\n'); };
+  render(null);
+  stopCamera();                                  // 게임 카메라 정리(중복 방지)
+  try{ if(!faceLM) await loadModel(); modelInfo='OK'; }catch(e){ modelInfo='FAIL: '+((e&&e.message)||e); }
+  try{
+    diagStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user', width:{ideal:640}, height:{ideal:480} }, audio:false });
+    v.srcObject=diagStream; await new Promise(r=>{ v.onloadedmetadata=()=>{ v.play(); r(); }; }); camInfo='OK';
+  }catch(e){ camInfo='FAIL: '+((e&&e.name)||'')+' '+((e&&e.message)||e); }
+  diagLastCT=-1; diagCTmoved=false;
+  function loop(now){
+    frames++;
+    const ct=v.currentTime; if(ct!==diagLastCT){ if(diagLastCT!==-1) diagCTmoved=true; diagLastCT=ct; }
+    let faces='?', bs='?', smile='?', jaw='?', brow='?', pucker='?';
+    if(faceLM && v.readyState>=2 && v.videoWidth){
+      try{
+        const res=faceLM.detectForVideo(v, now);
+        faces=res.faceLandmarks?res.faceLandmarks.length:0;
+        bs=res.faceBlendshapes?res.faceBlendshapes.length:0;
+        if(bs){ const m={}; for(const c of res.faceBlendshapes[0].categories) m[c.categoryName]=c.score;
+          smile=(((m.mouthSmileLeft||0)+(m.mouthSmileRight||0))/2).toFixed(3); jaw=(m.jawOpen||0).toFixed(3);
+          brow=(((m.browInnerUp||0)+(m.browOuterUpLeft||0)+(m.browOuterUpRight||0))/3).toFixed(3);
+          pucker=(Math.max(m.mouthPucker||0,m.mouthFunnel||0)).toFixed(3); }
+      }catch(e){ detErr=((e&&e.message)||e)+''; }
+    }
+    render({faces,bs,smile,jaw,brow,pucker});
+    diagRAF=requestAnimationFrame(loop);
+  }
+  diagRAF=requestAnimationFrame(loop);
+}
+function closeDiag(){ if(diagRAF)cancelAnimationFrame(diagRAF); diagRAF=null; if(diagStream){ diagStream.getTracks().forEach(t=>t.stop()); diagStream=null; } }
+$("setDiag").addEventListener('click', openDiag);
+$("diagBack").addEventListener('click', ()=>{ closeDiag(); show('settings'); });
 $("legalBack").addEventListener('click', ()=>{ show(legalFrom); });
 
 // --- 프로필 편집 (닉네임) ---
