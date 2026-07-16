@@ -1474,9 +1474,10 @@ async function runCalibration(){
     function frame(now){
       const s=readSignals(now);
       const p=Math.min(1,(now-t0)/st.dur);
-      $("calDbg").textContent = (window.__flDelegate||'?')+'/'+(safeInput?'cv':'vid')
-        +' ok:'+(s.ok?1:0)+' lm:'+(window.__flLm!=null?window.__flLm:'?')
-        +' roll:'+(s.roll!=null?s.roll.toFixed(2):'?')+' smile:'+(s.smile!=null?s.smile.toFixed(2):'?');
+      if(lsGet('fl_debug')==='1')   // 디버그 모드에서만 표시(향후 기기문제 진단용 — 제거 금지)
+        $("calDbg").textContent = (window.__flDelegate||'?')+'/'+(safeInput?'cv':'vid')
+          +' ok:'+(s.ok?1:0)+' lm:'+(window.__flLm!=null?window.__flLm:'?')
+          +' roll:'+(s.roll!=null?s.roll.toFixed(2):'?')+' smile:'+(s.smile!=null?s.smile.toFixed(2):'?');
       if(st.key==='neutral'){
         if(s.ok){ neutralAcc.smile.push(s.smile); neutralAcc.jaw.push(s.jaw);
           neutralAcc.pucker.push(s.pucker); neutralAcc.brow.push(s.brow); }
