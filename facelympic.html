@@ -470,6 +470,11 @@ I18N.en = {
   cal_hint:"💡 Take your time. Face the camera in good light, and make the expression bigger.",
   cal_trouble:"Recognition seems hard right now. Try Settings › Camera check.",
   cal_noface:"👀 I can't see your face. Move into the frame, in good light.",
+  cue_food:"Nom!",   cue_food_sub:"Open your mouth wide",
+  cue_monster:"Hoo!", cue_monster_sub:"Pucker and blast it",
+  cue_hurdle:"JUMP!", cue_hurdle_sub:"Raise your brows",
+  cue_arrow:"Dodge!", cue_arrow_sub:"Tilt your head",
+  cue_now:"NOW!", cue_next:"Next",
   ahu_title:"Smile muscle routine", ahu_instr:"Follow the beat!", ahu_a:"Ahh!", ahu_hu:"Hooo~",
   ahu_combo:"Combo {n}", ahu_done:"Face workout done!  {n}/{t}",
 };
@@ -532,6 +537,11 @@ I18N.ko = {
   cal_hint:"💡 천천히 해도 괜찮아요. 밝은 곳에서 얼굴을 화면에 맞추고, 더 크게 지어보세요.",
   cal_trouble:"지금은 인식이 어려운 것 같아요. 설정 › 카메라 진단을 확인해 보세요.",
   cal_noface:"👀 얼굴이 안 보여요. 밝은 곳에서 화면 안에 얼굴을 맞춰주세요.",
+  cue_food:"냠냠!", cue_food_sub:"입 크게 벌리기",
+  cue_monster:"후~!", cue_monster_sub:"입 오므려 꽝!",
+  cue_hurdle:"점프!", cue_hurdle_sub:"눈썹 올리기",
+  cue_arrow:"피해!", cue_arrow_sub:"고개 기울이기",
+  cue_now:"지금!", cue_next:"다음",
   ahu_title:"웃음 근육 루틴", ahu_instr:"박자에 맞춰 따라 하세요!", ahu_a:"아!", ahu_hu:"후~",
   ahu_combo:"콤보 {n}", ahu_done:"표정 근육 운동 완료!  {n}/{t}",
 };
@@ -2008,11 +2018,14 @@ function drawScene(sig, speed){
       o._sx=ox; o._sy=oy;   // 즉시 격파 시 폭발 위치로 사용
       // 그림자(바닥에 붙임)
       ctx.fillStyle='rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(ox, oy+7*sc, 15*sc, 5*sc, 0,0,7); ctx.fill();
-      // 근접 위협(빨간 펄스) — 허들·화살·괴물
-      if(o.type!=='food' && ahead<G.hitDist*1.4 && !LOWSPEC){
-        const pulse=0.35+0.3*Math.sin(G.raceTime*12);
-        ctx.strokeStyle='rgba(255,70,80,'+pulse+')'; ctx.lineWidth=3;
-        ctx.beginPath(); ctx.arc(ox, oy-8*sc, 24*sc, 0, 7); ctx.stroke();
+      // 접근 예고 링 — 동작별 색으로 트랙 위에서도 '무엇이 오는지' 알림(가까울수록 조여듦)
+      if(!LOWSPEC && ahead < G.hitDist*2.4){
+        const t=Math.max(0,Math.min(1, 1-(ahead-G.hitDist)/(G.hitDist*1.4)));   // 0=멀다, 1=판정권
+        const near=ahead<G.hitDist;
+        ctx.strokeStyle = near ? 'rgba(255,225,77,'+(0.45+0.35*Math.sin(G.raceTime*14))+')'
+                               : 'rgba('+CUE_RGB[o.type]+','+(0.22+0.5*t)+')';
+        ctx.lineWidth = near?4:2.5;
+        ctx.beginPath(); ctx.arc(ox, oy-8*sc, (30-11*t)*sc, 0, 7); ctx.stroke();
       }
       if(o.type==='arrow'){
         drawArrow(ox, oy-14*sc, sc);
@@ -2098,8 +2111,7 @@ function drawScene(sig, speed){
 
   // 중앙 액션 큐
   if(G){
-    const act=activeObstacle();
-    if(act){ const ahead=act.at-G.dist; if(ahead<ACT){ drawCue(act, W,H, ahead<G.hitDist); } }
+    drawCue(W,H);
     if(G.feedT>0){ drawFeed(W,H); }
   }
 }
@@ -2206,23 +2218,64 @@ function drawHUD(W,H,sig){
   else if(!sig.ok){ ctx.fillStyle='rgba(255,255,255,.9)'; ctx.font='800 15px Pretendard'; ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText('얼굴을 맞춰주세요 · 밝은 곳에서', W/2, H*0.5); }
 }
-const CUE_TXT={ hurdle:['JUMP!','눈썹 올려 점프!'], arrow:['피해!','고개 기울여 피하기'],
-  food:['냠냠!','입 벌려 먹기'], monster:['후~!','입 오므려 꽝!'] };
-function drawCue(o,W,H,now){
-  const [big,sub]=CUE_TXT[o.type];
+// ---- 예고 큐 ----
+// 리드타임은 '거리'가 아니라 '시간' 기준. 속도가 6~19m/s로 변해서 고정 거리(ACT=20m)로는
+// 최고속에서 큐가 뜨자마자 판정권이라 예고 역할을 못 함.
+// 단, 시간만 쓰면 느린 주자(6m/s)가 오히려 예고를 덜 받게 되므로 거리 하한을 같이 둔다.
+const CUE_ETA   = 2.0;    // 큰 큐가 뜨는 도달예정시간(초)
+const CUE_MIN   = 22;     // …단 최소 이 거리(m)부터는 무조건 표시(저속 주자 보호)
+const NEXT_ETA  = 4.0;    // '다음 미션' 미리보기가 뜨는 시간(초)
+const NEXT_MIN  = 42;     // …다음 미션 미리보기의 거리 하한(m)
+const COMBO_GAP = 24;     // 이 거리(m) 안에 연달아 오면 콤보로 강조 — 배치상 콤보 정의와 동일
+const CUE_RGB ={ food:'255,211,78', monster:'255,138,92', hurdle:'155,230,53', arrow:'124,198,255' };
+const CUE_FACE={ food:'😮', monster:'😗', hurdle:'🤨', arrow:'↔️' };   // 워밍업에서 익힌 표정과 동일한 이모지
+
+// 다음 두 미션(현재/다음)을 도달예정시간과 함께 — G.obstacles는 at 오름차순
+function cueTargets(){
+  const sp=Math.max(6,G.speed), lim=Math.max(NEXT_MIN, NEXT_ETA*sp);
+  const out={cur:null,curEta:0,next:null};
+  for(const o of G.obstacles){
+    if(o.resolved) continue;
+    const ahead=o.at-G.dist; if(ahead<=0) continue;
+    if(ahead>lim) break;
+    if(!out.cur){ out.cur=o; out.curEta=ahead/sp; }
+    else { out.next=o; break; }
+  }
+  return out;
+}
+function drawCue(W,H){
+  const tg=cueTargets(); if(!tg.cur) return;
+  const cur=tg.cur, ahead=cur.at-G.dist, isNow=ahead<G.hitDist;
+  const sp=Math.max(6,G.speed);
+  if(ahead > Math.max(CUE_MIN, CUE_ETA*sp) && !isNow) return;   // 아직 예고할 시점 아님
+  const y=H*0.20;
   ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.shadowColor='rgba(0,0,0,.6)'; ctx.shadowBlur=12;
-  ctx.fillStyle= now?'#ffe14d':'#fff'; ctx.font=`900 ${now?46:40}px Pretendard`;
-  ctx.fillText(big, W/2, H*0.20);
-  ctx.font=`800 ${now?20:17}px Pretendard`; ctx.fillStyle= now?'#ffe14d':'#cfe3ff';
-  ctx.fillText(now?'지금!':sub, W/2, H*0.20+36);
+  ctx.fillStyle= isNow?'#ffe14d':'#fff'; ctx.font=`900 ${isNow?46:40}px Pretendard`;
+  ctx.fillText(CUE_FACE[cur.type]+' '+T('cue_'+cur.type), W/2, y);
+  ctx.font=`800 ${isNow?20:17}px Pretendard`; ctx.fillStyle= isNow?'#ffe14d':'#cfe3ff';
+  ctx.fillText(isNow?T('cue_now'):T('cue_'+cur.type+'_sub'), W/2, y+34);
   ctx.shadowBlur=0;
+  // 도달 게이지: 미션이 닿을 때까지 남은 시간이 계속 줄어듦(판정권 진입 = 노랑)
+  const bw=170, bh=6, bx=W/2-bw/2, by=y+52;
+  ctx.fillStyle='rgba(255,255,255,.16)'; roundRect(bx,by,bw,bh,3); ctx.fill();
+  ctx.fillStyle= isNow? '#ffe14d' : 'rgba('+CUE_RGB[cur.type]+',.95)';
+  const fw=bw*Math.max(0,Math.min(1,tg.curEta/CUE_ETA));
+  roundRect(bx+(bw-fw)/2, by, fw, bh, 3); ctx.fill();
+  // 다음 미션 예고 — 콤보면 밝게(연속 두 표정을 미리 알려줘야 반응이 따라감)
+  if(tg.next){
+    const combo=(tg.next.at-cur.at)<COMBO_GAP;
+    ctx.font='800 15px Pretendard'; ctx.globalAlpha= combo?0.95:0.6;
+    ctx.fillStyle= combo? 'rgb('+CUE_RGB[tg.next.type]+')' : '#cfe3ff';
+    ctx.fillText((combo?'⚡ ':'')+T('cue_next')+' '+CUE_FACE[tg.next.type]+' '+T('cue_'+tg.next.type), W/2, y+72);
+    ctx.globalAlpha=1;
+  }
 }
 function drawFeed(W,H){
   ctx.textAlign='center'; ctx.globalAlpha=Math.min(1,G.feedT/0.9);
   ctx.fillStyle=G.feedColor||'#fff'; ctx.font='900 34px Pretendard'; ctx.textBaseline='middle';
   ctx.shadowColor='rgba(0,0,0,.6)'; ctx.shadowBlur=10;
-  ctx.fillText(G.feed, W/2, H*0.34); ctx.shadowBlur=0; ctx.globalAlpha=1;
+  ctx.fillText(G.feed, W/2, H*0.38); ctx.shadowBlur=0; ctx.globalAlpha=1;   // 예고 큐(다음 미션 줄)와 겹치지 않게
 }
 function drawCountdown(n){
   ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='900 90px Pretendard'; ctx.textBaseline='middle';
