@@ -2018,15 +2018,7 @@ function drawScene(sig, speed){
       o._sx=ox; o._sy=oy;   // 즉시 격파 시 폭발 위치로 사용
       // 그림자(바닥에 붙임)
       ctx.fillStyle='rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(ox, oy+7*sc, 15*sc, 5*sc, 0,0,7); ctx.fill();
-      // 접근 예고 링 — 동작별 색으로 트랙 위에서도 '무엇이 오는지' 알림(가까울수록 조여듦)
-      if(!LOWSPEC && ahead < G.hitDist*2.4){
-        const t=Math.max(0,Math.min(1, 1-(ahead-G.hitDist)/(G.hitDist*1.4)));   // 0=멀다, 1=판정권
-        const near=ahead<G.hitDist;
-        ctx.strokeStyle = near ? 'rgba(255,225,77,'+(0.45+0.35*Math.sin(G.raceTime*14))+')'
-                               : 'rgba('+CUE_RGB[o.type]+','+(0.22+0.5*t)+')';
-        ctx.lineWidth = near?4:2.5;
-        ctx.beginPath(); ctx.arc(ox, oy-8*sc, (30-11*t)*sc, 0, 7); ctx.stroke();
-      }
+      // (접근 링은 화면이 번잡해져 제거 — 예고는 상단 큐/도달 게이지/다음 미션 줄이 담당)
       if(o.type==='arrow'){
         drawArrow(ox, oy-14*sc, sc);
       } else {
