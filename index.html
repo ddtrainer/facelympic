@@ -1686,54 +1686,49 @@ function f(d){ return (1-d)/(1+3*d); }   // 1(near)..0(far)
 // 도입(느슨) → 상승 → 피크(빡빡·콤보) → 회복 → 스퍼트 … 파도형으로 긴장을 오르내리게
 const PROGRAMS = {
   sprint: [                                            // 짧고 굵게: 초반 탐색 → 바로 피크
-    {from:.12,to:.40,n:2,tight:1.1,burst:.10},
-    {from:.40,to:.95,n:5,tight:.85,burst:.45},
+    {from:.10,to:.36,n:2,tight:1.05,burst:.15},
+    {from:.36,to:.96,n:6,tight:.75,burst:.60},         // 피크 강화
   ],
-  middle: [                                            // 파도 2번 + 막판 스퍼트
-    {from:.08,to:.26,n:3,tight:1.25,burst:.08},        // 도입
-    {from:.26,to:.48,n:4,tight:1.00,burst:.25},        // 상승
-    {from:.48,to:.68,n:4,tight:.75,burst:.55},         // 피크
-    {from:.68,to:.80,n:1,tight:1.50,burst:0},          // 회복(숨 고르기)
-    {from:.80,to:.95,n:3,tight:.70,burst:.55},         // 막판 스퍼트
+  middle: [                                            // 파도 2번 + 막판 스퍼트(회복 짧게)
+    {from:.06,to:.22,n:3,tight:1.15,burst:.15},        // 도입
+    {from:.22,to:.44,n:4,tight:.95,burst:.35},         // 상승
+    {from:.44,to:.66,n:5,tight:.68,burst:.68},         // 피크
+    {from:.66,to:.74,n:1,tight:1.40,burst:0},          // 회복(짧게)
+    {from:.74,to:.96,n:4,tight:.62,burst:.72},         // 막판 스퍼트
   ],
-  long: [                                              // 파도 3번, 뒤로 갈수록 강해짐
-    {from:.05,to:.20,n:3,tight:1.30,burst:.05},        // 도입
-    {from:.20,to:.38,n:4,tight:1.05,burst:.20},        // 상승
-    {from:.38,to:.54,n:5,tight:.75,burst:.55},         // 1차 피크
-    {from:.54,to:.63,n:1,tight:1.60,burst:0},          // 회복
-    {from:.63,to:.80,n:6,tight:.65,burst:.62},         // 2차 피크(더 강함)
-    {from:.80,to:.88,n:1,tight:1.60,burst:0},          // 회복
-    {from:.88,to:.97,n:4,tight:.60,burst:.70},         // 파이널 스퍼트(최고 난이도)
+  long: [                                              // 파도 3번, 뒤로 갈수록 몰아침
+    {from:.04,to:.17,n:3,tight:1.20,burst:.10},        // 도입
+    {from:.17,to:.34,n:4,tight:1.00,burst:.30},        // 상승
+    {from:.34,to:.51,n:6,tight:.68,burst:.65},         // 1차 피크
+    {from:.51,to:.58,n:1,tight:1.50,burst:0},          // 회복(짧게)
+    {from:.58,to:.78,n:7,tight:.60,burst:.75},         // 2차 피크(강함)
+    {from:.78,to:.84,n:1,tight:1.50,burst:0},          // 회복(더 짧게)
+    {from:.84,to:.97,n:5,tight:.55,burst:.85},         // 파이널 스퍼트(최고 난이도)
   ],
 };
-const MIN_GAP = 18;   // 최소 간격(m) — 반응 시간 확보 + 판정 구간 겹침 방지
-// mix 비율대로 총 n개를 배분
-function buildCounts(mix, total){
-  const types=Object.keys(mix), sum=types.reduce((a,t)=>a+mix[t],0), c={};
-  let used=0;
-  types.forEach(t=>{ c[t]=Math.max(1, Math.round(total*mix[t]/sum)); used+=c[t]; });
-  const order=types.slice().sort((x,y)=>mix[y]-mix[x]);
-  let diff=total-used, k=0;
-  while(diff!==0 && k<300){ const t=order[k%order.length];
-    if(diff>0){ c[t]++; diff--; } else if(c[t]>1){ c[t]--; diff++; } k++; }
-  return c;
-}
-// 같은 동작 3연속 금지(근육 교대) + 콤보 구간은 직전과 다른 동작(빠른 표정 전환 = 스릴)
-function pickType(counts, prev1, prev2, rng, isBurst){
-  let cand=Object.keys(counts).filter(t=>counts[t]>0);
-  if(!cand.length) return 'food';
-  const noTriple=cand.filter(t=>!(t===prev1 && t===prev2));
-  if(noTriple.length) cand=noTriple;
-  if(isBurst){ const diff=cand.filter(t=>t!==prev1); if(diff.length) cand=diff; }
-  let tot=cand.reduce((a,t)=>a+counts[t],0), r=rng()*tot;
-  for(const t of cand){ r-=counts[t]; if(r<=0){ counts[t]--; return t; } }
-  const t=cand[cand.length-1]; counts[t]--; return t;
+const MIN_GAP = 15;   // 최소 간격(m) — 반응 시간 확보(콤보는 서로 다른 동작이라 겹쳐도 구분됨)
+// 타입 선택기: mix를 '목표 비율'로 삼되 풀이 고갈되지 않게(가중치 방식)
+//  → 제약(3연속 금지 · 콤보시 다른 동작)을 항상 만족시킬 수 있음
+function makeTypePicker(mix, total, rng){
+  const types=Object.keys(mix), sum=types.reduce((a,t)=>a+mix[t],0);
+  const target={}, used={};
+  types.forEach(t=>{ target[t]=total*mix[t]/sum; used[t]=0; });
+  return function(prev1, prev2, isBurst){
+    let cand=types.slice();
+    const noTriple=cand.filter(t=>!(t===prev1 && t===prev2));   // 같은 동작 3연속 금지(근육 교대)
+    if(noTriple.length) cand=noTriple;
+    if(isBurst){ const d=cand.filter(t=>t!==prev1); if(d.length) cand=d; }   // 콤보=표정 전환
+    const w=cand.map(t=>Math.max(0.06, target[t]-used[t]));      // 덜 쓴 동작에 가중치
+    let tot=w.reduce((a,b)=>a+b,0), r=rng()*tot;
+    for(let i=0;i<cand.length;i++){ r-=w[i]; if(r<=0){ used[cand[i]]++; return cand[i]; } }
+    const t=cand[cand.length-1]; used[t]++; return t;
+  };
 }
 function makeObstacles(ev, seed){
   const rng=makeRng(seed);
   const prog=PROGRAMS[ev.id]||PROGRAMS.sprint;
   const total=prog.reduce((a,p)=>a+p.n,0);
-  const counts=buildCounts(ev.mix, total);
+  const nextType=makeTypePicker(ev.mix, total, rng);
   const startD=14, endD=Math.max(startD+1, ev.dist-12), span=endD-startD;
   const arr=[]; let prevAt=-999, prev1=null, prev2=null;
   for(const ph of prog){
@@ -1743,7 +1738,7 @@ function makeObstacles(ev, seed){
       if(i>0 && rng()<ph.burst) at = prevAt + MIN_GAP*(1+rng()*0.2);   // 콤보: 앞 미션에 바짝
       at = Math.min(endD, Math.max(prevAt+MIN_GAP, at));               // 최소 간격 보장
       const burstNow = (at-prevAt) < MIN_GAP*1.5;
-      const type = pickType(counts, prev1, prev2, rng, burstNow);
+      const type = nextType(prev1, prev2, burstNow);
       arr.push({ type, at, lane:0,    // 화살 포함 모두 중앙(정면) — 좌우로 비켜 회피
         resolved:false, charge:0, bites:0, result:null });
       prevAt=at; prev2=prev1; prev1=type;
