@@ -2023,8 +2023,13 @@ function drawScene(sig, speed){
         drawArrow(ox, oy-14*sc, sc);
       } else {
         const em = o.type==='food'? curEvent.foods[(o.at|0)%curEvent.foods.length] : ICON[o.type];
-        ctx.font=`${Math.round(30*sc)}px serif`; ctx.textAlign='center'; ctx.textBaseline='alphabetic';
-        ctx.fillText(em, ox, oy);
+        ctx.font=`${Math.round(42*sc)}px serif`; ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+        // 이모지는 컬러 글리프라 strokeText가 안 먹음 → 어두운 후광을 겹쳐 찍어 외곽선처럼.
+        // 후광은 좁게 '고정'해야 함(sc 비례로 키우면 근거리에서 번져 이모지가 회색 덩어리로 뭉개짐)
+        ctx.shadowColor='rgba(0,0,0,.9)'; ctx.shadowBlur=Math.min(6,Math.max(2,1.6*sc)); ctx.shadowOffsetY=0;
+        const passes = LOWSPEC?1:3;
+        for(let p=0;p<passes;p++) ctx.fillText(em, ox, oy);
+        ctx.shadowBlur=0;
       }
     }
   }
