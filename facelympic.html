@@ -469,6 +469,7 @@ I18N.en = {
   cal_again:"One more!", cal_nice:"Nice! ✓",
   cal_hint:"💡 Take your time. Face the camera in good light, and make the expression bigger.",
   cal_trouble:"Recognition seems hard right now. Try Settings › Camera check.",
+  cal_noface:"👀 I can't see your face. Move into the frame, in good light.",
   ahu_title:"Smile muscle routine", ahu_instr:"Follow the beat!", ahu_a:"Ahh!", ahu_hu:"Hooo~",
   ahu_combo:"Combo {n}", ahu_done:"Face workout done!  {n}/{t}",
 };
@@ -530,6 +531,7 @@ I18N.ko = {
   cal_again:"한 번 더!", cal_nice:"좋아요! ✓",
   cal_hint:"💡 천천히 해도 괜찮아요. 밝은 곳에서 얼굴을 화면에 맞추고, 더 크게 지어보세요.",
   cal_trouble:"지금은 인식이 어려운 것 같아요. 설정 › 카메라 진단을 확인해 보세요.",
+  cal_noface:"👀 얼굴이 안 보여요. 밝은 곳에서 화면 안에 얼굴을 맞춰주세요.",
   ahu_title:"웃음 근육 루틴", ahu_instr:"박자에 맞춰 따라 하세요!", ahu_a:"아!", ahu_hu:"후~",
   ahu_combo:"콤보 {n}", ahu_done:"표정 근육 운동 완료!  {n}/{t}",
 };
@@ -1488,9 +1490,9 @@ function bgmSchedule(speed){
 // ============================================================
 //  캘리브레이션 진행
 // ============================================================
-// 워밍업 = 따라하기 운동. 표정 단계는 '성공해야' 넘어감(무표정만 시간 기반)
+// 워밍업 = 따라하기 운동. 모든 단계가 '실제로 해내야' 넘어감(자동 통과 없음)
 const CAL_STEPS = [
-  {key:'neutral', sig:null,                 dur:2000, reps:1},   // 가만히 유지(시간)
+  {key:'neutral', sig:null,                 reps:1},   // 얼굴이 잡힌 채 편안히 유지해야 통과
   {key:'smile',   sig:'smile',              reps:2},
   {key:'jaw',     sig:'jaw',                reps:2},
   {key:'pucker',  sig:'pucker',             reps:2},
@@ -1502,6 +1504,12 @@ const CAL_RISE = 0.14;    // 중립 대비 이만큼 오르면 "제대로 했다
 const CAL_HOLD = 350;     // 0.35초 유지해야 성공(순간 스침 방지 = 진짜 근육 운동)
 const CAL_HINT = 6000;    // 6초 지나면 도움말
 const CAL_MAX  = 15000;   // 15초면 안전 통과(인식 불가 기기서 갇히지 않게 — 폴드7 교훈)
+const CAL_CALM_MS = 1800; // 무표정: 얼굴이 '실제로 잡힌 채' 이만큼 유지해야 통과(시간만으론 X)
+const CAL_CALM    = 0.34; // 이보다 큰 표정이 잡히면 기준선 측정 리셋(진짜 무표정을 재기 위해)
+const AHU_TOTAL = 10;     // 아/후 반복 횟수
+const AHU_BEAT  = 1100;   // 이 안에 해내면 '박자 맞춤' → 콤보 유지
+const AHU_HOLD  = 200;    // 리듬용 짧은 유지(일반 단계 CAL_HOLD보다 짧게 = 경쾌하게)
+const AHU_MAX   = 3500;   // 한 박 최대 대기(초과=놓침) — 3회 연속 놓치면 루틴 조기 종료
 let calRAF=null, calGen=0;   // calGen: 건너뛰기 시 대기중 타이머 무효화
 function renderCalDots(idx){
   const w=$("calDots"); w.innerHTML='';
@@ -1538,17 +1546,27 @@ async function runCalibration(){
       calCue(T('cs_'+st.key+'_cue'), st.key!=='neutral');    // 시범 애니메이션(무표정 제외)
       $("calInstr").textContent = (rep>1 ? T('cal_again')+'  ' : '') + T('cs_'+st.key+'_instr');
       $("calFill").style.width='0%';
-      const t0=performance.now(); let mx=0, hit=false, hold=0, prev=t0, hinted=false;
+      const t0=performance.now(); let mx=0, hit=false, hold=0, prev=t0, hinted=false, acc=0;
       function frame(now){
         const s=readSignals(now); calDbg(s);
         const dt=Math.min(100, now-prev); prev=now;
         const el=now-t0;
-        if(st.key==='neutral'){                 // 무표정: 가만히 유지(시간 기반)
-          if(s.ok){ neutralAcc.smile.push(s.smile); neutralAcc.jaw.push(s.jaw);
-            neutralAcc.pucker.push(s.pucker); neutralAcc.brow.push(s.brow); }
-          const p=Math.min(1, el/st.dur);
+        if(st.key==='neutral'){                 // 무표정: '얼굴이 잡힌 채 편안한 상태'를 측정해야 통과
+          const calm = Math.max(s.smile||0, s.jaw||0, s.pucker||0, s.brow||0) < CAL_CALM;
+          if(s.ok && calm){                     // 유효 샘플만 적립(진행바 = 실제 측정량)
+            acc += dt;
+            neutralAcc.smile.push(s.smile); neutralAcc.jaw.push(s.jaw);
+            neutralAcc.pucker.push(s.pucker); neutralAcc.brow.push(s.brow);
+          }else if(s.ok && !calm){              // 표정을 짓고 있으면 기준선이 오염됨 → 되감기
+            acc=Math.max(0, acc-dt*2);
+            for(const k in neutralAcc) neutralAcc[k].length=0;
+          }                                     // 얼굴 미검출이면 진행바 정지(= "얼굴을 보여주세요" 신호)
+          const p=Math.min(1, acc/CAL_CALM_MS);
           $("calFill").style.width=(p*100)+'%';
-          if(p>=1){ nextRep(); return; }
+          if(!hinted && el>CAL_HINT){ hinted=true;
+            $("calInstr").textContent = s.ok ? T('cs_neutral_instr') : T('cal_noface'); }
+          if(!hit && p>=1){ hit=true; calOk(); setTimeout(()=>nextRep(false),300); return; }
+          if(el>CAL_MAX){ nextRep(true); return; }   // 안전 통과(갇힘 방지)
           calRAF=requestAnimationFrame(frame); return;
         }
         let prog=0;                             // 신호 세기 = 진행바(따라할수록 채워짐)
@@ -1586,34 +1604,45 @@ async function runCalibration(){
     startRep();
   }
 
-  // ---- 아(A)·후(HU) 리듬 루틴: 박자에 맞춰 입 벌리기/오므리기 반복 ----
+  // ---- 아(A)·후(HU) 리듬 루틴: 표정을 '해내야' 다음 박으로(박자 안에 하면 콤보) ----
   function runAhu(){
-    const TOTAL=10, BEAT=950;
-    let i=0, hits=0, hitBeat=false, t0=performance.now();
+    let i=0, hits=0, combo=0, miss=0;
     const tgt=()=> (i%2===0)?'jaw':'pucker';
     const lbl=()=> (i%2===0)?T('ahu_a'):T('ahu_hu');
     $("calCue").classList.add('big');
     $("calInstr").textContent=T('ahu_instr');
     $("calFn").style.display='inline-block'; $("calFn").textContent=T('ahu_combo',{n:0});
-    $("calRep").textContent='1 / '+TOTAL;
-    calCue(lbl(), true);
-    function frame(now){
-      const s=readSignals(now); calDbg(s);
-      const p=Math.min(1,(now-t0)/BEAT);
-      $("calFill").style.width=(p*100)+'%';
-      if(!hitBeat){                                    // 박자 안에 해당 표정을 지으면 성공
-        const k=tgt(), v=s[k]||0;
-        if(v > CAL[k].min + CAL_RISE){ hitBeat=true; hits++; calOk(); $("calFn").textContent=T('ahu_combo',{n:hits}); }
-      }
-      if(p>=1){
+    function beat(){
+      if(!alive()) return;
+      $("calRep").textContent=(i+1)+' / '+AHU_TOTAL;
+      calCue(lbl(), true); $("calFill").style.width='0%';
+      const k=tgt(), t0=performance.now(); let prev=t0, hold=0, done=false;
+      function advance(){
         i++;
-        if(i>=TOTAL){ finishAhu(hits,TOTAL); return; }
-        hitBeat=false; t0=now; $("calRep").textContent=(i+1)+' / '+TOTAL; calCue(lbl(), true);
-        calRAF=requestAnimationFrame(frame); return;
+        if(miss>=3 || i>=AHU_TOTAL){ setTimeout(()=>finishAhu(hits,AHU_TOTAL), 300); return; }
+        setTimeout(beat, 200);
+      }
+      function frame(now){
+        const s=readSignals(now); calDbg(s);
+        const dt=Math.min(100, now-prev); prev=now;
+        const v=s[k]||0;
+        const prog=Math.min(1, Math.max(0,(v-CAL[k].min)/CAL_RISE));   // 진행바 = 표정 세기
+        $("calFill").style.width=(prog*100)+'%';
+        hold = prog>=1 ? hold+dt : 0;
+        if(!done && hold>=AHU_HOLD){                    // ✅ 표정 완성 → 다음 박
+          done=true; hits++; miss=0;
+          combo = (now-t0 <= AHU_BEAT) ? combo+1 : 0;   // 박자 안에 해내면 콤보 유지
+          $("calFn").textContent=T('ahu_combo',{n:combo});
+          calOk(); advance(); return;
+        }
+        if(now-t0 > AHU_MAX){                           // 놓침(콤보 끊김) — 3연속이면 조기 종료
+          miss++; combo=0; $("calFn").textContent=T('ahu_combo',{n:0}); advance(); return;
+        }
+        calRAF=requestAnimationFrame(frame);
       }
       calRAF=requestAnimationFrame(frame);
     }
-    calRAF=requestAnimationFrame(frame);
+    beat();
   }
   function finishAhu(hits,total){
     if(!alive()) return;
@@ -1697,16 +1726,17 @@ const PROGRAMS = {
     {from:.74,to:.96,n:4,tight:.62,burst:.72},         // 막판 스퍼트
   ],
   long: [                                              // 파도 3번, 뒤로 갈수록 몰아침
-    {from:.04,to:.17,n:3,tight:1.20,burst:.10},        // 도입
-    {from:.17,to:.34,n:4,tight:1.00,burst:.30},        // 상승
-    {from:.34,to:.51,n:6,tight:.68,burst:.65},         // 1차 피크
-    {from:.51,to:.58,n:1,tight:1.50,burst:0},          // 회복(짧게)
-    {from:.58,to:.78,n:7,tight:.60,burst:.75},         // 2차 피크(강함)
-    {from:.78,to:.84,n:1,tight:1.50,burst:0},          // 회복(더 짧게)
+    {from:.02,to:.17,n:4,tight:1.10,burst:.12},        // 도입(첫 미션을 조금 당김)
+    {from:.17,to:.34,n:5,tight:.95,burst:.30},         // 상승
+    {from:.34,to:.51,n:7,tight:.68,burst:.65},         // 1차 피크
+    {from:.51,to:.58,n:2,tight:1.20,burst:0},          // 회복(빈 구간 방지로 2개)
+    {from:.58,to:.78,n:8,tight:.60,burst:.75},         // 2차 피크(강함)
+    {from:.78,to:.84,n:2,tight:1.20,burst:0},          // 회복(빈 구간 방지로 2개)
     {from:.84,to:.97,n:5,tight:.55,burst:.85},         // 파이널 스퍼트(최고 난이도)
   ],
 };
 const MIN_GAP = 15;   // 최소 간격(m) — 반응 시간 확보(콤보는 서로 다른 동작이라 겹쳐도 구분됨)
+const MAX_GAP = 50;   // 최대 간격(m) — 지터·콤보로 생기는 '미션 없이 달리기만' 구간 방지
 // 타입 선택기: mix를 '목표 비율'로 삼되 풀이 고갈되지 않게(가중치 방식)
 //  → 제약(3연속 금지 · 콤보시 다른 동작)을 항상 만족시킬 수 있음
 function makeTypePicker(mix, total, rng){
@@ -1736,6 +1766,7 @@ function makeObstacles(ev, seed){
     for(let i=0;i<ph.n;i++){
       let at = a + slot*(i+0.5) + (rng()-0.5)*slot*0.5*ph.tight;   // 균등 + 지터
       if(i>0 && rng()<ph.burst) at = prevAt + MIN_GAP*(1+rng()*0.2);   // 콤보: 앞 미션에 바짝
+      if(arr.length) at = Math.min(at, prevAt+MAX_GAP);                // 빈 구간 상한(첫 미션 제외)
       at = Math.min(endD, Math.max(prevAt+MIN_GAP, at));               // 최소 간격 보장
       const burstNow = (at-prevAt) < MIN_GAP*1.5;
       const type = nextType(prev1, prev2, burstNow);
