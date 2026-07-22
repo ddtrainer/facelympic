@@ -474,7 +474,7 @@ I18N.en = {
   cue_monster:"Hoo!", cue_monster_sub:"Pucker and blast it",
   cue_hurdle:"JUMP!", cue_hurdle_sub:"Raise your brows",
   cue_arrow:"Dodge!", cue_arrow_sub:"Tilt your head",
-  cue_now:"NOW!", cue_next:"Next",
+  cue_now:"NOW!",
   ahu_title:"Smile muscle routine", ahu_instr:"Follow the beat!", ahu_a:"Ahh!", ahu_hu:"Hooo~",
   ahu_combo:"Combo {n}", ahu_done:"Face workout done!  {n}/{t}",
 };
@@ -541,7 +541,7 @@ I18N.ko = {
   cue_monster:"후~!", cue_monster_sub:"입 오므려 꽝!",
   cue_hurdle:"점프!", cue_hurdle_sub:"눈썹 올리기",
   cue_arrow:"피해!", cue_arrow_sub:"고개 기울이기",
-  cue_now:"지금!", cue_next:"다음",
+  cue_now:"지금!",
   ahu_title:"웃음 근육 루틴", ahu_instr:"박자에 맞춰 따라 하세요!", ahu_a:"아!", ahu_hu:"후~",
   ahu_combo:"콤보 {n}", ahu_done:"표정 근육 운동 완료!  {n}/{t}",
 };
@@ -2221,28 +2221,20 @@ function drawHUD(W,H,sig){
 // 단, 시간만 쓰면 느린 주자(6m/s)가 오히려 예고를 덜 받게 되므로 거리 하한을 같이 둔다.
 const CUE_ETA   = 2.0;    // 큰 큐가 뜨는 도달예정시간(초)
 const CUE_MIN   = 22;     // …단 최소 이 거리(m)부터는 무조건 표시(저속 주자 보호)
-const NEXT_ETA  = 4.0;    // '다음 미션' 미리보기가 뜨는 시간(초)
-const NEXT_MIN  = 42;     // …다음 미션 미리보기의 거리 하한(m)
-const COMBO_GAP = 24;     // 이 거리(m) 안에 연달아 오면 콤보로 강조 — 배치상 콤보 정의와 동일
 const CUE_RGB ={ food:'255,211,78', monster:'255,138,92', hurdle:'155,230,53', arrow:'124,198,255' };
 const CUE_FACE={ food:'😮', monster:'😗', hurdle:'🤨', arrow:'↔️' };   // 워밍업에서 익힌 표정과 동일한 이모지
 
-// 다음 두 미션(현재/다음)을 도달예정시간과 함께 — G.obstacles는 at 오름차순
-function cueTargets(){
-  const sp=Math.max(6,G.speed), lim=Math.max(NEXT_MIN, NEXT_ETA*sp);
-  const out={cur:null,curEta:0,next:null};
+// 가장 가까운 미해결 미션 — G.obstacles는 at 오름차순
+function cueTarget(){
   for(const o of G.obstacles){
     if(o.resolved) continue;
-    const ahead=o.at-G.dist; if(ahead<=0) continue;
-    if(ahead>lim) break;
-    if(!out.cur){ out.cur=o; out.curEta=ahead/sp; }
-    else { out.next=o; break; }
+    if(o.at-G.dist > 0) return o;
   }
-  return out;
+  return null;
 }
 function drawCue(W,H){
-  const tg=cueTargets(); if(!tg.cur) return;
-  const cur=tg.cur, ahead=cur.at-G.dist, isNow=ahead<G.hitDist;
+  const cur=cueTarget(); if(!cur) return;
+  const ahead=cur.at-G.dist, isNow=ahead<G.hitDist;
   const sp=Math.max(6,G.speed);
   if(ahead > Math.max(CUE_MIN, CUE_ETA*sp) && !isNow) return;   // 아직 예고할 시점 아님
   const y=H*0.20;
@@ -2257,16 +2249,8 @@ function drawCue(W,H){
   const bw=170, bh=6, bx=W/2-bw/2, by=y+52;
   ctx.fillStyle='rgba(255,255,255,.16)'; roundRect(bx,by,bw,bh,3); ctx.fill();
   ctx.fillStyle= isNow? '#ffe14d' : 'rgba('+CUE_RGB[cur.type]+',.95)';
-  const fw=bw*Math.max(0,Math.min(1,tg.curEta/CUE_ETA));
+  const fw=bw*Math.max(0,Math.min(1,(ahead/sp)/CUE_ETA));
   roundRect(bx+(bw-fw)/2, by, fw, bh, 3); ctx.fill();
-  // 다음 미션 예고 — 콤보면 밝게(연속 두 표정을 미리 알려줘야 반응이 따라감)
-  if(tg.next){
-    const combo=(tg.next.at-cur.at)<COMBO_GAP;
-    ctx.font='800 15px Pretendard'; ctx.globalAlpha= combo?0.95:0.6;
-    ctx.fillStyle= combo? 'rgb('+CUE_RGB[tg.next.type]+')' : '#cfe3ff';
-    ctx.fillText((combo?'⚡ ':'')+T('cue_next')+' '+CUE_FACE[tg.next.type]+' '+T('cue_'+tg.next.type), W/2, y+72);
-    ctx.globalAlpha=1;
-  }
 }
 function drawFeed(W,H){
   ctx.textAlign='center'; ctx.globalAlpha=Math.min(1,G.feedT/0.9);
