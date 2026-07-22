@@ -69,6 +69,14 @@
   .cal-dots{display:flex;gap:7px;margin-bottom:8px;}
   .cal-dot{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.15);}
   .cal-dot.on{background:var(--cyan);}
+  /* 워밍업: 시범 애니메이션 · 성공 피드백 · 아/후 루틴 */
+  @keyframes cuePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.16)}}
+  @keyframes cuePop{0%{transform:scale(1)}40%{transform:scale(1.3)}100%{transform:scale(1)}}
+  .cal-cue{transition:color .15s;}
+  .cal-cue.demo{animation:cuePulse 1.1s ease-in-out infinite;}
+  .cal-cue.ok{color:var(--lime);animation:cuePop .4s ease-out;}
+  .cal-cue.big{font-size:52px;font-weight:900;}
+  .cal-rep{font-size:13px;font-weight:800;color:var(--faint);margin:-4px 0 6px;min-height:16px;letter-spacing:1px;}
 
   /* ---------- Select (종목 선택) ---------- */
   #select{padding:56px 24px 28px;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;}
@@ -234,6 +242,7 @@
       <video id="calvid" playsinline autoplay muted></video>
     </div>
     <div class="cal-cue" id="calCue" data-i18n="cal_ready">Ready</div>
+    <div class="cal-rep" id="calRep"></div>
     <div class="cal-fn" id="calFn" style="display:none;"></div>
     <div class="cal-instr" id="calInstr" data-i18n="cal_fit">Fit your face in the frame</div>
     <div class="cal-meter"><div class="cal-fill" id="calFill"></div></div>
@@ -457,6 +466,9 @@ I18N.en = {
   unit_sec:"s", load_model:"Loading AI model…", load_cam:"Starting camera…",
   err_generic:"Something went wrong: {m}", err_denied:"Camera permission needed. Please allow it in your browser settings.",
   err_notfound:"No camera found.", pi_signin:"Sign in with Pi",
+  cal_again:"One more!", cal_nice:"Nice! ✓",
+  ahu_title:"Smile muscle routine", ahu_instr:"Follow the beat!", ahu_a:"Ahh!", ahu_hu:"Hooo~",
+  ahu_combo:"Combo {n}", ahu_done:"Face workout done!  {n}/{t}",
 };
 I18N.ko = {
   brand:"페이셀림픽<br>FACELYMPIC", tagline:"웃으면 빨라진다",
@@ -513,6 +525,9 @@ I18N.ko = {
   unit_sec:"초", load_model:"AI 모델을 불러오는 중…", load_cam:"카메라를 켜는 중…",
   err_generic:"오류가 발생했어요: {m}", err_denied:"카메라 권한이 필요해요. 브라우저 설정에서 허용해 주세요.",
   err_notfound:"카메라를 찾을 수 없어요.", pi_signin:"Pi로 로그인",
+  cal_again:"한 번 더!", cal_nice:"좋아요! ✓",
+  ahu_title:"웃음 근육 루틴", ahu_instr:"박자에 맞춰 따라 하세요!", ahu_a:"아!", ahu_hu:"후~",
+  ahu_combo:"콤보 {n}", ahu_done:"표정 근육 운동 완료!  {n}/{t}",
 };
 I18N.zh = {
   brand:"FACELYMPIC", tagline:"微笑跑得更快",
@@ -1446,64 +1461,135 @@ function bgmSchedule(speed){
 // ============================================================
 //  캘리브레이션 진행
 // ============================================================
+// 워밍업 = 따라하기 운동. reps=반복 횟수, dur=한 회 최대 시간(성공하면 즉시 다음)
 const CAL_STEPS = [
-  {key:'neutral', sig:null,     cue:'😐 무표정', fn:'멈춤 — 쉬어가기', instr:'힘을 빼면 멈춰요. 편안하게 정면을!', dur:1800},
-  {key:'smile',   sig:'smile',  cue:'😄 활짝 웃기', fn:'달리기 · 부스터', instr:'웃을수록 빨라져요. 최대한 크게!', dur:2400},
-  {key:'jaw',     sig:'jaw',    cue:'😮 입 벌리기 "아~"', fn:'세계 음식 먹기', instr:'입을 크게 벌려요', dur:2400},
-  {key:'pucker',  sig:'pucker', cue:'😗 입 오므리기 "후~"', fn:'괴물 꽝! 격파', instr:'입을 오므려 내밀어요', dur:2400},
-  {key:'brow',    sig:'brow',   cue:'🤨 눈썹 올리기', fn:'점프 — 장애물 넘기', instr:'눈썹을 위로 번쩍 올려요', dur:2400},
-  {key:'tilt',    sig:null, practice:'tilt', cue:'↔️ 고개 기울이기 (좌우)', fn:'화살 좌우로 피하기', instr:'고개를 좌·우로 기울여요', dur:2800},
+  {key:'neutral', sig:null,                 dur:1800, reps:1},
+  {key:'smile',   sig:'smile',              dur:2200, reps:2},
+  {key:'jaw',     sig:'jaw',                dur:2200, reps:2},
+  {key:'pucker',  sig:'pucker',             dur:2200, reps:2},
+  {key:'brow',    sig:'brow',               dur:2200, reps:2},
+  {key:'tilt',    sig:null, practice:'tilt',dur:2600, reps:2},
+  {key:'ahu',     routine:true},            // 아(A)·후(HU) 리듬 루틴
 ];
-let calRAF=null;
+const CAL_RISE = 0.14;    // 중립 대비 이만큼 오르면 "제대로 했다" 성공 판정
+let calRAF=null, calGen=0;   // calGen: 건너뛰기 시 대기중 타이머 무효화
 function renderCalDots(idx){
   const w=$("calDots"); w.innerHTML='';
   CAL_STEPS.forEach((_,i)=>{ const d=document.createElement('div');
     d.className='cal-dot'+(i<=idx?' on':''); w.appendChild(d); });
 }
+function calDbg(s){
+  if(lsGet('fl_debug')!=='1') return;   // 디버그 모드에서만(기기문제 진단용 — 제거 금지)
+  $("calDbg").textContent = (window.__flDelegate||'?')+'/'+(safeInput?'cv':'vid')
+    +' ok:'+(s.ok?1:0)+' lm:'+(window.__flLm!=null?window.__flLm:'?')
+    +' roll:'+(s.roll!=null?s.roll.toFixed(2):'?')+' smile:'+(s.smile!=null?s.smile.toFixed(2):'?');
+}
+function calCue(txt, demo){ const c=$("calCue"); c.textContent=txt; c.classList.toggle('demo', !!demo); }
+function calOk(){ const c=$("calCue"); c.classList.remove('demo'); c.classList.add('ok'); sfx.coin();
+  setTimeout(()=>c.classList.remove('ok'), 420); }
+
 async function runCalibration(){
   show('calib');
+  const gen=++calGen, alive=()=>gen===calGen;   // 이 워밍업 세션만 유효
   let idx=0;
   const neutralAcc={smile:[],jaw:[],pucker:[],brow:[]};
+
   function doStep(){
+    if(!alive()) return;
     const st=CAL_STEPS[idx]; renderCalDots(idx);
-    $("calCue").textContent=T('cs_'+st.key+'_cue'); $("calInstr").textContent=T('cs_'+st.key+'_instr');
-    $("calFn").textContent = st.fn ? '→ '+T('cs_'+st.key+'_fn') : '';
-    $("calFn").style.display = st.fn ? 'inline-block' : 'none';
-    $("calFill").style.width='0%';
-    let t0=performance.now(); let mx=0;
+    if(st.routine){ runAhu(); return; }          // 마지막: 아/후 루틴
+    const reps=st.reps||1; let rep=0, best=0;
+    $("calFn").textContent='→ '+T('cs_'+st.key+'_fn'); $("calFn").style.display='inline-block';
+
+    function startRep(){
+      if(!alive()) return;
+      rep++;
+      $("calRep").textContent = reps>1 ? rep+' / '+reps : '';
+      calCue(T('cs_'+st.key+'_cue'), st.key!=='neutral');    // 시범 애니메이션(무표정 제외)
+      $("calInstr").textContent = (rep>1 ? T('cal_again')+'  ' : '') + T('cs_'+st.key+'_instr');
+      $("calFill").style.width='0%';
+      const t0=performance.now(); let mx=0, hit=false;
+      function frame(now){
+        const s=readSignals(now); calDbg(s);
+        const p=Math.min(1,(now-t0)/st.dur);
+        let prog=p;
+        if(st.key==='neutral'){
+          if(s.ok){ neutralAcc.smile.push(s.smile); neutralAcc.jaw.push(s.jaw);
+            neutralAcc.pucker.push(s.pucker); neutralAcc.brow.push(s.brow); }
+        }else if(st.sig){                       // 신호 세기 = 진행바(따라할수록 채워짐)
+          const v=s[st.sig]||0; mx=Math.max(mx,v);
+          const base=CAL[st.sig].min;
+          prog=Math.min(1, Math.max(0,(v-base)/CAL_RISE));
+        }else if(st.practice==='tilt'){
+          prog=Math.min(1, Math.abs(s.roll||0)/0.15);
+        }
+        $("calFill").style.width=(prog*100)+'%';
+        if(!hit && st.key!=='neutral' && prog>=1){ hit=true; calOk(); $("calInstr").textContent=T('cal_nice');
+          best=Math.max(best,mx); setTimeout(nextRep,420); return; }        // 성공 → 즉시 다음
+        if(p>=1){ best=Math.max(best,mx); nextRep(); return; }              // 시간 초과 → 그래도 통과(막힘 방지)
+        calRAF=requestAnimationFrame(frame);
+      }
+      calRAF=requestAnimationFrame(frame);
+    }
+    function nextRep(){
+      if(!alive()) return;
+      if(rep<reps){ setTimeout(startRep,260); return; }
+      if(st.key==='neutral'){                                  // 중립 기준선 확정
+        const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:.05;
+        for(const k of ['smile','jaw','pucker','brow']) CAL[k].min=Math.max(.03, avg(neutralAcc[k])+.02);
+      }else if(st.sig){                                        // 최고치로 감도 기준 확정
+        CAL[st.sig].max=Math.max(CAL[st.sig].min+0.08, best*0.85);
+      }
+      idx++;
+      if(idx>=CAL_STEPS.length){ finishWarmup(); return; }
+      setTimeout(doStep,300);
+    }
+    startRep();
+  }
+
+  // ---- 아(A)·후(HU) 리듬 루틴: 박자에 맞춰 입 벌리기/오므리기 반복 ----
+  function runAhu(){
+    const TOTAL=12, BEAT=950;
+    let i=0, hits=0, hitBeat=false, t0=performance.now();
+    const tgt=()=> (i%2===0)?'jaw':'pucker';
+    const lbl=()=> (i%2===0)?T('ahu_a'):T('ahu_hu');
+    $("calCue").classList.add('big');
+    $("calInstr").textContent=T('ahu_instr');
+    $("calFn").style.display='inline-block'; $("calFn").textContent=T('ahu_combo',{n:0});
+    $("calRep").textContent='1 / '+TOTAL;
+    calCue(lbl(), true);
     function frame(now){
-      const s=readSignals(now);
-      const p=Math.min(1,(now-t0)/st.dur);
-      if(lsGet('fl_debug')==='1')   // 디버그 모드에서만 표시(향후 기기문제 진단용 — 제거 금지)
-        $("calDbg").textContent = (window.__flDelegate||'?')+'/'+(safeInput?'cv':'vid')
-          +' ok:'+(s.ok?1:0)+' lm:'+(window.__flLm!=null?window.__flLm:'?')
-          +' roll:'+(s.roll!=null?s.roll.toFixed(2):'?')+' smile:'+(s.smile!=null?s.smile.toFixed(2):'?');
-      if(st.key==='neutral'){
-        if(s.ok){ neutralAcc.smile.push(s.smile); neutralAcc.jaw.push(s.jaw);
-          neutralAcc.pucker.push(s.pucker); neutralAcc.brow.push(s.brow); }
-        $("calFill").style.width=(p*100)+'%';
-      }else if(st.sig){                  // 최대값 측정(웃음/입벌림/오므림/눈썹)
-        const v=s[st.sig]||0; mx=Math.max(mx,v);
-        $("calFill").style.width=Math.min(100, norm(st.sig,v)*100)+'%';
-      }else if(st.practice==='tilt'){    // 기울이기 연습: 실시간 피드백(측정X)
-        $("calFill").style.width=Math.min(100, Math.abs(s.roll||0)/0.4*100)+'%';
+      const s=readSignals(now); calDbg(s);
+      const p=Math.min(1,(now-t0)/BEAT);
+      $("calFill").style.width=(p*100)+'%';
+      if(!hitBeat){                                    // 박자 안에 해당 표정을 지으면 성공
+        const k=tgt(), v=s[k]||0;
+        if(v > CAL[k].min + CAL_RISE){ hitBeat=true; hits++; calOk(); $("calFn").textContent=T('ahu_combo',{n:hits}); }
       }
       if(p>=1){
-        if(st.key==='neutral'){
-          const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:.05;
-          for(const k of ['smile','jaw','pucker','brow']) CAL[k].min=Math.max(.03, avg(neutralAcc[k])+.02);
-        }else if(st.sig){
-          CAL[st.sig].max=Math.max(CAL[st.sig].min+0.08, mx*0.85); // 살짝 여유
-        }
-        sfx.coin();
-        idx++;
-        if(idx>=CAL_STEPS.length){ calibrated=true; goSelect(); return; }   // 워밍업 끝 → 종목 선택
-        setTimeout(doStep,300); return;
+        i++;
+        if(i>=TOTAL){ finishAhu(hits,TOTAL); return; }
+        hitBeat=false; t0=now; $("calRep").textContent=(i+1)+' / '+TOTAL; calCue(lbl(), true);
+        calRAF=requestAnimationFrame(frame); return;
       }
       calRAF=requestAnimationFrame(frame);
     }
     calRAF=requestAnimationFrame(frame);
   }
+  function finishAhu(hits,total){
+    if(!alive()) return;
+    $("calCue").classList.remove('big','demo');
+    calCue('🎉'); $("calRep").textContent=''; $("calFn").style.display='none';
+    $("calInstr").textContent=T('ahu_done',{n:hits,t:total});
+    $("calFill").style.width='100%'; sfx.coin();
+    setTimeout(finishWarmup, 1500);
+  }
+  function finishWarmup(){
+    if(!alive()) return;
+    $("calCue").classList.remove('big','demo','ok');
+    calibrated=true; goSelect();
+  }
+
   doStep();
 }
 
@@ -2695,7 +2781,9 @@ $("delData").addEventListener('click', ()=>{
   }
 });
 $("selBack").addEventListener('click', ()=>{ stopCamera(); show('intro'); updateStreakIntro(); });
-$("calSkip").addEventListener('click', ()=>{ if(calRAF)cancelAnimationFrame(calRAF); calibrated=true; goSelect(); });
+$("calSkip").addEventListener('click', ()=>{ calGen++;   // 대기중 타이머 무효화
+  if(calRAF)cancelAnimationFrame(calRAF);
+  $("calCue").classList.remove('big','demo','ok'); calibrated=true; goSelect(); });
 $("gExit").addEventListener('click', ()=>{ if(G)G.running=false; bgmStop(); goSelect(); });   // 게임 중 ‹ → 종목 선택(카메라 유지)
 $("gMute").addEventListener('click', ()=>{ muted=!muted; $("gMute").textContent=muted?'🔇':'🔊'; if(master)master.gain.value=muted?0:.5; });
 $("againBtn").addEventListener('click', ()=>{ if(actx&&actx.state==='suspended')actx.resume(); startGame(); });   // 같은 종목 다시
@@ -2812,7 +2900,8 @@ updatePiUI();          // 이전 Pi 로그인 상태 반영
 initPi().then(ok=>{ if(ok) piSignIn(false); });   // 로드 시 자동 로그인 시도(비차단·조용히 실패)
 window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curEvent(v){curEvent=v;}, get G(){return G;},
   awardEP, epTotal, epToday, EP_DAILY_CAP, SKINS, THEMES, get SKIN(){return SKIN;}, get THEME(){return THEME;},
-  T, setLang, get LANG(){return LANG;}, LANGS, initPi, piSignIn, get piUser(){return piUser;} };
+  T, setLang, get LANG(){return LANG;}, LANGS, initPi, piSignIn, get piUser(){return piUser;},
+  runCalibration, CAL_STEPS };   // 워밍업 흐름 테스트용
 </script>
 </body>
 </html>
