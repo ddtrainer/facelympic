@@ -1438,27 +1438,50 @@ const sfx = {
   nice:()=>{ tone(660,.08,'square',.3); setTimeout(()=>tone(990,.12,'square',.3),70); },
   go:()=>{ tone(440,.12,'square',.35); setTimeout(()=>tone(660,.2,'square',.4),140); },
 };
-// BGM: 속도에 따라 템포 상승하는 간단한 시퀀서
-const BASS=[110,110,146,164], ARP=[440,554,659,554];
-let bgmOn=false, nextNote=0, step=0;
+// BGM: 드럼(킥·스네어·하이햇) + 베이스라인 + 리드 멜로디. 속도에 따라 템포 상승.
+const BASS=[110,110,164,146, 110,131,164,196];      // 8스텝 베이스 그루브
+const LEAD=[659,784,659,587, 523,587,659,880];      // 밝고 신나는 멜로디
+let bgmOn=false, nextNote=0, step=0, noiseBuf=null;
+function bgmNoise(){
+  if(noiseBuf) return noiseBuf;
+  const n=Math.floor(actx.sampleRate*0.3), b=actx.createBuffer(1,n,actx.sampleRate), d=b.getChannelData(0);
+  for(let i=0;i<n;i++) d[i]=Math.random()*2-1;
+  return (noiseBuf=b);
+}
+function bgmHit(t,dur,hp,vol){            // 노이즈 타격음(스네어·하이햇)
+  const s=actx.createBufferSource(); s.buffer=bgmNoise();
+  const f=actx.createBiquadFilter(); f.type='highpass'; f.frequency.value=hp;
+  const g=actx.createGain();
+  g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  s.connect(f); f.connect(g); g.connect(master); s.start(t); s.stop(t+dur+.02);
+}
+function bgmKick(t){                      // 킥 드럼(피치 드롭)
+  const o=actx.createOscillator(), g=actx.createGain();
+  o.type='sine'; o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(45,t+.12);
+  g.gain.setValueAtTime(.5,t); g.gain.exponentialRampToValueAtTime(.0001,t+.18);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t+.2);
+}
+function bgmTone(t,freq,dur,type,vol){
+  const o=actx.createOscillator(), g=actx.createGain();
+  o.type=type; o.frequency.value=freq;
+  g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+.02);
+  g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t+dur+.02);
+}
 function bgmStart(){ bgmOn=true; nextNote=actx? actx.currentTime:0; step=0; }
 function bgmStop(){ bgmOn=false; }
 function bgmSchedule(speed){
   if(!bgmOn||!actx||muted) return;
-  const bpm = 96 + speed*7;                 // 빠를수록 신나게
-  const beat = 60/bpm;
-  while(nextNote < actx.currentTime + 0.12){
-    const o=actx.createOscillator(), g=actx.createGain();
-    o.type='triangle'; o.frequency.value=BASS[step%BASS.length];
-    g.gain.setValueAtTime(.0001,nextNote); g.gain.exponentialRampToValueAtTime(.18,nextNote+.02);
-    g.gain.exponentialRampToValueAtTime(.0001,nextNote+beat*.9);
-    o.connect(g); g.connect(master); o.start(nextNote); o.stop(nextNote+beat);
-    if(step%2===0){ const o2=actx.createOscillator(), g2=actx.createGain();
-      o2.type='square'; o2.frequency.value=ARP[(step/2)%ARP.length];
-      g2.gain.setValueAtTime(.0001,nextNote); g2.gain.exponentialRampToValueAtTime(.07,nextNote+.02);
-      g2.gain.exponentialRampToValueAtTime(.0001,nextNote+beat*.5);
-      o2.connect(g2); g2.connect(master); o2.start(nextNote); o2.stop(nextNote+beat); }
-    nextNote += beat; step++;
+  const bpm = Math.min(168, 104 + speed*3.4);   // 빠를수록 신나게(상한으로 과열 방지)
+  const s8 = 60/bpm/2;                          // 8분음표 간격
+  while(nextNote < actx.currentTime + 0.15){
+    const k=step%8, t=nextNote;
+    if(k===0||k===4) bgmKick(t);                       // 킥: 1·3박
+    if(k===2||k===6) bgmHit(t,.13,1400,.30);           // 스네어: 2·4박
+    if(!LOWSPEC) bgmHit(t,.03,7000,.06);               // 하이햇: 매 8분음표(저사양은 생략)
+    bgmTone(t, BASS[k], s8*1.7, 'triangle', .20);      // 베이스 그루브
+    if(k%2===0) bgmTone(t, LEAD[k], s8*1.3, 'square', .075);   // 리드 멜로디
+    nextNote += s8; step++;
   }
 }
 
@@ -1565,7 +1588,7 @@ async function runCalibration(){
 
   // ---- 아(A)·후(HU) 리듬 루틴: 박자에 맞춰 입 벌리기/오므리기 반복 ----
   function runAhu(){
-    const TOTAL=12, BEAT=950;
+    const TOTAL=10, BEAT=950;
     let i=0, hits=0, hitBeat=false, t0=performance.now();
     const tgt=()=> (i%2===0)?'jaw':'pucker';
     const lbl=()=> (i%2===0)?T('ahu_a'):T('ahu_hu');
@@ -2924,7 +2947,8 @@ initPi().then(ok=>{ if(ok) piSignIn(false); });   // 로드 시 자동 로그인
 window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curEvent(v){curEvent=v;}, get G(){return G;},
   awardEP, epTotal, epToday, EP_DAILY_CAP, SKINS, THEMES, get SKIN(){return SKIN;}, get THEME(){return THEME;},
   T, setLang, get LANG(){return LANG;}, LANGS, initPi, piSignIn, get piUser(){return piUser;},
-  runCalibration, CAL_STEPS };   // 워밍업 흐름 테스트용
+  runCalibration, CAL_STEPS,     // 워밍업 흐름 테스트용
+  initAudio, bgmStart, bgmStop, bgmSchedule };   // BGM 테스트/튜닝용
 </script>
 </body>
 </html>
