@@ -2190,6 +2190,13 @@ function gameLoop(now, gen){
     G.vy=10.8; G.grounded=false; G.jumpReady=false; sfx.jump();
   }
   if(browEff<0.2) G.jumpReady=true;                // 눈썹 내리면 다음 점프 준비
+  // ---- 표정 미러링: 게임 조작에 쓰는 신호를 그대로 캐릭터 얼굴에 (비대칭 보간은 updateFace) ----
+  updateFace(sig.ok ? {
+    smile: sN,
+    jaw:    Math.min(1, norm('jaw',    sig.jaw)),
+    pucker: Math.min(1, norm('pucker', sig.pucker)),
+    brow:   Math.max(0, Math.min(1, browEff)),
+  } : {smile:0, jaw:0, pucker:0, brow:0});
   if(!G.grounded){ G.vy-=20*dt; G.py+=G.vy*dt; if(G.py<=0){ G.py=0; G.grounded=true; G.vy=0; sfx.land(); G.squashT=0.16; G.landFx=true; } }
   // 관성: 감속 시 앞으로 쏠림 + 착지 압축 타이머
   const _accel=G.speed-G.prevSpeed; G.prevSpeed=G.speed;
@@ -2449,6 +2456,38 @@ function drawHurdle(x,y,sc){
   ctx.restore();
 }
 
+// ---- 표정 미러링 ----
+// 캐릭터 얼굴이 플레이어의 실제 표정을 따라감. gameLoop이 매 프레임 게임조작 신호를 updateFace로 넘김.
+// 비대칭 보간: 상승(표정 지음)=즉시(0.85)로 빠릿, 하강(품)=완만(0.18)으로 인식 떨림 억제.
+const faceExpr = {smile:0, jaw:0, pucker:0, brow:0};
+function updateFace(raw){
+  for(const k in faceExpr){ const d=(raw[k]||0)-faceExpr[k]; faceExpr[k]+= d>0 ? d*0.85 : d*0.18; }
+}
+function drawFace(e){   // 머리 중심(0,-78) 로컬좌표. 입: 벌림>오므림>미소 우선순위
+  const s=e.smile||0, j=e.jaw||0, p=e.pucker||0, b=e.brow||0;
+  ctx.fillStyle='#ffb3a0'; ctx.globalAlpha=0.4+0.35*s;   // 볼터치(웃을수록 진하게)
+  ctx.beginPath(); ctx.arc(-8,-73,2.8,0,7); ctx.arc(9,-73,2.8,0,7); ctx.fill(); ctx.globalAlpha=1;
+  const eyeY=-77-b*3; ctx.lineCap='round';
+  if(s>0.7){                                             // 활짝 = 접힌 눈(^^)
+    ctx.strokeStyle='#13294d'; ctx.lineWidth=2.2;
+    ctx.beginPath(); ctx.arc(-5,eyeY+1.5,3,1.15*Math.PI,1.85*Math.PI); ctx.stroke();
+    ctx.beginPath(); ctx.arc(6,eyeY+1.5,3,1.15*Math.PI,1.85*Math.PI); ctx.stroke();
+  } else {                                               // 동그란 눈(눈썹 올리면 커짐)
+    const er=2.8+b*0.9; ctx.fillStyle='#13294d';
+    ctx.beginPath(); ctx.arc(-5,eyeY,er,0,7); ctx.arc(6,eyeY,er,0,7); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-4,eyeY-1,0.9,0,7); ctx.arc(7,eyeY-1,0.9,0,7); ctx.fill();
+  }
+  if(b>0.3){ ctx.strokeStyle='#8a5238'; ctx.lineWidth=1.7;   // 눈썹(올릴 때만)
+    ctx.beginPath(); ctx.moveTo(-8,eyeY-5-b*2.5); ctx.lineTo(-2,eyeY-6-b*2.5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(3,eyeY-6-b*2.5); ctx.lineTo(9,eyeY-5-b*2.5); ctx.stroke(); }
+  if(j>0.4){ ctx.fillStyle='#7a2f3a'; ctx.beginPath(); ctx.ellipse(0,-70,3.6,3+j*2.6,0,0,7); ctx.fill();
+    ctx.fillStyle='#ff8a8a'; ctx.beginPath(); ctx.ellipse(0,-67.5,2,1.2,0,0,7); ctx.fill(); }       // 입 벌림
+  else if(p>0.4){ ctx.fillStyle='#c96a5a'; ctx.beginPath(); ctx.arc(0,-71,2.3+p*0.9,0,7); ctx.fill();
+    ctx.fillStyle='#e69384'; ctx.beginPath(); ctx.arc(0,-71.3,1.1,0,7); ctx.fill(); }               // 오므림
+  else { ctx.strokeStyle='#b5654a'; ctx.lineWidth=1.6; const w=2.6+s*2.6;
+    ctx.beginPath(); ctx.arc(0,-73,w,0.15*Math.PI,0.85*Math.PI); ctx.stroke(); }                    // 미소
+}
+
 // 러너 캐릭터 (발 위치 = x,y 기준, 위로 그림). 토이/클레이 톤: 구형 그라디언트+림라이트+AO+표정.
 //  머리 중심=(0,-78) r=15, 정수리≈-93. 모자는 HAT_DRAW 슬롯(스킨과 독립)으로 마지막에 얹음.
 function drawRunner(x,y,dist,sx,sy,lean){
@@ -2486,13 +2525,8 @@ function drawRunner(x,y,dist,sx,sy,lean){
   hg.addColorStop(0,'#fff0dd'); hg.addColorStop(.6,'#ffd9a8'); hg.addColorStop(1,'#f0b585');
   ctx.fillStyle=hg; ctx.beginPath(); ctx.arc(0,-78,15,0,7); ctx.fill();
   ctx.fillStyle='rgba(255,255,255,.5)'; ctx.beginPath(); ctx.ellipse(-6,-84,3.6,2.4,-0.5,0,7); ctx.fill();
-  // 얼굴 — 볼터치 + 눈(하이라이트) + 미소
-  ctx.fillStyle='#ffb3a0'; ctx.globalAlpha=.55;
-  ctx.beginPath(); ctx.arc(-8,-73,2.8,0,7); ctx.arc(9,-73,2.8,0,7); ctx.fill(); ctx.globalAlpha=1;
-  ctx.fillStyle='#13294d'; ctx.beginPath(); ctx.arc(-5,-77,2.8,0,7); ctx.arc(6,-77,2.8,0,7); ctx.fill();
-  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-4,-78,.9,0,7); ctx.arc(7,-78,.9,0,7); ctx.fill();
-  ctx.strokeStyle='#b5654a'; ctx.lineWidth=1.4;
-  ctx.beginPath(); ctx.arc(0,-72,3.2,0.15*Math.PI,0.85*Math.PI); ctx.stroke();
+  // 얼굴 — 플레이어 표정 미러링(faceExpr, gameLoop에서 비대칭 보간으로 갱신)
+  drawFace(faceExpr);
   // 모자(장착 슬롯) — 스킨과 독립, 머리 위에 얹음
   const hd=HAT_DRAW[EQHAT]; if(hd) hd();
   ctx.restore();
