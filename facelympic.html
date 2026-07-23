@@ -2492,23 +2492,32 @@ function drawFace(e){   // 머리 중심(0,-78) 로컬좌표. 입: 벌림>오므
 //  머리 중심=(0,-78) r=15, 정수리≈-93. 모자는 HAT_DRAW 슬롯(스킨과 독립)으로 마지막에 얹음.
 function drawRunner(x,y,dist,sx,sy,lean){
   sx=sx||1; sy=sy||1; lean=lean||0;
-  const bob=Math.sin(dist*2.6)*2.5;
-  const ph=Math.sin(dist*9), arm=Math.sin(dist*9+Math.PI);
-  ctx.save(); ctx.translate(x,y+bob); ctx.rotate(lean*0.5); ctx.scale(sx,sy);
+  const a=dist*9;                                      // 다리 위상
+  const bob=Math.abs(Math.sin(a))*-2.5;                // 발 딛는 순간 몸이 위로(스트라이드 동기)
+  ctx.save(); ctx.translate(x,y+bob); ctx.rotate(lean*0.5+0.045); ctx.scale(sx,sy);   // 살짝 전방 기울임
   ctx.lineCap='round'; ctx.lineJoin='round'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  function leg(dx){                                   // 둥근 다리 + 광택 신발
-    ctx.strokeStyle='#0e2140'; ctx.lineWidth=12;
-    ctx.beginPath(); ctx.moveTo(0,-28); ctx.lineTo(dx,-2); ctx.stroke();
-    ctx.strokeStyle='#1c3a66'; ctx.lineWidth=6;        // 안쪽 하이라이트 심
-    ctx.beginPath(); ctx.moveTo(0,-27); ctx.lineTo(dx,-4); ctx.stroke();
-    ctx.fillStyle='#ff5d6c'; ctx.beginPath(); ctx.ellipse(dx+(dx>0?4:-4),-1,7,5,0,0,7); ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,.5)'; ctx.beginPath(); ctx.ellipse(dx+(dx>0?3:-3),-3,2.5,1.4,0,0,7); ctx.fill();
+  // 2관절 다리(엉덩이→무릎→발): 스윙 위상에 발/무릎이 들리고 굽음 → '뛰는' 동작
+  function leg(side, aa){
+    const hipX=side*4, hipY=-26, lift=Math.max(0,Math.sin(aa)), swing=Math.cos(aa);
+    const footX=hipX+swing*3, footY=-1-lift*9, kneeX=hipX+swing*2+side*lift*1.2, kneeY=-15-lift*2;
+    ctx.strokeStyle='#0e2140'; ctx.lineWidth=11;
+    ctx.beginPath(); ctx.moveTo(hipX,hipY); ctx.lineTo(kneeX,kneeY); ctx.lineTo(footX,footY); ctx.stroke();
+    ctx.strokeStyle='#1c3a66'; ctx.lineWidth=5;         // 안쪽 하이라이트 심
+    ctx.beginPath(); ctx.moveTo(hipX,hipY); ctx.lineTo(kneeX,kneeY); ctx.lineTo(footX,footY); ctx.stroke();
+    ctx.fillStyle='#ff5d6c'; ctx.beginPath(); ctx.ellipse(footX+side*3,footY+1,7,5,swing*0.15,0,7); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.45)'; ctx.beginPath(); ctx.ellipse(footX+side*2,footY-1,2.5,1.4,0,0,7); ctx.fill();
   }
-  leg(-10*ph);                                         // 뒤다리
-  ctx.strokeStyle=SKIN.c2; ctx.lineWidth=9;            // 뒤팔
-  ctx.beginPath(); ctx.moveTo(0,-54); ctx.lineTo(-15,-38-10*arm); ctx.stroke();
-  ctx.fillStyle='#ffd9a8'; ctx.beginPath(); ctx.arc(-15,-38-10*arm,4,0,7); ctx.fill();
-  leg(10*ph);                                          // 앞다리(몸통이 밑동을 덮음)
+  // 팔꿈치 굽힌 팔 펌핑(다리와 반대 위상)
+  function arm(side, aa, col){
+    const shX=side*11, shY=-54, sw=Math.sin(aa);
+    const elbX=shX+side*3+sw*4, elbY=-44+sw*3, haX=shX+side*4+sw*7, haY=-40+sw*9;
+    ctx.strokeStyle=col; ctx.lineWidth=9;
+    ctx.beginPath(); ctx.moveTo(shX,shY); ctx.lineTo(elbX,elbY); ctx.lineTo(haX,haY); ctx.stroke();
+    ctx.fillStyle='#ffd9a8'; ctx.beginPath(); ctx.arc(haX,haY,4,0,7); ctx.fill();
+  }
+  leg(-1, a+Math.PI);                                  // 뒤다리
+  arm(-1, a, SKIN.c2);                                 // 뒤팔
+  leg(1, a);                                           // 앞다리(몸통이 밑동을 덮음)
   // 몸통 — 구형 그라디언트 + 상단 림라이트 + 하단 AO
   const bg=ctx.createRadialGradient(-6,-58,3,0,-44,25);
   bg.addColorStop(0,SKIN.c1); bg.addColorStop(.7,SKIN.c2); bg.addColorStop(1,SKIN.c2);
@@ -2517,9 +2526,7 @@ function drawRunner(x,y,dist,sx,sy,lean){
   ctx.beginPath(); ctx.moveTo(-12,-58); ctx.quadraticCurveTo(0,-64,12,-58); ctx.stroke();
   ctx.fillStyle='rgba(0,0,0,.13)'; roundRect(-14,-32,28,8,6); ctx.fill();
   ctx.fillStyle='#eaf9ff'; ctx.font='900 15px Pretendard'; ctx.fillText('1',0,-44);   // 등번호
-  ctx.strokeStyle=SKIN.c3; ctx.lineWidth=9;            // 앞팔
-  ctx.beginPath(); ctx.moveTo(0,-54); ctx.lineTo(15,-38+10*arm); ctx.stroke();
-  ctx.fillStyle='#ffd9a8'; ctx.beginPath(); ctx.arc(15,-38+10*arm,4,0,7); ctx.fill();
+  arm(1, a+Math.PI, SKIN.c3);                          // 앞팔
   // 머리 — 구형 그라디언트 + 스페큘러
   const hg=ctx.createRadialGradient(-5,-83,2,0,-76,16);
   hg.addColorStop(0,'#fff0dd'); hg.addColorStop(.6,'#ffd9a8'); hg.addColorStop(1,'#f0b585');
