@@ -2518,7 +2518,6 @@ function drawRunner(x,y,dist,sx,sy,lean){
     ctx.fillStyle='#ffd9a8'; ctx.beginPath(); ctx.arc(haX,haY,4,0,7); ctx.fill();
   }
   leg(-1, a+Math.PI);                                  // 뒤다리
-  arm(-1, a, SKIN.c2);                                 // 뒤팔
   leg(1, a);                                           // 앞다리(몸통이 밑동을 덮음)
   // 몸통 — 구형 그라디언트 + 상단 림라이트 + 하단 AO
   const bg=ctx.createRadialGradient(-6,-58,3,0,-44,25);
@@ -2528,7 +2527,8 @@ function drawRunner(x,y,dist,sx,sy,lean){
   ctx.beginPath(); ctx.moveTo(-12,-58); ctx.quadraticCurveTo(0,-64,12,-58); ctx.stroke();
   ctx.fillStyle='rgba(0,0,0,.13)'; roundRect(-14,-32,28,8,6); ctx.fill();
   ctx.fillStyle='#eaf9ff'; ctx.font='900 15px Pretendard'; ctx.fillText('1',0,-44);   // 등번호
-  arm(1, a+Math.PI, SKIN.c3);                          // 앞팔
+  arm(-1, a, SKIN.c2);                                 // 왼팔 — 둘 다 몸통 위에 그려 전체가 보임
+  arm(1, a+Math.PI, SKIN.c3);                          // 오른팔
   // 머리 — 구형 그라디언트 + 스페큘러
   const hg=ctx.createRadialGradient(-5,-83,2,0,-76,16);
   hg.addColorStop(0,'#fff0dd'); hg.addColorStop(.6,'#ffd9a8'); hg.addColorStop(1,'#f0b585');
