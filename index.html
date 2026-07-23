@@ -2507,10 +2507,12 @@ function drawRunner(x,y,dist,sx,sy,lean){
     ctx.fillStyle='#ff5d6c'; ctx.beginPath(); ctx.ellipse(footX+side*3,footY+1,7,5,swing*0.15,0,7); ctx.fill();
     ctx.fillStyle='rgba(255,255,255,.45)'; ctx.beginPath(); ctx.ellipse(footX+side*2,footY-1,2.5,1.4,0,0,7); ctx.fill();
   }
-  // 팔꿈치 굽힌 팔 펌핑(다리와 반대 위상)
+  // 팔꿈치 굽힌 팔 펌핑 — 각자 자기 쪽에서 위아래로(몸 가로지르지 않음). 웃을수록 진폭↑(활발히)
+  const armAmp=0.5+(faceExpr.smile||0)*1.0;           // 미소 0→0.5(잔잔)  1→1.5(힘차게)
   function arm(side, aa, col){
     const shX=side*11, shY=-54, sw=Math.sin(aa);
-    const elbX=shX+side*3+sw*4, elbY=-44+sw*3, haX=shX+side*4+sw*7, haY=-40+sw*9;
+    const elbX=shX+side*2, elbY=-47-sw*armAmp*3;
+    const haX=shX+side*3, haY=-43-sw*armAmp*11;
     ctx.strokeStyle=col; ctx.lineWidth=9;
     ctx.beginPath(); ctx.moveTo(shX,shY); ctx.lineTo(elbX,elbY); ctx.lineTo(haX,haY); ctx.stroke();
     ctx.fillStyle='#ffd9a8'; ctx.beginPath(); ctx.arc(haX,haY,4,0,7); ctx.fill();
