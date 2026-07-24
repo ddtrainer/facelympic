@@ -3459,7 +3459,9 @@ async function piComplete(paymentId, txid, meta){
   try{
     const r = await fetch(PI_API_BASE+'/api/complete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ paymentId, txid }) });
     if(!r.ok) return;
-    if(meta && meta.type==='skin' && meta.id && SKINS[meta.id]){ addOwned(meta.id); equip('skin', meta.id); renderShop(); }   // 결제 완료 → 지급
+    // 결제 완료 → 지급. 스킨·모자·테마 모두 지원(kind별 맵 조회 후 보유+장착)
+    const map = meta && ({ skin:SKINS, theme:THEMES, hat:HATS })[meta.type];
+    if(map && meta.id && map[meta.id]){ addOwned(meta.id); equip(meta.type, meta.id); renderShop(); }
   }catch(e){ console.warn('complete failed', e); }
 }
 async function buyWithPi(kind, id, it){
