@@ -26,48 +26,47 @@
   .screen.active{display:flex;}
 
   /* ---------- Intro ---------- */
-  #intro{padding:64px 26px 30px;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  #intro{padding:54px 20px 18px;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  #intro .btn{padding:14px;}
+  #intro .pi-signin{margin-top:9px;padding:11px;}
   #intro>*{flex-shrink:0;}
-  /* ---------- 홈 히어로 (폰 최적화: 로고 fit, 카드 한 줄, transform 애니메이션) ---------- */
-  .hero{text-align:center;margin-bottom:12px;}
-  .tagline{font-size:18px;color:var(--cyan);font-weight:800;margin-bottom:2px;text-shadow:0 0 16px rgba(55,214,255,.45);}
-  .logo{position:relative;display:inline-block;margin:1px 0 3px;max-width:100%;}
-  .logo-word{font-size:clamp(30px,10.5vw,46px);font-weight:900;font-style:italic;letter-spacing:-.03em;line-height:1;white-space:nowrap;
+  /* ---------- 홈 히어로 (폰 최적화: JS 로고맞춤 fitHomeLogo + JS 반동 heroBob, 컴팩트) ---------- */
+  .hero{text-align:center;margin-bottom:8px;}
+  .tagline{font-size:16.5px;color:var(--cyan);font-weight:800;margin-bottom:1px;text-shadow:0 0 14px rgba(55,214,255,.45);}
+  .logo{position:relative;display:inline-block;margin:0 0 2px;max-width:100%;}
+  .logo-word{display:inline-block;font-size:clamp(26px,9vw,42px);font-weight:900;font-style:italic;letter-spacing:-.03em;line-height:1;white-space:nowrap;
     background:linear-gradient(95deg,#f2f8ff 52%,var(--lime));-webkit-background-clip:text;background-clip:text;
-    -webkit-text-fill-color:transparent;filter:drop-shadow(0 3px 12px rgba(55,214,255,.4));}
-  .logo::before{content:"";position:absolute;top:22%;bottom:22%;right:100%;width:30px;margin-right:8px;opacity:.7;
+    -webkit-text-fill-color:transparent;filter:drop-shadow(0 3px 10px rgba(55,214,255,.4));}
+  .logo::before{content:"";position:absolute;top:22%;bottom:22%;right:100%;width:26px;margin-right:7px;opacity:.7;
     background:repeating-linear-gradient(180deg,var(--cyan) 0 3px,transparent 3px 8px);
     -webkit-mask:linear-gradient(90deg,transparent,#000 92%);mask:linear-gradient(90deg,transparent,#000 92%);}
-  .sub-hero{font-size:15px;font-weight:700;color:var(--dim);margin-top:5px;}
+  .sub-hero{font-size:14px;font-weight:700;color:var(--dim);margin-top:3px;}
   .sub-hero b{color:var(--lime);font-weight:900;}
-  .hero-stage{position:relative;height:112px;margin-top:6px;overflow:hidden;}
-  .hero-stage::before{content:"";position:absolute;left:0;right:0;top:38px;height:48px;opacity:.5;   /* 달리는 느낌 = 가로 스피드 트레일 */
+  .hero-stage{position:relative;height:82px;margin-top:2px;overflow:hidden;}
+  .hero-stage::before{content:"";position:absolute;left:0;right:0;top:26px;height:38px;opacity:.5;
     background:repeating-linear-gradient(0deg,transparent 0 6px,rgba(55,214,255,.4) 6px 8px);
     -webkit-mask:radial-gradient(ellipse 68% 92% at 44% 50%,#000,transparent 82%);mask:radial-gradient(ellipse 68% 92% at 44% 50%,#000,transparent 82%);}
-  .hero-platform{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);width:78%;height:28px;border-radius:50%;
+  .hero-platform{position:absolute;left:50%;bottom:4px;transform:translateX(-50%);width:74%;height:22px;border-radius:50%;
     background:radial-gradient(ellipse at center,rgba(55,214,255,.6),rgba(120,80,255,.28) 58%,transparent 72%);
-    box-shadow:0 0 40px 10px rgba(55,214,255,.26);}
-  .hero-run .r{position:absolute;bottom:22px;filter:drop-shadow(0 5px 6px rgba(0,0,0,.45));animation:heroBob 1s ease-in-out infinite;}
-  .hero-run .r0{left:50%;transform:translateX(-50%);font-size:54px;z-index:5;bottom:18px;animation-name:heroBob0;}
-  .hero-run .r2{left:25%;font-size:34px;z-index:3;bottom:26px;animation-delay:-.15s;}
-  .hero-run .r3{right:23%;font-size:34px;z-index:3;bottom:26px;animation-delay:-.35s;}
-  .hero-run .r4{left:10%;font-size:27px;z-index:2;bottom:29px;animation-delay:-.5s;}
-  .hero-run .r1{right:9%;font-size:27px;z-index:2;bottom:30px;animation-delay:-.7s;}
-  /* transform 기반(구형 Chromium/Pi Browser 호환). translate 속성은 미지원 기기서 정지함 */
-  @keyframes heroBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
-  @keyframes heroBob0{0%,100%{transform:translateX(-50%) translateY(0);}50%{transform:translateX(-50%) translateY(-6px);}}
-  @media (prefers-reduced-motion:reduce){ .hero-run .r{animation:none;} }
-  .home-foot{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;
-    font-size:13.5px;font-weight:800;color:var(--cyan);text-shadow:0 0 12px rgba(55,214,255,.35);}
-  .home-foot .lau{font-size:20px;opacity:.85;}
+    box-shadow:0 0 34px 8px rgba(55,214,255,.26);}
+  /* 반동은 JS(heroBob rAF)로 인라인 transform 세팅 — CSS animation은 구형기기 reduced-motion서 꺼져서 사용 안 함 */
+  .hero-run .r{position:absolute;bottom:18px;filter:drop-shadow(0 4px 5px rgba(0,0,0,.45));will-change:transform;}
+  .hero-run .r0{left:50%;transform:translateX(-50%);font-size:44px;z-index:5;bottom:14px;}
+  .hero-run .r2{left:24%;font-size:28px;z-index:3;bottom:22px;}
+  .hero-run .r3{right:22%;font-size:28px;z-index:3;bottom:22px;}
+  .hero-run .r4{left:9%;font-size:23px;z-index:2;bottom:24px;}
+  .hero-run .r1{right:8%;font-size:23px;z-index:2;bottom:25px;}
+  .home-foot{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:8px;
+    font-size:12.5px;font-weight:800;color:var(--cyan);text-shadow:0 0 12px rgba(55,214,255,.35);}
+  .home-foot .lau{font-size:18px;opacity:.85;}
   .home-foot .lau.flip{transform:scaleX(-1);}
-  .moves{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:18px;}
-  .move{display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--line);
-    border-radius:13px;padding:10px 11px;}
+  .moves{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px;}
+  .move{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;padding:8px 10px;}
   .move>div{min-width:0;}
-  .move .e{font-size:23px;flex-shrink:0;}
-  .move b{display:block;font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .move span{display:block;font-size:12px;color:var(--dim);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}   /* 한 줄 고정 */
+  .move .e{font-size:21px;flex-shrink:0;}
+  .move b{display:block;font-size:13px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .move span{display:block;font-size:11.5px;color:var(--dim);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}   /* 한 줄 고정 */
   .btn{border:none;border-radius:16px;font-family:inherit;cursor:pointer;font-weight:800;
     font-size:17px;padding:17px;width:100%;transition:transform .12s;}
   .btn:active{transform:scale(.975);}
@@ -2789,7 +2788,36 @@ function updateStreakIntro(){
   const ep=epTotal(); if(ep>0) txt += '  ·  ⚡ '+ep.toLocaleString()+' EP';
   const cr=crownCount(); if(cr>0) txt += '  ·  👑 '+cr;   // 세계 1위 횟수(경쟁 성취 — EP와 별개)
   el.textContent = txt;
+  fitHomeLogo();   // 폰마다 폰트 폭이 달라 넘칠 수 있어 실측 후 맞춤
 }
+// ---- 홈 로고 자동 맞춤: CSS clamp만으론 폰트 로딩/폭 차이로 넘침 → 실제 폭 재서 축소 ----
+function fitHomeLogo(){
+  const logo=document.querySelector('.logo'), lw=document.querySelector('.logo-word'), hero=document.querySelector('.hero');
+  if(!logo||!lw||!hero) return;
+  lw.style.fontSize='';                                   // CSS 초기값으로 리셋
+  requestAnimationFrame(()=>{
+    if(hero.clientWidth<60) return;                        // 아직 레이아웃 전(숨김) → 스킵
+    const target=hero.clientWidth-64;                      // 좌측 스피드라인 여유 포함
+    let fs=parseFloat(getComputedStyle(lw).fontSize), guard=0;
+    while(logo.getBoundingClientRect().width>target && fs>16 && guard++<50){ fs-=1; lw.style.fontSize=fs+'px'; }
+  });
+}
+// ---- 홈 이모지 반동: JS rAF로 직접 구동(구형기기 reduced-motion서도 무조건 움직이게) ----
+let heroBobOn=false;
+function heroBobLoop(now){
+  const stage=document.querySelector('.hero-run'), intro=document.getElementById('intro');
+  if(stage && intro && getComputedStyle(intro).display!=='none'){
+    const t=(now||0)/1000, rs=stage.querySelectorAll('.r');
+    for(let i=0;i<rs.length;i++){
+      const bob=Math.sin(t*3 + i*0.9)*5;                  // -5~5px 위아래
+      const cx=rs[i].classList.contains('r0')?'translateX(-50%) ':'';
+      rs[i].style.transform=cx+'translateY('+bob.toFixed(1)+'px)';
+    }
+  }
+  requestAnimationFrame(heroBobLoop);
+}
+function startHeroBob(){ if(heroBobOn) return; heroBobOn=true; requestAnimationFrame(heroBobLoop); }
+window.addEventListener('resize', fitHomeLogo);
 
 // ----- EP (활동 포인트) : 로컬 우선 — 서버 원장/안티치트는 후속(Pi 로그인 후) -----
 // EP는 순수 진행/꾸미기 통화. 속도·기록·순위에 영향 없음. 교환·전송·현금가치 없음.
@@ -3633,7 +3661,9 @@ $("piBtn").addEventListener('click', ()=>{ if(!piUser) piSignIn(true); });
 initLang();            // 언어 초기화 (기본 영어)
 applyI18n();           // 정적 텍스트 다국어 적용
 loadSettings();        // 저장된 설정 적용
-updateStreakIntro();   // 로드 시 streak 배지 표시
+updateStreakIntro();   // 로드 시 streak 배지 표시(+fitHomeLogo)
+startHeroBob();        // 홈 이모지 반동 시작(JS rAF — 구형기기서도 작동)
+try{ if(document.fonts&&document.fonts.ready) document.fonts.ready.then(fitHomeLogo); }catch(e){}   // 폰트 늦게 로드돼도 로고 재맞춤
 updatePiUI();          // 이전 Pi 로그인 상태 반영
 initPi().then(ok=>{ if(ok) piSignIn(false); });   // 로드 시 자동 로그인 시도(비차단·조용히 실패)
 window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curEvent(v){curEvent=v;}, get G(){return G;},
