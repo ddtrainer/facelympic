@@ -36,9 +36,9 @@
   .moves{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:26px;}
   .move{display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--line);
     border-radius:14px;padding:12px 13px;}
-  .move .e{font-size:24px;}
-  .move b{display:block;font-size:14px;}
-  .move span{font-size:12px;color:var(--faint);}
+  .move .e{font-size:26px;}
+  .move b{display:block;font-size:14.5px;color:var(--ink);margin-bottom:1px;}
+  .move span{font-size:13px;color:var(--dim);font-weight:600;}   /* --faint(어두움)→--dim(밝음)+굵게 = 가독성 */
   .btn{border:none;border-radius:16px;font-family:inherit;cursor:pointer;font-weight:800;
     font-size:17px;padding:17px;width:100%;transition:transform .12s;}
   .btn:active{transform:scale(.975);}
@@ -423,7 +423,7 @@ const RTL = new Set(['ar']);
 const I18N = {};
 I18N.en = {
   brand:"FACELYMPIC", tagline:"Smile to go faster",
-  lead:"Race down the track with your face.<br>Smile to run, keep a straight face to stop. Raise your brows to jump, tilt your head to dodge, use your mouth to eat and blast.",
+  lead:"Race down the track with your face.",
   mv_smile_t:"Smile", mv_smile_d:"Run · Boost", mv_neutral_t:"Straight face", mv_neutral_d:"Stop",
   mv_brow_t:"Raise brows", mv_brow_d:"Jump", mv_tilt_t:"Tilt head", mv_tilt_d:"Dodge",
   mv_open_t:"Open mouth", mv_open_d:"Eat food", mv_pucker_t:"Pucker", mv_pucker_d:"Blast monster!",
@@ -502,7 +502,7 @@ I18N.en = {
 };
 I18N.ko = {
   brand:"페이셀림픽<br>FACELYMPIC", tagline:"웃으면 빨라진다",
-  lead:"얼굴과 고개로 트랙을 질주하세요.<br>웃으면 달리고 무표정이면 멈춰요. 눈썹 올려 점프, 고개 기울여 피하고, 입으로 먹고 터뜨립니다.",
+  lead:"얼굴과 고개로 트랙을 질주하세요.",
   mv_smile_t:"웃기", mv_smile_d:"달리기 · 부스터", mv_neutral_t:"무표정", mv_neutral_d:"멈춤",
   mv_brow_t:"눈썹 올리기", mv_brow_d:"점프", mv_tilt_t:"고개 기울이기", mv_tilt_d:"좌우 피하기",
   mv_open_t:"입 벌리기", mv_open_d:"음식 먹기", mv_pucker_t:"입 오므리기", mv_pucker_d:"괴물 꽝!",
@@ -581,7 +581,7 @@ I18N.ko = {
 };
 I18N.zh = {
   brand:"FACELYMPIC", tagline:"微笑跑得更快",
-  lead:"用你的脸和头部冲刺赛道。<br>微笑就跑，面无表情就停。挑眉跳跃，歪头闪避，用嘴吃东西和击碎怪物。",
+  lead:"用你的脸和头部冲刺赛道。",
   mv_smile_t:"微笑", mv_smile_d:"奔跑 · 加速", mv_neutral_t:"面无表情", mv_neutral_d:"停止",
   mv_brow_t:"挑眉", mv_brow_d:"跳跃", mv_tilt_t:"歪头", mv_tilt_d:"闪避",
   mv_open_t:"张嘴", mv_open_d:"吃东西", mv_pucker_t:"撅嘴", mv_pucker_d:"击碎怪物！",
@@ -656,7 +656,7 @@ I18N.zh = {
 };
 I18N.vi = {
   brand:"FACELYMPIC", tagline:"Cười để chạy nhanh hơn",
-  lead:"Chạy trên đường đua bằng khuôn mặt của bạn.<br>Cười để chạy, giữ mặt bình thản để dừng. Nhướn mày để nhảy, nghiêng đầu để né, dùng miệng để ăn và tiêu diệt.",
+  lead:"Chạy trên đường đua bằng khuôn mặt của bạn.",
   mv_smile_t:"Cười", mv_smile_d:"Chạy · Tăng tốc", mv_neutral_t:"Mặt bình thản", mv_neutral_d:"Dừng",
   mv_brow_t:"Nhướn mày", mv_brow_d:"Nhảy", mv_tilt_t:"Nghiêng đầu", mv_tilt_d:"Né",
   mv_open_t:"Há miệng", mv_open_d:"Ăn thức ăn", mv_pucker_t:"Chu môi", mv_pucker_d:"Tiêu diệt quái vật!",
@@ -731,7 +731,7 @@ I18N.vi = {
 };
 I18N.es = {
   brand:"FACELYMPIC", tagline:"Sonríe para ir más rápido",
-  lead:"Corre por la pista con tu cara.<br>Sonríe para correr, cara seria para parar. Levanta las cejas para saltar, inclina la cabeza para esquivar, usa la boca para comer y reventar.",
+  lead:"Corre por la pista con tu cara.",
   mv_smile_t:"Sonreír", mv_smile_d:"Correr · Turbo", mv_neutral_t:"Cara seria", mv_neutral_d:"Parar",
   mv_brow_t:"Levantar cejas", mv_brow_d:"Saltar", mv_tilt_t:"Inclinar cabeza", mv_tilt_d:"Esquivar",
   mv_open_t:"Abrir la boca", mv_open_d:"Comer", mv_pucker_t:"Fruncir labios", mv_pucker_d:"¡Revienta monstruos!",
@@ -806,7 +806,7 @@ I18N.es = {
 };
 I18N.pt = {
   brand:"FACELYMPIC", tagline:"Sorria para correr mais rápido",
-  lead:"Corra pela pista com o seu rosto.<br>Sorria para correr, fique sério para parar. Levante as sobrancelhas para pular, incline a cabeça para desviar, use a boca para comer e explodir.",
+  lead:"Corra pela pista com o seu rosto.",
   mv_smile_t:"Sorrir", mv_smile_d:"Correr · Turbo", mv_neutral_t:"Rosto sério", mv_neutral_d:"Parar",
   mv_brow_t:"Levantar sobrancelhas", mv_brow_d:"Pular", mv_tilt_t:"Inclinar cabeça", mv_tilt_d:"Desviar",
   mv_open_t:"Abrir a boca", mv_open_d:"Comer", mv_pucker_t:"Bico com os lábios", mv_pucker_d:"Detonar monstros!",
@@ -881,7 +881,7 @@ I18N.pt = {
 };
 I18N.ar = {
   brand:"FACELYMPIC", tagline:"ابتسم لتجري أسرع",
-  lead:"اجرِ في المضمار بوجهك.<br>ابتسم لتجري، وابقَ بوجه محايد لتتوقف. ارفع حاجبيك للقفز، أمِل رأسك للمراوغة، واستخدم فمك للأكل وتحطيم الوحوش.",
+  lead:"اجرِ في المضمار بوجهك.",
   mv_smile_t:"ابتسام", mv_smile_d:"جري · تسريع", mv_neutral_t:"وجه محايد", mv_neutral_d:"توقف",
   mv_brow_t:"رفع الحاجبين", mv_brow_d:"قفز", mv_tilt_t:"إمالة الرأس", mv_tilt_d:"مراوغة",
   mv_open_t:"فتح الفم", mv_open_d:"أكل الطعام", mv_pucker_t:"زمّ الشفتين", mv_pucker_d:"حطّم الوحوش!",
@@ -956,7 +956,7 @@ I18N.ar = {
 };
 I18N.fr = {
   brand:"FACELYMPIC", tagline:"Souris pour aller plus vite",
-  lead:"Fonce sur la piste avec ton visage.<br>Souris pour courir, visage neutre pour t'arrêter. Lève les sourcils pour sauter, incline la tête pour esquiver, utilise ta bouche pour manger et exploser.",
+  lead:"Fonce sur la piste avec ton visage.",
   mv_smile_t:"Sourire", mv_smile_d:"Courir · Boost", mv_neutral_t:"Visage neutre", mv_neutral_d:"Arrêt",
   mv_brow_t:"Lever les sourcils", mv_brow_d:"Sauter", mv_tilt_t:"Incliner la tête", mv_tilt_d:"Esquiver",
   mv_open_t:"Ouvrir la bouche", mv_open_d:"Manger", mv_pucker_t:"Faire la moue", mv_pucker_d:"Explose les monstres !",
@@ -1031,7 +1031,7 @@ I18N.fr = {
 };
 I18N.hi = {
   brand:"FACELYMPIC", tagline:"मुस्कुराओ और तेज़ दौड़ो",
-  lead:"अपने चेहरे से ट्रैक पर दौड़ें।<br>मुस्कुराओ तो दौड़, सामान्य चेहरा रखो तो रुक। भौंहें उठाकर कूदो, सिर झुकाकर बचो, मुँह से खाओ और राक्षस फोड़ो।",
+  lead:"अपने चेहरे से ट्रैक पर दौड़ें।",
   mv_smile_t:"मुस्कान", mv_smile_d:"दौड़ · बूस्ट", mv_neutral_t:"सामान्य चेहरा", mv_neutral_d:"रुकें",
   mv_brow_t:"भौंहें उठाना", mv_brow_d:"कूद", mv_tilt_t:"सिर झुकाना", mv_tilt_d:"बचाव",
   mv_open_t:"मुँह खोलना", mv_open_d:"खाना खाओ", mv_pucker_t:"होंठ सिकोड़ना", mv_pucker_d:"राक्षस फोड़ो!",
@@ -1106,7 +1106,7 @@ I18N.hi = {
 };
 I18N.id = {
   brand:"FACELYMPIC", tagline:"Tersenyum untuk berlari lebih cepat",
-  lead:"Berlari di lintasan dengan wajahmu.<br>Tersenyum untuk berlari, wajah datar untuk berhenti. Angkat alis untuk melompat, miringkan kepala untuk mengelak, gunakan mulut untuk makan dan menghancurkan.",
+  lead:"Berlari di lintasan dengan wajahmu.",
   mv_smile_t:"Senyum", mv_smile_d:"Lari · Boost", mv_neutral_t:"Wajah datar", mv_neutral_d:"Berhenti",
   mv_brow_t:"Angkat alis", mv_brow_d:"Lompat", mv_tilt_t:"Miringkan kepala", mv_tilt_d:"Mengelak",
   mv_open_t:"Buka mulut", mv_open_d:"Makan", mv_pucker_t:"Kerucutkan bibir", mv_pucker_d:"Hancurkan monster!",
@@ -1181,7 +1181,7 @@ I18N.id = {
 };
 I18N.tl = {
   brand:"FACELYMPIC", tagline:"Ngumiti para bumilis",
-  lead:"Tumakbo sa track gamit ang iyong mukha.<br>Ngumiti para tumakbo, deadpan para huminto. Itaas ang kilay para tumalon, ikiling ang ulo para umiwas, gamitin ang bibig para kumain at wasakin.",
+  lead:"Tumakbo sa track gamit ang iyong mukha.",
   mv_smile_t:"Ngiti", mv_smile_d:"Takbo · Boost", mv_neutral_t:"Walang ekspresyon", mv_neutral_d:"Hinto",
   mv_brow_t:"Itaas ang kilay", mv_brow_d:"Talon", mv_tilt_t:"Ikiling ang ulo", mv_tilt_d:"Iwas",
   mv_open_t:"Ibuka ang bibig", mv_open_d:"Kumain", mv_pucker_t:"Ngusuin ang labi", mv_pucker_d:"Wasakin ang halimaw!",
@@ -1256,7 +1256,7 @@ I18N.tl = {
 };
 I18N.th = {
   brand:"FACELYMPIC", tagline:"ยิ้มเพื่อวิ่งให้เร็วขึ้น",
-  lead:"วิ่งไปตามลู่ด้วยใบหน้าของคุณ<br>ยิ้มเพื่อวิ่ง ทำหน้านิ่งเพื่อหยุด เลิกคิ้วเพื่อกระโดด เอียงหัวเพื่อหลบ ใช้ปากกินและทำลายมอนสเตอร์",
+  lead:"วิ่งไปตามลู่ด้วยใบหน้าของคุณ",
   mv_smile_t:"ยิ้ม", mv_smile_d:"วิ่ง · เร่ง", mv_neutral_t:"หน้านิ่ง", mv_neutral_d:"หยุด",
   mv_brow_t:"เลิกคิ้ว", mv_brow_d:"กระโดด", mv_tilt_t:"เอียงหัว", mv_tilt_d:"หลบ",
   mv_open_t:"อ้าปาก", mv_open_d:"กินอาหาร", mv_pucker_t:"จู๋ปาก", mv_pucker_d:"ทำลายมอนสเตอร์!",
@@ -1331,7 +1331,7 @@ I18N.th = {
 };
 I18N.ja = {
   brand:"FACELYMPIC", tagline:"笑うと速くなる",
-  lead:"顔と首でトラックを駆け抜けよう。<br>笑うと走り、無表情で止まる。眉を上げてジャンプ、首を傾けてよけ、口で食べて怪物を吹き飛ばす。",
+  lead:"顔と首でトラックを駆け抜けよう。",
   mv_smile_t:"笑う", mv_smile_d:"走る · ブースト", mv_neutral_t:"無表情", mv_neutral_d:"停止",
   mv_brow_t:"眉を上げる", mv_brow_d:"ジャンプ", mv_tilt_t:"首を傾ける", mv_tilt_d:"よける",
   mv_open_t:"口を開ける", mv_open_d:"食べる", mv_pucker_t:"口をすぼめる", mv_pucker_d:"怪物を撃破！",
@@ -1406,7 +1406,7 @@ I18N.ja = {
 };
 I18N.tr = {
   brand:"FACELYMPIC", tagline:"Daha hızlı koşmak için gülümse",
-  lead:"Pistte yüzünle koş.<br>Koşmak için gülümse, durmak için ifadesiz kal. Zıplamak için kaşlarını kaldır, kaçmak için başını eğ, yemek yemek ve canavar patlatmak için ağzını kullan.",
+  lead:"Pistte yüzünle koş.",
   mv_smile_t:"Gülümse", mv_smile_d:"Koş · Hızlan", mv_neutral_t:"İfadesiz yüz", mv_neutral_d:"Dur",
   mv_brow_t:"Kaş kaldır", mv_brow_d:"Zıpla", mv_tilt_t:"Baş eğ", mv_tilt_d:"Kaç",
   mv_open_t:"Ağzını aç", mv_open_d:"Yemek ye", mv_pucker_t:"Dudak büz", mv_pucker_d:"Canavarı patlat!",
@@ -1481,7 +1481,7 @@ I18N.tr = {
 };
 I18N.ru = {
   brand:"FACELYMPIC", tagline:"Улыбайся, чтобы бежать быстрее",
-  lead:"Мчись по трассе с помощью лица.<br>Улыбайся — бежишь, спокойное лицо — стоп. Подними брови для прыжка, наклони голову, чтобы уворачиваться, работай ртом, чтобы есть и крушить.",
+  lead:"Мчись по трассе с помощью лица.",
   mv_smile_t:"Улыбка", mv_smile_d:"Бег · Ускорение", mv_neutral_t:"Спокойное лицо", mv_neutral_d:"Стоп",
   mv_brow_t:"Поднять брови", mv_brow_d:"Прыжок", mv_tilt_t:"Наклон головы", mv_tilt_d:"Уворот",
   mv_open_t:"Открыть рот", mv_open_d:"Есть еду", mv_pucker_t:"Сжать губы", mv_pucker_d:"Разбей монстра!",
