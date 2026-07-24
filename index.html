@@ -3059,9 +3059,10 @@ const LEGAL = {
 2. 게임 내 포인트(EP)
 - EP는 앱 내부 활동 포인트로, 현금 가치가 없으며 교환·전송·판매할 수 없습니다.
 
-3. 유료 상품(향후)
-- Pi로 구매하는 상품(리포트·꾸미기·시즌 패스 등)은 콘텐츠이며, 게임 성능·기록·순위·대회 참가 자격에 영향을 주지 않습니다.
+3. 유료 상품
+- Pi로 구매하는 상품(꾸미기 스킨·모자 등)은 콘텐츠이며, 게임 성능·기록·순위·대회 참가 자격에 영향을 주지 않습니다.
 - 공식 대회는 무료로 참가할 수 있습니다.
+- 디지털 상품 특성상 지급이 완료된 상품의 환불은 제한될 수 있습니다. (환불 정책은 정식 출시 시 고지)
 
 4. 이용자 의무
 - 타인의 얼굴 도용, 자동화 등 부정한 방법으로 기록을 조작하지 않습니다.
@@ -3076,28 +3077,38 @@ const LEGAL = {
   privacy: { title:'개인정보 처리방침 (초안)', body:
 `페이셀림픽 개인정보 처리방침 (초안 — 법률 검토 전)
 
-1. 수집 항목
-- 게임 기록: 완주 시간, 종목, 날짜
-- 기기 로컬 설정: 최고기록, 연속일, 감도 설정 (사용자 기기에만 저장)
-- 얼굴 영상·사진·얼굴 특징점: 수집하지 않습니다. 카메라 영상은 기기(브라우저) 안에서만 실시간 분석되며 즉시 폐기됩니다. 서버로 전송·저장되지 않습니다.
+1. 수집·전송 항목
+- 서버로 전송: 게임 기록(완주 시간, 종목, 날짜), 선택 입력한 닉네임, Pi 로그인 시 Pi 액세스 토큰(본인 확인용), 결제 시 결제 식별자.
+- 기기에만 저장: 최고기록, 연속 도전일, 감도·화면 설정, 보유·장착한 꾸미기 항목.
+- 서버로 전송되지 않음: 카메라 영상, 얼굴 사진, 얼굴 특징점(랜드마크), 표정 데이터.
 
-2. 수집 목적
-- 게임 진행과 기록 경쟁(세계 순위) 제공.
+2. 얼굴·카메라 데이터 (중요)
+- 카메라 영상은 기기(브라우저) 안에서만 실시간 분석되며, 저장·전송되지 않고 즉시 폐기됩니다.
+- 이 앱은 표정 신호(웃음·입벌림 등의 세기)만 읽어 게임을 조작합니다. 개인을 식별하거나 얼굴을 대조하는 생체 식별을 하지 않으며, 얼굴 지문(faceprint)을 만들거나 저장하지 않습니다.
+- 표정 분석 AI 모델(Google MediaPipe)은 기기로 내려받아 기기 안에서 실행됩니다. 이 과정에서도 카메라 영상은 외부로 전송되지 않습니다.
+- 카메라 권한은 기기·브라우저 설정에서 언제든 해제할 수 있습니다.
 
-3. 보관 및 파기
+3. 수집 목적
+- 게임 진행, 기록 경쟁(세계 순위), 유료 상품 지급.
+
+4. Pi 결제
+- 결제는 Pi Network를 통해 처리됩니다. Pi 사용자명·지갑 등 결제 수단 정보는 Pi가 관리하며, 이 앱은 결제 승인·완료를 위한 결제 식별자와 결과만 처리합니다.
+- 유료 상품은 꾸미기 콘텐츠이며 게임 성능·순위에 영향을 주지 않습니다.
+
+5. 보관 및 파기
 - 세계 순위용 기록(완주 시간 등)은 순위 서비스 제공을 위해 서버에 저장됩니다.
-- 로컬 데이터는 사용자 기기에 저장되며, 설정 > '내 데이터 삭제'로 언제든 삭제할 수 있습니다.
+- 기기 로컬 데이터는 설정 > '내 데이터 삭제'로 언제든 삭제할 수 있습니다.
 
-4. 제3자 제공
-- 개인을 식별하는 정보를 제3자에게 제공하지 않습니다.
+6. 제3자 제공
+- 개인을 식별하는 정보를 제3자에게 판매·제공하지 않습니다. (결제 처리는 Pi Network를 통해 이루어집니다.)
 
-5. AI 학습
-- 사용자 동의 없이 얼굴·표정 데이터를 AI 학습에 사용하지 않습니다. (원본을 저장하지 않습니다.)
+7. AI 학습
+- 얼굴·표정 데이터를 AI 학습에 사용하지 않습니다. (원본을 저장하지 않습니다.)
 
-6. 만 14세 미만
+8. 만 14세 미만
 - 만 14세 이상만 이용할 수 있습니다.
 
-7. 삭제·문의
+9. 삭제·문의
 - 데이터 삭제는 앱 내 '내 데이터 삭제' 또는 문의 채널로 요청할 수 있습니다.
 
 ※ 본 방침은 초안이며, 정식 출시 전 법률 검토를 거쳐 확정됩니다.` },
@@ -3150,9 +3161,10 @@ const LEGAL_EN = {
 2. In-app points (EP)
 - EP are in-app activity points with no cash value. They cannot be exchanged, transferred, or sold.
 
-3. Paid items (future)
-- Items bought with Pi (reports, cosmetics, season pass, etc.) are content and do not affect game performance, records, ranking, or eligibility to enter competitions.
+3. Paid items
+- Items bought with Pi (cosmetic skins, hats, etc.) are content and do not affect game performance, records, ranking, or eligibility to enter competitions.
 - Official competitions can be entered for free.
+- As these are digital goods, refunds for items already delivered may be limited. (A refund policy will be provided at official launch.)
 
 4. User obligations
 - Do not manipulate records by impersonating others' faces, using automation, or other unfair methods.
@@ -3167,28 +3179,38 @@ const LEGAL_EN = {
   privacy:{ title:"Privacy Policy (Draft)", body:
 `Facelympic Privacy Policy (Draft — pending legal review)
 
-1. What we collect
-- Game records: finish time, event, date
-- Local device settings: best record, streak, sensitivity (stored only on your device)
-- Face video/photos/landmarks: NOT collected. Camera video is analyzed in real time only inside your device (browser) and discarded immediately. It is not sent to or stored on a server.
+1. What we collect / send
+- Sent to the server: game records (finish time, event, date), an optional nickname, your Pi access token when you sign in (for identity verification), and a payment identifier when you make a purchase.
+- Stored only on your device: best record, streak, sensitivity/display settings, owned and equipped cosmetics.
+- NOT sent to the server: camera video, face photos, facial landmarks, expression data.
 
-2. Purpose
-- To run the game and provide record competition (world ranking).
+2. Face and camera data (important)
+- Camera video is analyzed in real time only inside your device (browser); it is not stored or transmitted and is discarded immediately.
+- The app reads only expression signals (the intensity of smile, mouth-open, etc.) to control the game. It does not identify you or match faces (no biometric identification), and it does not create or store a faceprint.
+- The expression-analysis AI model (Google MediaPipe) is downloaded to and runs on your device. Your camera video is not transmitted anywhere during this process either.
+- You can revoke camera permission anytime in your device or browser settings.
 
-3. Retention and deletion
+3. Purpose
+- To run the game, provide record competition (world ranking), and deliver paid items.
+
+4. Pi payments
+- Payments are processed through Pi Network. Payment-method information such as your Pi username and wallet is handled by Pi; this app only processes the payment identifier and result needed to approve and complete a purchase.
+- Paid items are cosmetic content and do not affect game performance or ranking.
+
+5. Retention and deletion
 - Records for the world ranking (finish time, etc.) are stored on the server to provide the ranking service.
-- Local data is stored on your device and can be deleted anytime via Settings > "Delete my data".
+- Local data can be deleted anytime via Settings > "Delete my data".
 
-4. Third parties
-- We do not provide personally identifying information to third parties.
+6. Third parties
+- We do not sell or provide personally identifying information to third parties. (Payment processing is done through Pi Network.)
 
-5. AI training
-- We do not use face/expression data for AI training without consent. (We do not store originals.)
+7. AI training
+- We do not use face/expression data for AI training. (We do not store originals.)
 
-6. Under 14
+8. Under 14
 - Only users aged 14 or older may use the service.
 
-7. Deletion / inquiries
+9. Deletion / inquiries
 - You can request deletion via the in-app "Delete my data" or the contact channel.
 
 * This is a draft and will be finalized after legal review before launch.` },
