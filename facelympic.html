@@ -97,8 +97,14 @@
   .ev-world{font-size:13px;font-weight:700;color:var(--gold);margin-top:3px;}
   .intro-set{position:absolute;top:14px;right:14px;z-index:4;width:40px;height:40px;border-radius:12px;
     border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:18px;cursor:pointer;}
-  .intro-shop{position:absolute;top:14px;left:14px;z-index:4;width:40px;height:40px;border-radius:12px;
-    border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:18px;cursor:pointer;}
+  .intro-shop{position:absolute;top:14px;left:14px;z-index:4;display:flex;align-items:center;gap:5px;
+    padding:8px 13px;border-radius:20px;border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:14px;
+    color:#3a2400;background:linear-gradient(135deg,#ffe14d,#ff9e43);
+    box-shadow:0 4px 14px -4px rgba(255,170,60,.75);animation:shopPulse 2.2s ease-in-out infinite;}
+  .intro-shop:active{transform:scale(.95);animation:none;}
+  @keyframes shopPulse{0%,100%{transform:scale(1);box-shadow:0 4px 14px -4px rgba(255,170,60,.6);}
+    50%{transform:scale(1.06);box-shadow:0 7px 22px -4px rgba(255,180,70,1);}}
+  @media (prefers-reduced-motion:reduce){ .intro-shop{animation:none;} }
   /* ---------- Settings (그룹 리스트, CiDi식) ---------- */
   #settings{padding:0;justify-content:flex-start;}
   .set-header{font-size:22px;font-weight:800;text-align:center;padding:16px 0 8px;flex-shrink:0;}
@@ -196,9 +202,10 @@
   .ep-earn{margin-top:12px;text-align:center;line-height:1.55;}
   .ep-earn .ep-amt{font-size:22px;font-weight:900;color:var(--lime);}
   .ep-earn small{display:block;color:var(--faint);font-weight:600;font-size:12.5px;margin-top:3px;}
-  .streak-top{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:3;
+  .streak-top{align-self:flex-start;margin-bottom:14px;   /* 흐름 첫 줄(로고 위·버튼 아래) — 상점 알약과 겹치지 않음 */
     font-size:13.5px;font-weight:800;color:var(--gold);background:rgba(255,211,78,.12);
-    border:1px solid rgba(255,211,78,.32);padding:6px 14px;border-radius:999px;white-space:nowrap;}
+    border:1px solid rgba(255,211,78,.32);padding:6px 14px;border-radius:999px;white-space:nowrap;
+    max-width:100%;overflow:hidden;text-overflow:ellipsis;}
 
   /* loading */
   #loading{position:absolute;inset:0;z-index:50;display:none;flex-direction:column;align-items:center;
@@ -218,7 +225,7 @@
   <!-- INTRO -->
   <section id="intro" class="screen active">
     <div class="streak-top" id="streakIntro"></div>
-    <button class="intro-shop" id="openShop" data-i18n-aria="aria_shop" aria-label="Shop">🛍️</button>
+    <button class="intro-shop" id="openShop" data-i18n-aria="aria_shop" aria-label="Shop">🛍️ <span data-i18n="shop">Shop</span></button>
     <button class="intro-set" id="openSet" data-i18n-aria="aria_set" aria-label="Settings">⚙️</button>
     <div class="logo" data-i18n-html="brand">FACELYMPIC</div>
     <div class="tagline" data-i18n="tagline">Smile to go faster</div>
