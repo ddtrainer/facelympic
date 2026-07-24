@@ -1721,6 +1721,20 @@ const sfx = {
   hit:()=>{ tone(120,.25,'sawtooth',.4,.5); },
   nice:()=>{ tone(660,.08,'square',.3); setTimeout(()=>tone(990,.12,'square',.3),70); },
   go:()=>{ tone(440,.12,'square',.35); setTimeout(()=>tone(660,.2,'square',.4),140); },
+  // ---- 미션 성공음: 전부 '상승·밝음'(성공 신호). 종목별 개성 + 음식은 콤보로 음이 높아져 신남 ----
+  eat:(combo)=>{ const b=Math.min(1180, 620+Math.min(combo||1,8)*70);   // 콤보↑ = 음↑
+    tone(b,.06,'square',.32); setTimeout(()=>tone(b*1.5,.09,'square',.34),55);
+    if(combo>=3) setTimeout(()=>tone(b*2,.09,'triangle',.24),115);       // 콤보3+ 반짝
+    if(combo>=5 && combo%5===0){ setTimeout(()=>tone(1568,.14,'triangle',.28),175); setTimeout(()=>tone(2093,.16,'triangle',.22),240); } },  // 5콤보 팡파르
+  blast:()=>{ tone(150,.28,'sawtooth',.5,.32); tone(72,.4,'square',.42,.4);   // 폭발
+    setTimeout(()=>{ tone(880,.1,'square',.3); tone(1174,.13,'triangle',.24); },45); },   // 위에 밝은 확인음
+  dodgeOk:()=>{ tone(1300,.14,'sine',.3,.55); setTimeout(()=>tone(1568,.1,'triangle',.26),95); },   // 휙 + 안도의 '팅'
+  clearOk:()=>{ tone(520,.08,'square',.32,1.7);                                // 통통 튀는 넘기
+    setTimeout(()=>tone(784,.1,'square',.32),70); setTimeout(()=>tone(1046,.12,'triangle',.26),140); },
+  // ---- 미션 실패음: 전부 '하강·둔탁'(실패 신호). 성공음과 절대 헷갈리지 않게 ----
+  miss:()=>{ tone(320,.16,'square',.34,.6); setTimeout(()=>tone(200,.24,'square',.36,.55),110);   // 하강 2음
+    tone(85,.2,'sine',.32); },                                                // 둔탁 저음 동시
+  whiff:()=>{ tone(420,.16,'sine',.22,.45); },                                 // 음식 놓침(가벼운 헛방)
 };
 // BGM: 드럼(킥·스네어·하이햇) + 베이스라인 + 리드 멜로디. 속도에 따라 템포 상승.
 const BASS=[110,110,164,146, 110,131,164,196];      // 8스텝 베이스 그루브
@@ -2132,17 +2146,17 @@ function resolve(o){
     G.dist += fwd; G.speed = Math.min(20, G.speed + (o.type==='monster'?5:2));
     spawnPop(sx, sy, pop, popCol);
     setFlash('rgba(110,235,90,.28)');
-    if(o.type==='monster'){ sfx.boom(); spawnBoom(sx,sy); G.shake=16; setFlash('rgba(255,170,50,.35)'); }
-    else if(o.type==='food'){ sfx.coin(); }
-    else if(o.type==='arrow'){ sfx.dodge(); }
-    else { sfx.nice(); }
+    if(o.type==='monster'){ sfx.blast(); spawnBoom(sx,sy); G.shake=16; setFlash('rgba(255,170,50,.35)'); }
+    else if(o.type==='food'){ sfx.eat(G.foodCombo); }   // 콤보가 쌓일수록 음이 높아짐(신남)
+    else if(o.type==='arrow'){ sfx.dodgeOk(); }
+    else { sfx.clearOk(); }
   }else{
     // 미션 실패 = 물리적 손해(감속). 점수 페널티 없음 → 느려져서 기록이 나빠짐
     // T()는 없는 키를 키 이름 그대로 돌려주므로 폴백은 맵으로 처리(||로는 안 걸림)
     const FAILKEY={ monster:'fail_monster', food:'fail_food', arrow:'fail_arrow', hurdle:'fail_hurdle' };
     spawnPop(sx, sy, T(FAILKEY[o.type]||'fail_generic'), o.type==='food'?'#9fb3d8':'#ff5d6c');
-    if(o.type==='food'){ G.foodCombo=0; }                  // 음식 놓치면 콤보 끊김
-    else { G.speed=Math.max(3, G.speed*curEvent.penalty); setFlash('rgba(255,80,90,.32)'); G.shake=12; sfx.hit(); }  // 종목별 감속
+    if(o.type==='food'){ G.foodCombo=0; sfx.whiff(); }     // 음식 놓치면 콤보 끊김 + 가벼운 헛방음
+    else { G.speed=Math.max(3, G.speed*curEvent.penalty); setFlash('rgba(255,80,90,.32)'); G.shake=12; sfx.miss(); }  // 종목별 감속 + 하강 실패음
   }
 }
 
