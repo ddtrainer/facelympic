@@ -2883,10 +2883,16 @@ function drawMoveIcon(cv, type){
   const e=MOVE_FACES[type]||MOVE_FACES.neutral;
   c.save(); c.translate(W/2,H/2); c.scale(W/44,H/44);   // 머리 중심, 회전해도 안 잘리게 여유
   if(e.tilt) c.rotate(e.tilt);
-  const hg=c.createRadialGradient(-4,-6,2,0,2,18);
-  hg.addColorStop(0,'#fff2df'); hg.addColorStop(.6,'#ffd9a8'); hg.addColorStop(1,'#f0b585');
+  const hg=c.createRadialGradient(-5,-7,1,1,3,19);   // 광택 플라스틱 느낌 — 대비 강화
+  hg.addColorStop(0,'#fffaf0'); hg.addColorStop(.35,'#ffe6bf'); hg.addColorStop(.75,'#f5b988'); hg.addColorStop(1,'#e19a68');
   c.fillStyle=hg; c.beginPath(); c.arc(0,0,16,0,7); c.fill();
-  c.fillStyle='rgba(255,255,255,.5)'; c.beginPath(); c.ellipse(-6,-6,3.6,2.4,-0.5,0,7); c.fill();
+  c.save(); c.beginPath(); c.arc(0,0,16,0,7); c.clip();   // 아래쪽 림 섀도 — 구체감
+  const rim=c.createRadialGradient(3,9,4,3,9,16);
+  rim.addColorStop(0,'rgba(120,60,30,.28)'); rim.addColorStop(1,'rgba(120,60,30,0)');
+  c.fillStyle=rim; c.beginPath(); c.arc(0,0,16,0,7); c.fill();
+  c.restore();
+  c.fillStyle='rgba(255,255,255,.65)'; c.beginPath(); c.ellipse(-6,-7,4.2,2.8,-0.5,0,7); c.fill();    // 큰 하이라이트
+  c.fillStyle='rgba(255,255,255,.9)'; c.beginPath(); c.ellipse(-7.4,-8.6,1.1,0.7,-0.5,0,7); c.fill();  // 작은 글린트
   drawFaceMini(c,e);
   c.restore();
   if(e.cue) drawMoveCue(c,e.cue,W,H);   // 큐는 회전 없이 가장자리에
