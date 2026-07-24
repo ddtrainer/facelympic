@@ -28,11 +28,37 @@
   /* ---------- Intro ---------- */
   #intro{padding:64px 26px 30px;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;}
   #intro>*{flex-shrink:0;}
-  .logo{font-size:40px;font-weight:900;letter-spacing:-.02em;line-height:1.05;margin-bottom:6px;
-    background:linear-gradient(100deg,var(--cyan),var(--lime),var(--gold),var(--magenta));
-    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
-  .tagline{font-size:17px;color:var(--cyan);font-weight:700;margin-bottom:20px;}
-  .lead{color:var(--dim);font-size:15px;line-height:1.6;margin-bottom:24px;}
+  /* ---------- 홈 히어로 ---------- */
+  .hero{text-align:center;margin-bottom:20px;}
+  .tagline{font-size:19px;color:var(--cyan);font-weight:800;margin-bottom:2px;text-shadow:0 0 16px rgba(55,214,255,.45);}
+  .logo{position:relative;display:inline-block;margin:2px 0 4px;}
+  .logo-word{font-size:clamp(44px,13.5vw,58px);font-weight:900;font-style:italic;letter-spacing:-.03em;line-height:1;
+    background:linear-gradient(95deg,#f2f8ff 52%,var(--lime));-webkit-background-clip:text;background-clip:text;
+    -webkit-text-fill-color:transparent;filter:drop-shadow(0 3px 14px rgba(55,214,255,.4));}
+  .logo::before{content:"";position:absolute;top:22%;bottom:22%;right:100%;width:38px;margin-right:9px;opacity:.75;
+    background:repeating-linear-gradient(180deg,var(--cyan) 0 3px,transparent 3px 9px);
+    -webkit-mask:linear-gradient(90deg,transparent,#000 92%);mask:linear-gradient(90deg,transparent,#000 92%);}
+  .sub-hero{font-size:15.5px;font-weight:700;color:var(--dim);margin-top:6px;}
+  .sub-hero b{color:var(--lime);font-weight:900;}
+  .hero-stage{position:relative;height:150px;margin-top:12px;overflow:hidden;}
+  .hero-stage::before{content:"";position:absolute;left:0;right:0;top:50px;height:58px;opacity:.5;   /* 달리는 느낌 = 가로 스피드 트레일 */
+    background:repeating-linear-gradient(0deg,transparent 0 7px,rgba(55,214,255,.4) 7px 9px);
+    -webkit-mask:radial-gradient(ellipse 68% 92% at 44% 50%,#000,transparent 82%);mask:radial-gradient(ellipse 68% 92% at 44% 50%,#000,transparent 82%);}
+  .hero-platform{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);width:80%;height:34px;border-radius:50%;
+    background:radial-gradient(ellipse at center,rgba(55,214,255,.6),rgba(120,80,255,.28) 58%,transparent 72%);
+    box-shadow:0 0 46px 12px rgba(55,214,255,.28);}
+  .hero-run .r{position:absolute;bottom:24px;filter:drop-shadow(0 6px 7px rgba(0,0,0,.45));animation:heroBob 1s ease-in-out infinite;}
+  .hero-run .r0{left:50%;transform:translateX(-50%);font-size:64px;z-index:5;bottom:20px;}
+  .hero-run .r2{left:26%;font-size:40px;z-index:3;bottom:28px;animation-delay:-.15s;}
+  .hero-run .r3{right:24%;font-size:40px;z-index:3;bottom:28px;animation-delay:-.35s;}
+  .hero-run .r4{left:11%;font-size:32px;z-index:2;bottom:32px;animation-delay:-.5s;}
+  .hero-run .r1{right:10%;font-size:31px;z-index:2;bottom:33px;animation-delay:-.7s;}
+  @keyframes heroBob{0%,100%{translate:0 0;}50%{translate:0 -6px;}}
+  @media (prefers-reduced-motion:reduce){ .hero-run .r{animation:none;} }
+  .home-foot{display:flex;align-items:center;justify-content:center;gap:9px;margin-top:16px;
+    font-size:14px;font-weight:800;color:var(--cyan);text-shadow:0 0 12px rgba(55,214,255,.35);}
+  .home-foot .lau{font-size:22px;opacity:.85;}
+  .home-foot .lau.flip{transform:scaleX(-1);}
   .moves{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:26px;}
   .move{display:flex;align-items:center;gap:11px;background:var(--card);border:1px solid var(--line);
     border-radius:14px;padding:12px 13px;}
@@ -227,9 +253,19 @@
     <div class="streak-top" id="streakIntro"></div>
     <button class="intro-shop" id="openShop" data-i18n-aria="aria_shop" aria-label="Shop">🛍️ <span data-i18n="shop">Shop</span></button>
     <button class="intro-set" id="openSet" data-i18n-aria="aria_set" aria-label="Settings">⚙️</button>
-    <div class="logo" data-i18n-html="brand">FACELYMPIC</div>
-    <div class="tagline" data-i18n="tagline">Smile to go faster</div>
-    <p class="lead" data-i18n-html="lead"></p>
+    <div class="hero">
+      <div class="tagline" data-i18n="tagline">Smile to go faster</div>
+      <div class="logo"><span class="logo-word">FACELYMPIC</span></div>
+      <p class="sub-hero" data-i18n-html="hero_sub"></p>
+      <div class="hero-stage" aria-hidden="true">
+        <div class="hero-platform"></div>
+        <div class="hero-run">
+          <span class="r r4">🤨</span><span class="r r2">😮</span>
+          <span class="r r0">😄</span>
+          <span class="r r3">😝</span><span class="r r1">😗</span>
+        </div>
+      </div>
+    </div>
     <div class="moves">
       <div class="move"><span class="e">😊</span><div><b data-i18n="mv_smile_t">Smile</b><span data-i18n="mv_smile_d">Run · Boost</span></div></div>
       <div class="move"><span class="e">😐</span><div><b data-i18n="mv_neutral_t">Straight face</b><span data-i18n="mv_neutral_d">Stop</span></div></div>
@@ -238,8 +274,9 @@
       <div class="move"><span class="e">😮</span><div><b data-i18n="mv_open_t">Open mouth</b><span data-i18n="mv_open_d">Eat food</span></div></div>
       <div class="move"><span class="e">😗</span><div><b data-i18n="mv_pucker_t">Pucker</b><span data-i18n="mv_pucker_d">Blast monster!</span></div></div>
     </div>
-    <button class="btn btn-primary" id="startBtn" data-i18n="start">Start</button>
+    <button class="btn btn-primary" id="startBtn"><span data-i18n="start">Play now</span> 🚀</button>
     <button class="pi-signin" id="piBtn" data-i18n="pi_signin">Sign in with Pi</button>
+    <div class="home-foot"><span class="lau">🌿</span><span data-i18n="home_foot"></span><span class="lau flip">🌿</span></div>
     <p class="err" id="introErr"></p>
   </section>
 
@@ -427,7 +464,8 @@ I18N.en = {
   mv_smile_t:"Smile", mv_smile_d:"Run · Boost", mv_neutral_t:"Straight face", mv_neutral_d:"Stop",
   mv_brow_t:"Raise brows", mv_brow_d:"Jump", mv_tilt_t:"Tilt head", mv_tilt_d:"Dodge",
   mv_open_t:"Open mouth", mv_open_d:"Eat food", mv_pucker_t:"Pucker", mv_pucker_d:"Blast monster!",
-  start:"Start", aria_shop:"Shop", aria_set:"Settings",
+  start:"Play now", aria_shop:"Shop", aria_set:"Settings",
+  hero_sub:"Take on the <b>Olympics</b> with your face", home_foot:"Your face is your power, every mission a win!",
   calib_title:"Warm-up", calib_sub:"Warm up your expressions before the race.",
   cal_ready:"Ready", cal_fit:"Fit your face in the frame", skip:"Skip",
   cs_neutral_cue:"😐 Straight face", cs_neutral_fn:"Stop — rest", cs_neutral_instr:"Relax to stop. Face forward, at ease!",
@@ -506,7 +544,8 @@ I18N.ko = {
   mv_smile_t:"웃기", mv_smile_d:"달리기 · 부스터", mv_neutral_t:"무표정", mv_neutral_d:"멈춤",
   mv_brow_t:"눈썹 올리기", mv_brow_d:"점프", mv_tilt_t:"고개 기울이기", mv_tilt_d:"좌우 피하기",
   mv_open_t:"입 벌리기", mv_open_d:"음식 먹기", mv_pucker_t:"입 오므리기", mv_pucker_d:"괴물 꽝!",
-  start:"시작하기", aria_shop:"상점", aria_set:"설정",
+  start:"지금 플레이하기", aria_shop:"상점", aria_set:"설정",
+  hero_sub:"지금, 당신의 얼굴로 <b>올림픽</b>에 도전하세요", home_foot:"표정이 힘이 되고, 미션이 승리가 된다!",
   calib_title:"표정·동작 익히기", calib_sub:"달리기 전, 표정·동작을 워밍업해요.",
   cal_ready:"준비", cal_fit:"화면 안에 얼굴을 맞춰 주세요", skip:"건너뛰기",
   cs_neutral_cue:"😐 무표정", cs_neutral_fn:"멈춤 — 쉬어가기", cs_neutral_instr:"힘을 빼면 멈춰요. 편안하게 정면을!",
@@ -585,7 +624,8 @@ I18N.zh = {
   mv_smile_t:"微笑", mv_smile_d:"奔跑 · 加速", mv_neutral_t:"面无表情", mv_neutral_d:"停止",
   mv_brow_t:"挑眉", mv_brow_d:"跳跃", mv_tilt_t:"歪头", mv_tilt_d:"闪避",
   mv_open_t:"张嘴", mv_open_d:"吃东西", mv_pucker_t:"撅嘴", mv_pucker_d:"击碎怪物！",
-  start:"开始", aria_shop:"商店", aria_set:"设置",
+  start:"立即开玩", aria_shop:"商店", aria_set:"设置",
+  hero_sub:"用你的脸挑战<b>奥运会</b>", home_foot:"表情化作力量，任务成就胜利！",
   calib_title:"热身", calib_sub:"赛跑前先热身表情和动作。",
   cal_ready:"准备", cal_fit:"请将脸对准画面", skip:"跳过",
   cs_neutral_cue:"😐 面无表情", cs_neutral_fn:"停止 — 休息", cs_neutral_instr:"放松就停下，自然正视前方！",
@@ -660,7 +700,8 @@ I18N.vi = {
   mv_smile_t:"Cười", mv_smile_d:"Chạy · Tăng tốc", mv_neutral_t:"Mặt bình thản", mv_neutral_d:"Dừng",
   mv_brow_t:"Nhướn mày", mv_brow_d:"Nhảy", mv_tilt_t:"Nghiêng đầu", mv_tilt_d:"Né",
   mv_open_t:"Há miệng", mv_open_d:"Ăn thức ăn", mv_pucker_t:"Chu môi", mv_pucker_d:"Tiêu diệt quái vật!",
-  start:"Bắt đầu", aria_shop:"Cửa hàng", aria_set:"Cài đặt",
+  start:"Chơi ngay", aria_shop:"Cửa hàng", aria_set:"Cài đặt",
+  hero_sub:"Chinh phục <b>Olympic</b> bằng khuôn mặt của bạn", home_foot:"Biểu cảm là sức mạnh, nhiệm vụ là chiến thắng!",
   calib_title:"Khởi động", calib_sub:"Khởi động biểu cảm trước khi chạy.",
   cal_ready:"Sẵn sàng", cal_fit:"Đặt khuôn mặt vào khung hình", skip:"Bỏ qua",
   cs_neutral_cue:"😐 Mặt bình thản", cs_neutral_fn:"Dừng — nghỉ", cs_neutral_instr:"Thả lỏng để dừng. Nhìn thẳng thoải mái!",
@@ -735,7 +776,8 @@ I18N.es = {
   mv_smile_t:"Sonreír", mv_smile_d:"Correr · Turbo", mv_neutral_t:"Cara seria", mv_neutral_d:"Parar",
   mv_brow_t:"Levantar cejas", mv_brow_d:"Saltar", mv_tilt_t:"Inclinar cabeza", mv_tilt_d:"Esquivar",
   mv_open_t:"Abrir la boca", mv_open_d:"Comer", mv_pucker_t:"Fruncir labios", mv_pucker_d:"¡Revienta monstruos!",
-  start:"Empezar", aria_shop:"Tienda", aria_set:"Ajustes",
+  start:"Jugar ya", aria_shop:"Tienda", aria_set:"Ajustes",
+  hero_sub:"Desafía los <b>Juegos Olímpicos</b> con tu cara", home_foot:"¡Tu cara es tu poder, cada misión una victoria!",
   calib_title:"Calentamiento", calib_sub:"Calienta tus gestos antes de correr.",
   cal_ready:"Listo", cal_fit:"Encaja tu cara en el marco", skip:"Omitir",
   cs_neutral_cue:"😐 Cara seria", cs_neutral_fn:"Parar — descansar", cs_neutral_instr:"Relájate para parar. ¡Mira al frente con calma!",
@@ -810,7 +852,8 @@ I18N.pt = {
   mv_smile_t:"Sorrir", mv_smile_d:"Correr · Turbo", mv_neutral_t:"Rosto sério", mv_neutral_d:"Parar",
   mv_brow_t:"Levantar sobrancelhas", mv_brow_d:"Pular", mv_tilt_t:"Inclinar cabeça", mv_tilt_d:"Desviar",
   mv_open_t:"Abrir a boca", mv_open_d:"Comer", mv_pucker_t:"Bico com os lábios", mv_pucker_d:"Detonar monstros!",
-  start:"Começar", aria_shop:"Loja", aria_set:"Configurações",
+  start:"Jogar agora", aria_shop:"Loja", aria_set:"Configurações",
+  hero_sub:"Encare as <b>Olimpíadas</b> com o seu rosto", home_foot:"Seu rosto é sua força, cada missão uma vitória!",
   calib_title:"Aquecimento", calib_sub:"Aqueça suas expressões antes de correr.",
   cal_ready:"Pronto", cal_fit:"Encaixe o rosto no quadro", skip:"Pular",
   cs_neutral_cue:"😐 Rosto sério", cs_neutral_fn:"Parar — descansar", cs_neutral_instr:"Relaxe para parar. Olhe em frente, tranquilo!",
@@ -885,7 +928,8 @@ I18N.ar = {
   mv_smile_t:"ابتسام", mv_smile_d:"جري · تسريع", mv_neutral_t:"وجه محايد", mv_neutral_d:"توقف",
   mv_brow_t:"رفع الحاجبين", mv_brow_d:"قفز", mv_tilt_t:"إمالة الرأس", mv_tilt_d:"مراوغة",
   mv_open_t:"فتح الفم", mv_open_d:"أكل الطعام", mv_pucker_t:"زمّ الشفتين", mv_pucker_d:"حطّم الوحوش!",
-  start:"ابدأ", aria_shop:"المتجر", aria_set:"الإعدادات",
+  start:"العب الآن", aria_shop:"المتجر", aria_set:"الإعدادات",
+  hero_sub:"تحدَّ <b>الأولمبياد</b> بوجهك", home_foot:"تعبيرك قوّتك، وكل مهمة انتصار!",
   calib_title:"إحماء", calib_sub:"أحمِ تعابيرك قبل الجري.",
   cal_ready:"استعداد", cal_fit:"ضع وجهك داخل الإطار", skip:"تخطٍّ",
   cs_neutral_cue:"😐 وجه محايد", cs_neutral_fn:"توقف — استرح", cs_neutral_instr:"استرخِ لتتوقف. انظر للأمام بهدوء!",
@@ -960,7 +1004,8 @@ I18N.fr = {
   mv_smile_t:"Sourire", mv_smile_d:"Courir · Boost", mv_neutral_t:"Visage neutre", mv_neutral_d:"Arrêt",
   mv_brow_t:"Lever les sourcils", mv_brow_d:"Sauter", mv_tilt_t:"Incliner la tête", mv_tilt_d:"Esquiver",
   mv_open_t:"Ouvrir la bouche", mv_open_d:"Manger", mv_pucker_t:"Faire la moue", mv_pucker_d:"Explose les monstres !",
-  start:"Commencer", aria_shop:"Boutique", aria_set:"Paramètres",
+  start:"Jouer", aria_shop:"Boutique", aria_set:"Paramètres",
+  hero_sub:"Défie les <b>Jeux olympiques</b> avec ton visage", home_foot:"Ton visage est ta force, chaque mission une victoire !",
   calib_title:"Échauffement", calib_sub:"Échauffe tes expressions avant de courir.",
   cal_ready:"Prêt", cal_fit:"Place ton visage dans le cadre", skip:"Passer",
   cs_neutral_cue:"😐 Visage neutre", cs_neutral_fn:"Arrêt — repos", cs_neutral_instr:"Détends-toi pour t'arrêter. Regarde droit devant, tranquille !",
@@ -1035,7 +1080,8 @@ I18N.hi = {
   mv_smile_t:"मुस्कान", mv_smile_d:"दौड़ · बूस्ट", mv_neutral_t:"सामान्य चेहरा", mv_neutral_d:"रुकें",
   mv_brow_t:"भौंहें उठाना", mv_brow_d:"कूद", mv_tilt_t:"सिर झुकाना", mv_tilt_d:"बचाव",
   mv_open_t:"मुँह खोलना", mv_open_d:"खाना खाओ", mv_pucker_t:"होंठ सिकोड़ना", mv_pucker_d:"राक्षस फोड़ो!",
-  start:"शुरू करें", aria_shop:"दुकान", aria_set:"सेटिंग्स",
+  start:"अभी खेलें", aria_shop:"दुकान", aria_set:"सेटिंग्स",
+  hero_sub:"अपने चेहरे से <b>ओलंपिक</b> को चुनौती दें", home_foot:"आपका चेहरा आपकी ताकत, हर मिशन एक जीत!",
   calib_title:"वार्म-अप", calib_sub:"दौड़ने से पहले अपने भावों को वार्म-अप करें।",
   cal_ready:"तैयार", cal_fit:"अपना चेहरा फ्रेम में लाएँ", skip:"छोड़ें",
   cs_neutral_cue:"😐 सामान्य चेहरा", cs_neutral_fn:"रुकें — आराम", cs_neutral_instr:"ढीला छोड़ें तो रुक जाएगा। आराम से सामने देखें!",
@@ -1110,7 +1156,8 @@ I18N.id = {
   mv_smile_t:"Senyum", mv_smile_d:"Lari · Boost", mv_neutral_t:"Wajah datar", mv_neutral_d:"Berhenti",
   mv_brow_t:"Angkat alis", mv_brow_d:"Lompat", mv_tilt_t:"Miringkan kepala", mv_tilt_d:"Mengelak",
   mv_open_t:"Buka mulut", mv_open_d:"Makan", mv_pucker_t:"Kerucutkan bibir", mv_pucker_d:"Hancurkan monster!",
-  start:"Mulai", aria_shop:"Toko", aria_set:"Pengaturan",
+  start:"Main sekarang", aria_shop:"Toko", aria_set:"Pengaturan",
+  hero_sub:"Taklukkan <b>Olimpiade</b> dengan wajahmu", home_foot:"Wajahmu kekuatanmu, tiap misi kemenangan!",
   calib_title:"Pemanasan", calib_sub:"Panaskan ekspresimu sebelum berlari.",
   cal_ready:"Siap", cal_fit:"Paskan wajahmu di dalam bingkai", skip:"Lewati",
   cs_neutral_cue:"😐 Wajah datar", cs_neutral_fn:"Berhenti — istirahat", cs_neutral_instr:"Rileks untuk berhenti. Lihat lurus ke depan, santai!",
@@ -1185,7 +1232,8 @@ I18N.tl = {
   mv_smile_t:"Ngiti", mv_smile_d:"Takbo · Boost", mv_neutral_t:"Walang ekspresyon", mv_neutral_d:"Hinto",
   mv_brow_t:"Itaas ang kilay", mv_brow_d:"Talon", mv_tilt_t:"Ikiling ang ulo", mv_tilt_d:"Iwas",
   mv_open_t:"Ibuka ang bibig", mv_open_d:"Kumain", mv_pucker_t:"Ngusuin ang labi", mv_pucker_d:"Wasakin ang halimaw!",
-  start:"Simulan", aria_shop:"Tindahan", aria_set:"Mga setting",
+  start:"Maglaro na", aria_shop:"Tindahan", aria_set:"Mga setting",
+  hero_sub:"Lusubin ang <b>Olympics</b> gamit ang mukha mo", home_foot:"Ang mukha mo ang lakas mo, bawat misyon panalo!",
   calib_title:"Pag-init", calib_sub:"I-warm up ang iyong mga ekspresyon bago tumakbo.",
   cal_ready:"Handa", cal_fit:"Iposisyon ang mukha sa loob ng frame", skip:"Laktawan",
   cs_neutral_cue:"😐 Walang ekspresyon", cs_neutral_fn:"Hinto — pahinga", cs_neutral_instr:"Mag-relax para huminto. Tumingin sa harap, kalmado!",
@@ -1260,7 +1308,8 @@ I18N.th = {
   mv_smile_t:"ยิ้ม", mv_smile_d:"วิ่ง · เร่ง", mv_neutral_t:"หน้านิ่ง", mv_neutral_d:"หยุด",
   mv_brow_t:"เลิกคิ้ว", mv_brow_d:"กระโดด", mv_tilt_t:"เอียงหัว", mv_tilt_d:"หลบ",
   mv_open_t:"อ้าปาก", mv_open_d:"กินอาหาร", mv_pucker_t:"จู๋ปาก", mv_pucker_d:"ทำลายมอนสเตอร์!",
-  start:"เริ่ม", aria_shop:"ร้านค้า", aria_set:"ตั้งค่า",
+  start:"เล่นเลย", aria_shop:"ร้านค้า", aria_set:"ตั้งค่า",
+  hero_sub:"ท้าชิง <b>โอลิมปิก</b> ด้วยใบหน้าของคุณ", home_foot:"ใบหน้าคือพลัง ทุกภารกิจคือชัยชนะ!",
   calib_title:"วอร์มอัพ", calib_sub:"วอร์มอัพสีหน้าก่อนวิ่ง",
   cal_ready:"พร้อม", cal_fit:"จัดใบหน้าให้อยู่ในกรอบ", skip:"ข้าม",
   cs_neutral_cue:"😐 หน้านิ่ง", cs_neutral_fn:"หยุด — พัก", cs_neutral_instr:"ผ่อนคลายเพื่อหยุด มองตรงไปข้างหน้าสบายๆ!",
@@ -1335,7 +1384,8 @@ I18N.ja = {
   mv_smile_t:"笑う", mv_smile_d:"走る · ブースト", mv_neutral_t:"無表情", mv_neutral_d:"停止",
   mv_brow_t:"眉を上げる", mv_brow_d:"ジャンプ", mv_tilt_t:"首を傾ける", mv_tilt_d:"よける",
   mv_open_t:"口を開ける", mv_open_d:"食べる", mv_pucker_t:"口をすぼめる", mv_pucker_d:"怪物を撃破！",
-  start:"スタート", aria_shop:"ショップ", aria_set:"設定",
+  start:"今すぐプレイ", aria_shop:"ショップ", aria_set:"設定",
+  hero_sub:"顔で<b>オリンピック</b>に挑戦", home_foot:"表情が力になり、ミッションが勝利になる！",
   calib_title:"ウォームアップ", calib_sub:"走る前に表情をウォームアップ。",
   cal_ready:"準備", cal_fit:"顔を枠に合わせてください", skip:"スキップ",
   cs_neutral_cue:"😐 無表情", cs_neutral_fn:"停止 — ひと休み", cs_neutral_instr:"力を抜くと止まります。楽に正面を！",
@@ -1410,7 +1460,8 @@ I18N.tr = {
   mv_smile_t:"Gülümse", mv_smile_d:"Koş · Hızlan", mv_neutral_t:"İfadesiz yüz", mv_neutral_d:"Dur",
   mv_brow_t:"Kaş kaldır", mv_brow_d:"Zıpla", mv_tilt_t:"Baş eğ", mv_tilt_d:"Kaç",
   mv_open_t:"Ağzını aç", mv_open_d:"Yemek ye", mv_pucker_t:"Dudak büz", mv_pucker_d:"Canavarı patlat!",
-  start:"Başla", aria_shop:"Mağaza", aria_set:"Ayarlar",
+  start:"Hemen oyna", aria_shop:"Mağaza", aria_set:"Ayarlar",
+  hero_sub:"Yüzünle <b>Olimpiyatlar</b>a meydan oku", home_foot:"Yüzün gücün, her görev bir zafer!",
   calib_title:"Isınma", calib_sub:"Koşmadan önce ifadelerini ısındır.",
   cal_ready:"Hazır", cal_fit:"Yüzünü çerçeveye yerleştir", skip:"Atla",
   cs_neutral_cue:"😐 İfadesiz yüz", cs_neutral_fn:"Dur — dinlen", cs_neutral_instr:"Gevşe ve dur. Rahatça karşıya bak!",
@@ -1485,7 +1536,8 @@ I18N.ru = {
   mv_smile_t:"Улыбка", mv_smile_d:"Бег · Ускорение", mv_neutral_t:"Спокойное лицо", mv_neutral_d:"Стоп",
   mv_brow_t:"Поднять брови", mv_brow_d:"Прыжок", mv_tilt_t:"Наклон головы", mv_tilt_d:"Уворот",
   mv_open_t:"Открыть рот", mv_open_d:"Есть еду", mv_pucker_t:"Сжать губы", mv_pucker_d:"Разбей монстра!",
-  start:"Начать", aria_shop:"Магазин", aria_set:"Настройки",
+  start:"Играть", aria_shop:"Магазин", aria_set:"Настройки",
+  hero_sub:"Брось вызов <b>Олимпиаде</b> лицом", home_foot:"Твоё лицо — твоя сила, каждая миссия — победа!",
   calib_title:"Разминка", calib_sub:"Разомни мимику перед забегом.",
   cal_ready:"Готовься", cal_fit:"Помести лицо в рамку", skip:"Пропустить",
   cs_neutral_cue:"😐 Спокойное лицо", cs_neutral_fn:"Стоп — отдых", cs_neutral_instr:"Расслабься, чтобы остановиться. Спокойно смотри вперёд!",
