@@ -2781,12 +2781,12 @@ const HAT_DRAW={
     ctx.fillStyle='#fff'; [[-5,-96],[3,-100],[-2,-91]].forEach(p=>{ ctx.beginPath(); ctx.arc(p[0],p[1],1.4,0,7); ctx.fill(); });
   },
 };
-const HATS={               // icon=상점 스와치용 이모지
+const HATS={               // icon=상점 스와치용 이모지. price=EP · piPrice=Pi(π)
   none:  {price:0,   icon:'🚫'},
-  band:  {price:0,   icon:'🎀'},
-  cap:   {price:150, icon:'🧢'},
-  party: {price:200, icon:'🎉'},
-  crown: {price:500, icon:'👑'},
+  band:  {price:0,   icon:'🎀'},                // 기본 장착(무료)
+  cap:   {price:500, icon:'🧢'},                // EP 전용
+  party: {price:800, icon:'🎉'},                // EP 전용
+  crown: {piPrice:2, icon:'👑'},                // Pi 프리미엄(π2) — 챔피언 왕관(EP에선 못 삼)
 };
 const DEFAULT_OWNED=new Set(['basic','day','none','band']);   // 기본 스킨·테마·모자는 무료 보유
 const EQUIP_KEY={ skin:'fl_skin', theme:'fl_theme', hat:'fl_hat' };
