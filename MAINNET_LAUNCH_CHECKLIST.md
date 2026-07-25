@@ -22,7 +22,7 @@
 - [ ] **B2. Pi Mainnet 리스팅/앱 검증 신청** — Pi Developer Portal의 Mainnet 심사 절차. Testnet 등록과 별개.
 - [ ] **B3. 앱 메타데이터 등록** — 이름/설명/아이콘/카테고리/**개인정보 처리방침 URL**/도메인 확인.
 - [ ] **B4. 개발자 KYC** — Pi가 요구 시.
-- [ ] **B5. Supabase 구매 테이블 생성** — 아래 SQL을 Supabase 대시보드 > SQL Editor에서 실행.
+- [x] **B5. Supabase 구매 테이블 생성 (완료 2026-07-26)** — DDCircle 프로젝트(yixigkpyncjmbfyaocjl, Facelympic이 쓰는 그 프로젝트)에 생성됨. 검증: 공개 anon 키로 위조 삽입 시도 → RLS가 차단(42501).
   ```sql
   create table if not exists public.fl_purchases (
     id bigserial primary key,
@@ -38,7 +38,7 @@
   -- service_role 키는 RLS를 우회하므로 서버 함수만 읽고 쓴다.
   alter table public.fl_purchases enable row level security;
   ```
-- [ ] **B6. Vercel 환경변수 `SUPABASE_SERVICE_KEY` 추가** — Supabase > Project Settings > API > **service_role** 키를 복사해 Vercel 환경변수로 등록 후 재배포.
+- [x] **B6. Vercel 환경변수 `SUPABASE_SERVICE_KEY` 추가 (완료 2026-07-26)** — Supabase > Project Settings > API > **service_role** 키를 복사해 Vercel 환경변수로 등록 후 재배포.
   - ⚠️ service_role 키는 **절대 클라이언트·채팅에 노출 금지**(anon 키와 달리 모든 권한).
   - 확인: `curl -X POST https://facelympic.vercel.app/api/entitlements -H 'Content-Type: application/json' -d '{"action":"list","accessToken":"x"}'` → `no_service_key`가 아니라 `invalid_token`이 나오면 설정 완료.
 
