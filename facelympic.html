@@ -329,7 +329,7 @@
     <div class="cal-fn" id="calFn" style="display:none;"></div>
     <div class="cal-instr" id="calInstr" data-i18n="cal_fit">Fit your face in the frame</div>
     <div class="cal-meter"><div class="cal-fill" id="calFill"></div></div>
-    <div id="calDbg" style="font-size:11px;color:var(--faint);font-family:monospace;margin:-6px 0 8px;min-height:14px;"></div>
+    <div id="calDbg" style="font-size:12px;color:#9be635;font-family:monospace;margin:-6px 0 8px;min-height:14px;background:rgba(0,0,0,.55);padding:5px 7px;border-radius:6px;word-break:break-all;"></div>
     <div class="cal-dots" id="calDots"></div>
     <button class="btn btn-ghost" id="calSkip" style="max-width:380px;" data-i18n="skip">Skip</button>
   </section>
@@ -1780,9 +1780,11 @@ function readSignals(now){
   // (전환은 detect '에러'시에만 — 얼굴이 단순히 화면 밖인 건 정상 상황이라 전환 사유 아님)
   window.__flLm = (res.faceLandmarks&&res.faceLandmarks.length)?res.faceLandmarks[0].length:0;   // 진단용: 랜드마크 개수
   let raw=null;
-  if(res.faceBlendshapes && res.faceBlendshapes.length){
-    const m={}; for(const c of res.faceBlendshapes[0].categories) m[c.categoryName]=c.score;
-    const hp = (res.faceLandmarks && res.faceLandmarks.length) ? computeHeadPose(res.faceLandmarks[0], detVideo.videoWidth, detVideo.videoHeight) : {roll:SM.roll};
+  const hasLm = res.faceLandmarks && res.faceLandmarks.length;
+  const hasBs = res.faceBlendshapes && res.faceBlendshapes.length;
+  if(hasLm || hasBs){   // 랜드마크만 있어도 신호 생성 — roll은 랜드마크 기반(진단 경로와 동일하게, blendshape 유무와 무관)
+    const m={}; if(hasBs) for(const c of res.faceBlendshapes[0].categories) m[c.categoryName]=c.score;
+    const hp = hasLm ? computeHeadPose(res.faceLandmarks[0], detVideo.videoWidth, detVideo.videoHeight) : {roll:SM.roll};
     raw = {
       smile : ((m.mouthSmileLeft||0)+(m.mouthSmileRight||0))/2,
       jaw   : m.jawOpen||0,
@@ -1943,10 +1945,14 @@ function renderCalDots(idx){
     d.className='cal-dot'+(i<=idx?' on':''); w.appendChild(d); });
 }
 function calDbg(s){
-  if(lsGet('fl_debug')!=='1') return;   // 디버그 모드에서만(기기문제 진단용 — 제거 금지)
-  $("calDbg").textContent = (window.__flDelegate||'?')+'/'+(safeInput?'cv':'vid')
+  // ⚠️ 임시 진단(폴드7 roll 이슈): fl_debug 게이트 없이 항상 표시 — 확정 후 다시 게이트 복원
+  const el=$("calDbg"); if(!el) return;
+  const rollAmp=(s.roll||0)*SENS.roll;
+  const dodge=Math.abs(rollAmp)>0.10 ? 'Y' : 'N';   // 게임 게이트가 켜질지(피하기 작동)
+  el.textContent = (window.__flDelegate||'?')+'/'+(safeInput?'cv':'vid')
     +' ok:'+(s.ok?1:0)+' lm:'+(window.__flLm!=null?window.__flLm:'?')
-    +' roll:'+(s.roll!=null?s.roll.toFixed(2):'?')+' smile:'+(s.smile!=null?s.smile.toFixed(2):'?');
+    +' roll:'+(s.roll!=null?s.roll.toFixed(3):'?')+' x'+SENS.roll.toFixed(1)+'→dodge:'+dodge
+    +' sm:'+(s.smile!=null?s.smile.toFixed(2):'?');
 }
 function calCue(txt, demo){ const c=$("calCue"); c.textContent=txt; c.classList.toggle('demo', !!demo); }
 function calOk(){ const c=$("calCue"); c.classList.remove('demo'); c.classList.add('ok'); sfx.coin();
