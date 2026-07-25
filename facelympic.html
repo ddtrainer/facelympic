@@ -3325,10 +3325,11 @@ function buildResultCard(o){
   const gg=ctx.createLinearGradient(px,0,px+pw,0); gg.addColorStop(0,'#9be635'); gg.addColorStop(1,'#37d6ff');
   ctx.fillStyle=gg; roundRect(px,cy-46,pw,62,31); ctx.fill();
   ctx.fillStyle='#062033'; ctx.fillText(cta, S/2, cy-4);
-  let dataUrl=null; try{ dataUrl=cv.toDataURL('image/png'); }catch(e){}   // 복원 전 캡처(동기·WebView서도 확실)
+  // JPEG(불투명 카드) — dataURL/blob 크기 ~10배↓ 로 인앱웹뷰(카톡) 크기제한 회피. 복원 전 동기 캡처
+  let dataUrl=null; try{ dataUrl=cv.toDataURL('image/jpeg',0.92); }catch(e){}
   return new Promise(res=>{
     const restore=(blob)=>{ cv.width=w0; cv.height=h0; ctx.setTransform(DPR,0,0,DPR,0,0); res({blob,dataUrl}); };
-    try{ cv.toBlob(b=>restore(b),'image/png'); }catch(e){ restore(null); }
+    try{ cv.toBlob(b=>restore(b),'image/jpeg',0.92); }catch(e){ restore(null); }
   });
 }
 // 공유 API(특히 WebView)가 불안정 → 카드 이미지를 모달로 띄워 저장/공유. blob URL + 저장버튼 + 롱프레스 허용 = 어디서든 동작
@@ -3388,7 +3389,13 @@ function showChallengeBanner(c){
   const ci=$('chalCardImg');
   if(ci){ ci.style.display='none';
     buildResultCard({evId:c.ev.id, timeMs:c.timeSec*1000, name:c.name, showName:true})
-      .then(r=>{ if(r&&r.dataUrl){ ci.src=r.dataUrl; ci.style.display=''; } }).catch(()=>{}); }
+      .then(r=>{ if(!r) return;
+        let src=null; if(r.blob){ try{ src=URL.createObjectURL(r.blob); }catch(e){} }   // blob URL: 인앱웹뷰(카톡)서 큰 dataURL 못싣는 문제 회피
+        const fb=r.dataUrl||null;
+        ci.onload=()=>{ ci.style.display=''; };
+        ci.onerror=()=>{ if(fb && ci.src!==fb){ ci.src=fb; } else { ci.style.display='none'; } };   // blob 실패 시 dataURL 폴백
+        if(src||fb){ ci.src=src||fb; }
+      }).catch(()=>{}); }
   b.style.display='';
 }
 // Pi Browser에서 열기: 안드로이드는 인텐트 딥링크(패키지 pi.browser)로 실제 실행,
