@@ -1784,19 +1784,22 @@ function readSignals(now){
   const hasBs = res.faceBlendshapes && res.faceBlendshapes.length;
   if(hasLm || hasBs){   // 랜드마크만 있어도 신호 생성 — roll은 랜드마크 기반(진단 경로와 동일하게, blendshape 유무와 무관)
     const m={}; if(hasBs) for(const c of res.faceBlendshapes[0].categories) m[c.categoryName]=c.score;
-    const hp = hasLm ? computeHeadPose(res.faceLandmarks[0], detVideo.videoWidth, detVideo.videoHeight) : {roll:SM.roll};
+    const hp = hasLm ? computeHeadPose(res.faceLandmarks[0], detVideo.videoWidth, detVideo.videoHeight) : {roll:null};
+    const safeRoll = (hp.roll!=null && isFinite(hp.roll)) ? hp.roll : (isFinite(SM.roll)?SM.roll:0);   // NaN roll 유입 차단
     raw = {
       smile : ((m.mouthSmileLeft||0)+(m.mouthSmileRight||0))/2,
       jaw   : m.jawOpen||0,
       pucker: Math.max(m.mouthPucker||0, m.mouthFunnel||0),
       brow  : ((m.browInnerUp||0)+(m.browOuterUpLeft||0)+(m.browOuterUpRight||0))/3,  // 눈썹 → 점프
-      roll  : hp.roll,
+      roll  : safeRoll,
     };
   }
   if(raw){
     lostSince = 0; out.ok = true;
     for(const k of SM_KEYS){
-      SM[k] += (raw[k]-SM[k])*A[k];   // 신호별 EMA(즉각 동작은 빠르게)
+      if(!isFinite(SM[k])) SM[k]=0;                       // 과거 NaN 오염 복구(한 번이라도 NaN이면 영구 고착되던 버그)
+      const rv = isFinite(raw[k]) ? raw[k] : SM[k];       // NaN 입력은 직전값 유지(EMA 오염 방지)
+      SM[k] += (rv-SM[k])*A[k];   // 신호별 EMA(즉각 동작은 빠르게)
       out[k] = SM[k];
     }
   } else {
@@ -1817,9 +1820,11 @@ function computeHeadPose(lm, vw, vh){
   const pairs=[[33,263],[133,362],[61,291]];   // 눈 바깥 · 눈 안쪽 · 입꼬리
   let s=0, n=0;
   for(let i=0;i<pairs.length;i++){ const A=lm[pairs[i][0]], B=lm[pairs[i][1]];
-    if(!A||!B || Math.abs(B.x-A.x)+Math.abs(B.y-A.y)<1e-4) continue;   // 퇴화(동일좌표) 쌍 제외
-    s+=Math.atan2((B.y-A.y)*h, (B.x-A.x)*w); n++; }
-  return { roll: n ? s/n : 0 };   // 똑바로면 ~0
+    if(!A||!B) continue;
+    const dy=(B.y-A.y)*h, dx=(B.x-A.x)*w;
+    if(!isFinite(dy)||!isFinite(dx) || Math.abs(B.x-A.x)+Math.abs(B.y-A.y)<1e-4) continue;   // NaN 좌표(폴드7 ROI NaN)·퇴화쌍 제외
+    s+=Math.atan2(dy, dx); n++; }
+  return { roll: n ? s/n : null };   // 유효 쌍 없으면 null(NaN 반환 금지 — EMA 오염 방지). 똑바로면 ~0
 }
 
 // ============================================================
