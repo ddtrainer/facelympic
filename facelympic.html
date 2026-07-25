@@ -350,7 +350,7 @@
         <div class="set-glabel" data-i18n="set_controls">Controls</div>
         <div class="set-item si-slider"><div class="sis-top"><span class="si-ic">😊</span><span class="si-label" data-i18n="sens_smile">Smile sensitivity</span></div><input type="range" id="sSmile" min="60" max="160" value="100"></div>
         <div class="set-item si-slider"><div class="sis-top"><span class="si-ic">🤨</span><span class="si-label" data-i18n="sens_brow">Brow sensitivity</span></div><input type="range" id="sBrow" min="60" max="160" value="100"></div>
-        <div class="set-item si-slider"><div class="sis-top"><span class="si-ic">↔️</span><span class="si-label" data-i18n="sens_roll">Head-tilt sensitivity</span></div><input type="range" id="sRoll" min="60" max="160" value="100"></div>
+        <div class="set-item si-slider"><div class="sis-top"><span class="si-ic">↔️</span><span class="si-label" data-i18n="sens_roll">Head-tilt sensitivity</span></div><input type="range" id="sRoll" min="60" max="250" value="100"></div>
         <label class="set-item si-toggle"><span class="si-ic">🔄</span><span class="si-label" data-i18n="flip">Flip left-right</span><input type="checkbox" id="tFlip"></label>
         <label class="set-item si-toggle"><span class="si-ic">🐢</span><span class="si-label" data-i18n="lowspec">Low-spec mode</span><input type="checkbox" id="tLow"></label>
         <p class="set-hint" data-i18n="set_hint">Higher sensitivity detects smaller expressions.</p>
@@ -1809,10 +1809,15 @@ function readSignals(now){
 
 // 머리 좌우 기울기(roll) — 화살 회피. 눈 양끝(33,263) 선의 기울기
 function computeHeadPose(lm, vw, vh){
-  const eL=lm[33], eR=lm[263];
   // 정규화 좌표는 화면비만큼 각도가 왜곡됨(세로영상=실제보다 작게) → 픽셀 비율로 보정해 실제 기울기 각도
   const w=vw||1, h=vh||1;
-  return { roll: Math.atan2((eR.y-eL.y)*h, (eR.x-eL.x)*w) };   // 똑바로면 ~0
+  // 여러 가로 기준선의 기울기를 평균 → 단일 랜드마크 노이즈·기기편차(폴더블 등)에 강함
+  const pairs=[[33,263],[133,362],[61,291]];   // 눈 바깥 · 눈 안쪽 · 입꼬리
+  let s=0, n=0;
+  for(let i=0;i<pairs.length;i++){ const A=lm[pairs[i][0]], B=lm[pairs[i][1]];
+    if(!A||!B || Math.abs(B.x-A.x)+Math.abs(B.y-A.y)<1e-4) continue;   // 퇴화(동일좌표) 쌍 제외
+    s+=Math.atan2((B.y-A.y)*h, (B.x-A.x)*w); n++; }
+  return { roll: n ? s/n : 0 };   // 똑바로면 ~0
 }
 
 // ============================================================
@@ -1993,7 +1998,7 @@ async function runCalibration(){
         let prog=0;                             // 신호 세기 = 진행바(따라할수록 채워짐)
         if(st.sig){ const v=s[st.sig]||0; mx=Math.max(mx,v);
           prog=Math.min(1, Math.max(0,(v-CAL[st.sig].min)/CAL_RISE)); }
-        else if(st.practice==='tilt'){ prog=Math.min(1, Math.abs(s.roll||0)/0.15); }
+        else if(st.practice==='tilt'){ prog=Math.min(1, Math.abs((s.roll||0)*SENS.roll)/0.13); }   // 감도 반영 + 임계 완화(기기별 roll 편차)
         $("calFill").style.width=(prog*100)+'%';
         hold = prog>=1 ? hold+dt : 0;           // 꽉 찬 상태를 유지해야 성공
         if(!hinted && el>CAL_HINT){ hinted=true; $("calInstr").textContent=T('cal_hint'); }
@@ -2320,8 +2325,9 @@ function gameLoop(now, gen){
 
   // ---- 좌우 이동(화살 회피): 고개 기울이기(roll) ----
   const ROLL_SIGN=FLIP?1:-1, deadR=0.10;   // 설정 '좌우 반전'으로 부호 전환(기본 -1)
-  const roll = sig.roll*ROLL_SIGN;
-  let tx = Math.abs(roll)>deadR ? Math.max(-1,Math.min(1,roll*4.5*SENS.roll)) : 0;   // 감도 반영
+  // 감도를 '데드존 판정 전에' 곱함 → 최대감도서 임계값도 낮아져, roll이 작게 잡히는 기기(폴더블 등)도 반응
+  const roll = sig.roll*ROLL_SIGN*SENS.roll;
+  let tx = Math.abs(roll)>deadR ? Math.max(-1,Math.min(1,roll*4.5)) : 0;
   if(!(act && act.type==='arrow')) tx=tx*0.45; // 회피 구간 아니면 약하게
   G.px += (tx-G.px)*Math.min(1,dt*9);
 
@@ -3972,6 +3978,8 @@ window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curE
   initAudio, bgmStart, bgmStop, bgmSchedule,     // BGM 테스트/튜닝용
   makeObstacles, hashStr, PROGRAMS,              // 미션 배치 검증/튜닝용
   encodeChallenge, decodeChallenge, challengeURL, initChallenge, shareChallenge, drawScene,   // 친구 도전장 테스트용
+  computeHeadPose, get SENS(){return SENS;},   // roll 진단/튜닝용
+
   get activeChallenge(){return activeChallenge;}, set activeChallenge(v){activeChallenge=v;} };
 </script>
 </body>
