@@ -518,6 +518,7 @@ I18N.en = {
   chal_banner:"{name} challenges you! Beat {ev} in {t}s", chal_share_text:"{name} cleared {ev} in {t}s on Facelympic — can you beat it?",
   chal_copied:"Challenge link copied!", chal_copy_manual:"Copy this challenge link:",
   vs_win:"🏆 You beat {name} by {d}s!", vs_lose:"😤 Lost to {name} by {d}s — rematch!",
+  card_cta:"Beat this time? 🔥",
   chal_pi_msg:"To log in with Pi and earn rewards, open this in the Pi Browser.", chal_pi_open:"Open in Pi Browser", chal_pi_copy:"Copy link instead",
   chal_pi_hint:"If it doesn't open, open Pi Browser and paste the link into the address bar", chal_pi_copied:"Link copied! Paste it in the Pi Browser.", chal_pi_share:"Open in Pi Browser to play & earn on Facelympic:",
   set_controls:"Controls", sens_smile:"Smile sensitivity", sens_brow:"Brow sensitivity", sens_roll:"Head-tilt sensitivity",
@@ -604,6 +605,7 @@ I18N.ko = {
   chal_banner:"{name}님의 도전장! {ev} {t}초를 이겨보세요", chal_share_text:"{name}님이 페이셀림픽 {ev}를 {t}초에 완주했어요. 이길 수 있나요?",
   chal_copied:"도전장 링크가 복사됐어요!", chal_copy_manual:"이 도전장 링크를 복사하세요:",
   vs_win:"🏆 {name}님을 {d}초 차로 이겼어요!", vs_lose:"😤 {name}님에게 {d}초 뒤졌어요 — 되받아쳐요!",
+  card_cta:"이 기록 이겨봐! 🔥",
   chal_pi_msg:"Pi로 로그인하고 보상을 받으려면 Pi Browser에서 열어주세요.", chal_pi_open:"Pi Browser에서 열기", chal_pi_copy:"대신 링크 복사",
   chal_pi_hint:"안 열리면 Pi Browser를 열고 주소창에 링크를 붙여넣으세요", chal_pi_copied:"링크 복사됨! Pi Browser에 붙여넣으세요.", chal_pi_share:"Pi Browser에서 열어 페이셀림픽을 플레이하고 보상을 받으세요:",
   set_controls:"게임 조작", sens_smile:"웃음 민감도", sens_brow:"눈썹 민감도", sens_roll:"고개 기울기 민감도",
@@ -3271,6 +3273,69 @@ async function shareChallenge(evId,timeMs){
   try{ await navigator.clipboard.writeText(text+'\n'+url); toast(T('chal_copied')); }
   catch(e){ try{ prompt(T('chal_copy_manual'), url); }catch(_){ toast(url); } }
 }
+
+// ── 결과 이미지 카드 (게임 캔버스를 임시 1080²로 써서 렌더 → PNG. 장착 스킨·모자 그대로) ──
+function buildResultCard(){
+  const S=1080;
+  const ev=EVENTS.find(e=>e.id===lastRunEv)||curEvent;
+  const t=lastRunMs/1000, medal=medalForEv(ev,t);
+  const w0=cv.width, h0=cv.height;
+  cv.width=S; cv.height=S; ctx.setTransform(1,0,0,1,0,0);
+  // 배경 + 스피드라인
+  const bg=ctx.createRadialGradient(S/2,S*0.30,60, S/2,S*0.30,S*0.95);
+  bg.addColorStop(0,'#17306a'); bg.addColorStop(1,'#0a1428');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,S,S);
+  ctx.strokeStyle='rgba(55,214,255,.10)'; ctx.lineWidth=5; ctx.lineCap='round';
+  for(let i=0;i<11;i++){ const y=96+i*86, len=90+((i*53)%150); ctx.beginPath(); ctx.moveTo(70,y); ctx.lineTo(70+len,y); ctx.stroke(); }
+  ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+  // 로고
+  ctx.font='900 italic 62px Pretendard';
+  const lg=ctx.createLinearGradient(0,70,0,132); lg.addColorStop(0,'#f2f8ff'); lg.addColorStop(1,'#9be635');
+  ctx.fillStyle=lg; ctx.fillText('FACELYMPIC', S/2, 128);
+  // 메달
+  ctx.font='110px serif'; ctx.fillText(medal, S/2, 268);
+  // 플랫폼 빛 + 그림자
+  const pf=ctx.createRadialGradient(S/2,740,10,S/2,740,300);
+  pf.addColorStop(0,'rgba(55,214,255,.5)'); pf.addColorStop(.55,'rgba(120,80,255,.20)'); pf.addColorStop(1,'transparent');
+  ctx.fillStyle=pf; ctx.beginPath(); ctx.ellipse(S/2,742,300,72,0,0,7); ctx.fill();
+  ctx.fillStyle='rgba(0,0,0,.30)'; ctx.beginPath(); ctx.ellipse(S/2,736,120,30,0,0,7); ctx.fill();
+  // 캐릭터(장착 스킨·모자 그대로) — faceExpr 임시로 활짝 웃음
+  const savedFace={smile:faceExpr.smile,jaw:faceExpr.jaw,pucker:faceExpr.pucker,brow:faceExpr.brow};
+  faceExpr.smile=0.95; faceExpr.jaw=0; faceExpr.pucker=0; faceExpr.brow=0;
+  drawRunner(S/2, 716, 0.32, 4.3, 4.3, 0);
+  Object.assign(faceExpr, savedFace);
+  // 기록 + 종목·메달
+  ctx.fillStyle='#ffd34e'; ctx.font='900 148px Pretendard';
+  ctx.fillText(t.toFixed(2), S/2, 906);
+  ctx.fillStyle='#f2f6ff'; ctx.font='800 44px Pretendard';
+  ctx.fillText(T('ev_'+ev.id)+'  ·  '+medal, S/2, 962);
+  // 도전 CTA 알약
+  const cta=T('card_cta'); ctx.font='900 42px Pretendard';
+  const tw=ctx.measureText(cta).width, pw=tw+64, px=S/2-pw/2, cy=1024;
+  const gg=ctx.createLinearGradient(px,0,px+pw,0); gg.addColorStop(0,'#9be635'); gg.addColorStop(1,'#37d6ff');
+  ctx.fillStyle=gg; roundRect(px,cy-46,pw,62,31); ctx.fill();
+  ctx.fillStyle='#062033'; ctx.fillText(cta, S/2, cy-4);
+  return new Promise(res=>{
+    const restore=(blob)=>{ cv.width=w0; cv.height=h0; ctx.setTransform(DPR,0,0,DPR,0,0); res(blob); };
+    try{ cv.toBlob(b=>restore(b),'image/png'); }catch(e){ restore(null); }
+  });
+}
+async function shareResultCard(){
+  if(lastRunMs<=0) return;
+  let blob=null; try{ blob=await buildResultCard(); }catch(e){}
+  const name=nickDisplay(), url=challengeURL(lastRunEv,lastRunMs,name);
+  const text=T('chal_share_text',{name, ev:T('ev_'+lastRunEv), t:(lastRunMs/1000).toFixed(2)});
+  const file = blob ? new File([blob],'facelympic.png',{type:'image/png'}) : null;
+  if(file && navigator.canShare && navigator.canShare({files:[file]})){   // 이미지+링크(최선)
+    try{ await navigator.share({files:[file], text, url}); return; }
+    catch(e){ if(e&&e.name==='AbortError') return; }
+  }
+  if(navigator.share){ try{ await navigator.share({title:'Facelympic', text, url}); return; }   // 링크만
+    catch(e){ if(e&&e.name==='AbortError') return; } }
+  if(blob){ try{ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='facelympic.png';
+    a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); }catch(e){} }   // 이미지 저장 폴백
+  try{ await navigator.clipboard.writeText(text+'\n'+url); toast(T('chal_copied')); }catch(e){}
+}
 function initChallenge(){
   let code=null; try{ code=new URLSearchParams(location.search).get('c'); }catch(e){}
   if(!code) return;
@@ -3500,7 +3565,7 @@ $("chalStart").addEventListener('click', ()=>{ challengePending=true; if(hasCons
 $("chalClose").addEventListener('click', clearChallenge);
 $("chalOpenPi").addEventListener('click', openInPiBrowser);
 $("chalCopyPi").addEventListener('click', copyChallengeLinkForPi);
-$("shareChalBtn").addEventListener('click', ()=>{ if(lastRunMs>0) shareChallenge(lastRunEv, lastRunMs); });
+$("shareChalBtn").addEventListener('click', ()=>{ if(lastRunMs>0) shareResultCard(); });
 $("consentChk").addEventListener('change', e=>{ $("consentGo").disabled=!e.target.checked; });
 $("consentGo").addEventListener('click', ()=>{ if(!$("consentChk").checked) return; saveConsent(); beginWarmup(); });
 $("consentBack").addEventListener('click', ()=>{ show('intro'); updateStreakIntro(); });
@@ -3995,7 +4060,7 @@ window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curE
   runCalibration, CAL_STEPS,     // 워밍업 흐름 테스트용
   initAudio, bgmStart, bgmStop, bgmSchedule,     // BGM 테스트/튜닝용
   makeObstacles, hashStr, PROGRAMS,              // 미션 배치 검증/튜닝용
-  encodeChallenge, decodeChallenge, challengeURL, initChallenge, shareChallenge, drawScene,   // 친구 도전장 테스트용
+  encodeChallenge, decodeChallenge, challengeURL, initChallenge, shareChallenge, shareResultCard, buildResultCard, drawScene,   // 친구 도전장 테스트용
   computeHeadPose, get SENS(){return SENS;},   // roll 진단/튜닝용
 
   get activeChallenge(){return activeChallenge;}, set activeChallenge(v){activeChallenge=v;} };
