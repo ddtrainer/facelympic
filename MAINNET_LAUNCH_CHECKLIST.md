@@ -11,7 +11,8 @@
   - 사실: 얼굴 인식은 100% 기기 내(브라우저 MediaPipe WASM) 처리, 서버 전송 없음(검증됨).
   - 방침에 "카메라 영상·얼굴 데이터는 기기에서만 처리되며 저장·전송하지 않음" 명시 → 신뢰 + 법적 고지.
 - [ ] **A2. 결제 지급 로직 확장** — 현재 `piComplete`가 스킨만 지급(`meta.type==='skin'`). Pi로 모자/테마도 팔면 확장 필요.
-- [ ] **A3. 결제 무결성 강화(선택, 위험 낮음)** — 현재 지급은 클라 로컬(localStorage). 꾸미기+로컬이라 악용해도 "자기 기기서 무료 스킨" 수준. 서버 검증 지급(결제 금액/상품 대조 + 중복 방지)은 후속 강화 항목.
+- [x] **A3. 구매 보존·복원(필수, 완료 2026-07-25)** — 구매가 localStorage에만 있으면 데이터삭제·폰교체 시 **실제 Pi로 산 아이템이 영구 소실**(환불분쟁). 구현: `api/entitlements.js`(Pi 토큰을 서버에서 /me 검증 → uid에 묶어 기록/복원), 결제완료 시 `recordPurchase`, Pi 검증 시 `restorePurchases`, 실패 시 대기열 재시도(`fl_pend_buy`), "내 데이터 삭제"가 구매는 보존, 완료 실패 시 사용자 안내(`buy_pending`).
+  - ⚠️ **B5·B6(아래) 설정 전까지는 서버 보관이 작동하지 않음**(로컬 지급 + 대기열 보관은 정상 동작).
 - [ ] **A4. 결제 엣지케이스 재점검** — 취소/네트워크 실패/미완료 결제 복구(onIncompletePaymentFound) 흐름 재확인.
 - [ ] **A5. `PI_SANDBOX = false` 전환** — ⚠️ **출시 순간에만**. 지금 바꾸면 Testnet 테스트가 멈춤. 마지막 단계.
 
@@ -21,6 +22,25 @@
 - [ ] **B2. Pi Mainnet 리스팅/앱 검증 신청** — Pi Developer Portal의 Mainnet 심사 절차. Testnet 등록과 별개.
 - [ ] **B3. 앱 메타데이터 등록** — 이름/설명/아이콘/카테고리/**개인정보 처리방침 URL**/도메인 확인.
 - [ ] **B4. 개발자 KYC** — Pi가 요구 시.
+- [ ] **B5. Supabase 구매 테이블 생성** — 아래 SQL을 Supabase 대시보드 > SQL Editor에서 실행.
+  ```sql
+  create table if not exists public.fl_purchases (
+    id bigserial primary key,
+    uid text not null,                 -- Pi 계정 고유 id(서버가 /me로 검증한 값만 기록)
+    item_id text not null,
+    kind text not null,                -- skin | theme | hat
+    payment_id text,
+    txid text,
+    created_at timestamptz not null default now(),
+    constraint fl_purchases_uid_item_key unique (uid, item_id)
+  );
+  -- RLS 켜고 정책은 만들지 않는다 = 공개 anon 키로는 접근 불가(위조 삽입 차단).
+  -- service_role 키는 RLS를 우회하므로 서버 함수만 읽고 쓴다.
+  alter table public.fl_purchases enable row level security;
+  ```
+- [ ] **B6. Vercel 환경변수 `SUPABASE_SERVICE_KEY` 추가** — Supabase > Project Settings > API > **service_role** 키를 복사해 Vercel 환경변수로 등록 후 재배포.
+  - ⚠️ service_role 키는 **절대 클라이언트·채팅에 노출 금지**(anon 키와 달리 모든 권한).
+  - 확인: `curl -X POST https://facelympic.vercel.app/api/entitlements -H 'Content-Type: application/json' -d '{"action":"list","accessToken":"x"}'` → `no_service_key`가 아니라 `invalid_token`이 나오면 설정 완료.
 
 ## C. 법률·정책 — 전문가 검토 필수 (⚠️ "완전 안전" 단정 불가)
 
