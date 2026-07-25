@@ -91,6 +91,17 @@
     font-size:12.5px;font-weight:800;color:var(--cyan);text-shadow:0 0 12px rgba(55,214,255,.35);}
   .home-foot .lau{font-size:18px;opacity:.85;}
   .home-foot .lau.flip{transform:scaleX(-1);}
+  /* 일일/주간 목표 — 홈 한 화면 유지 위해 아주 컴팩트하게 */
+  .quest-box{width:100%;max-width:380px;margin:0 0 10px;padding:8px 10px;border-radius:12px;
+    background:rgba(255,211,78,.07);border:1px solid rgba(255,211,78,.22);}
+  .quest-box .q-head{font-size:11px;font-weight:800;color:var(--gold);margin-bottom:5px;letter-spacing:.02em;}
+  .quest-box .q-chips{display:flex;gap:5px;flex-wrap:wrap;}
+  .quest-box .q-chip{flex:1 1 auto;min-width:0;font-size:10.5px;font-weight:700;color:var(--dim);
+    background:rgba(255,255,255,.06);border-radius:999px;padding:4px 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;}
+  .quest-box .q-chip.ok{color:#0a2a10;background:linear-gradient(135deg,var(--lime),#5fd0a0);font-weight:900;}
+  .quest-box .q-week{margin-top:5px;font-size:10.5px;font-weight:700;color:var(--faint);}
+  .quest-box .q-week.ok{color:var(--lime);font-weight:900;}
+  .quest-done{font-size:14px;font-weight:800;color:var(--lime);margin-top:6px;line-height:1.5;}
   .moves{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px;}
   .move{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);
     border-radius:12px;padding:8px 10px;}
@@ -327,6 +338,7 @@
       <div class="move"><canvas class="e-cv" width="66" height="66" data-face="open" aria-hidden="true"></canvas><div><b data-i18n="mv_open_t">Open mouth</b><span data-i18n="mv_open_d">Eat food</span></div></div>
       <div class="move"><canvas class="e-cv" width="66" height="66" data-face="pucker" aria-hidden="true"></canvas><div><b data-i18n="mv_pucker_t">Pucker</b><span data-i18n="mv_pucker_d">Blast monster!</span></div></div>
     </div>
+    <div class="quest-box" id="questBox"></div>
     <button class="btn btn-primary" id="startBtn"><span data-i18n="start">Play now</span> 🚀</button>
     <button class="pi-signin" id="piBtn" data-i18n="pi_signin">Sign in with Pi</button>
     <div class="home-foot"><span class="lau">🌿</span><span data-i18n="home_foot"></span><span class="lau flip">🌿</span></div>
@@ -479,6 +491,7 @@
     <div class="coaching" id="rCoach"></div>
     <div class="streak-result" id="streakResult"></div>
     <div class="ep-earn" id="rEP"></div>
+    <div class="quest-done" id="rQuest"></div>
     <div class="r-divider"></div>
     <button class="btn btn-share" id="shareChalBtn" style="max-width:380px;">🏁 <span id="shareChalLabel" data-i18n="chal_send">Challenge a friend</span></button>
     <button class="btn btn-primary" id="againBtn" style="max-width:380px;" data-i18n="again">Run again</button>
@@ -627,6 +640,8 @@ I18N.en = {
   chal_banner:"{name} challenges you! Beat {ev} in {t}s", chal_share_text:"{name} cleared {ev} in {t}s on Facelympic — can you beat it?",
   chal_copied:"Challenge link copied!", chal_copy_manual:"Copy this challenge link:",
   vs_win:"🏆 You beat {name} by {d}s!", vs_lose:"😤 Lost to {name} by {d}s — rematch!",
+  q_title:"Today's goals", q_races:"Finish 3 races", q_missions:"Land 20 missions", q_medal:"Silver or better",
+  q_races_s:"3 races", q_missions_s:"20 hits", q_medal_s:"Medal", q_weekly:"15 races this week", q_clear:"Goal complete — {q}",
   card_cta:"Beat this time? 🔥", card_friendsee:"Send the link to a friend — they'll see this card when they open it!",
   card_send:"Send challenge", card_copylink:"Copy link", card_close:"Close",
   chal_pi_msg:"To log in with Pi and earn rewards, open this in the Pi Browser.", chal_pi_open:"Open in Pi Browser", chal_pi_copy:"Copy link instead",
@@ -716,6 +731,8 @@ I18N.ko = {
   chal_banner:"{name}님의 도전장! {ev} {t}초를 이겨보세요", chal_share_text:"{name}님이 페이셀림픽 {ev}를 {t}초에 완주했어요. 이길 수 있나요?",
   chal_copied:"도전장 링크가 복사됐어요!", chal_copy_manual:"이 도전장 링크를 복사하세요:",
   vs_win:"🏆 {name}님을 {d}초 차로 이겼어요!", vs_lose:"😤 {name}님에게 {d}초 뒤졌어요 — 되받아쳐요!",
+  q_title:"오늘의 목표", q_races:"3판 완주", q_missions:"미션 20개 성공", q_medal:"은메달 이상",
+  q_races_s:"3판", q_missions_s:"미션 20", q_medal_s:"메달", q_weekly:"이번 주 15판", q_clear:"목표 달성 — {q}",
   card_cta:"이 기록 이겨봐! 🔥", card_friendsee:"친구에게 링크를 보내세요. 친구가 열면 이 카드가 자동으로 떠요!",
   card_send:"도전장 보내기", card_copylink:"링크 복사", card_close:"닫기",
   chal_pi_msg:"Pi로 로그인하고 보상을 받으려면 Pi Browser에서 열어주세요.", chal_pi_open:"Pi Browser에서 열기", chal_pi_copy:"대신 링크 복사",
@@ -3032,6 +3049,7 @@ function updateStreakIntro(){
   const ep=epTotal(); if(ep>0) txt += '  ·  ⚡ '+ep.toLocaleString()+' EP';
   const cr=crownCount(); if(cr>0) txt += '  ·  👑 '+cr;   // 세계 1위 횟수(경쟁 성취 — EP와 별개)
   el.textContent = txt;
+  renderQuestStrip();   // 오늘의 목표 진행도(홈 복귀 때마다 갱신)
   fitHomeLogo();   // 폰마다 폰트 폭이 달라 넘칠 수 있어 실측 후 맞춤
 }
 // ---- 홈 로고 자동 맞춤: CSS clamp만으론 폰트 로딩/폭 차이로 넘침 → 실제 폭 재서 축소 ----
@@ -3189,6 +3207,57 @@ function computeRaceEP(t, isBest, streak){   // 이번 완주의 EP 내역 계�
   return awardEP(items);
 }
 function epSpend(n){ if(epTotal()<n) return false; lsSet('fl_ep', String(epTotal()-n)); return true; }
+
+// ----- 일일/주간 목표(리텐션) : 서버 없이 로컬 집계. 보상은 EP만(일일 상한 공유 = 인플레 방지) -----
+// 경쟁·기록엔 무영향. "오늘 뭘 하면 되는지"를 주어 재방문 이유를 만든다.
+const QUESTS=[
+  { id:'races',    goal:3,  ep:30, icon:'🏃' },
+  { id:'missions', goal:20, ep:30, icon:'🎯' },
+  { id:'medal',    goal:1,  ep:40, icon:'🥈' },   // 은메달 이상 1회
+];
+const WEEKLY={ goal:15, ep:150, icon:'🏆' };
+function weekKey(){ const d=new Date(), jan1=new Date(d.getFullYear(),0,1);
+  const w=Math.floor(((d-jan1)/86400000 + jan1.getDay())/7); return d.getFullYear()+'-W'+w; }
+function questState(){
+  let s=null; try{ s=JSON.parse(lsGet('fl_quest')||'null'); }catch(e){}
+  if(!s || s.day!==todayStr()) s={ day:todayStr(), races:0, missions:0, medal:0, done:{} };
+  return s;
+}
+function weekState(){
+  let s=null; try{ s=JSON.parse(lsGet('fl_week')||'null'); }catch(e){}
+  if(!s || s.wk!==weekKey()) s={ wk:weekKey(), races:0, done:false };
+  return s;
+}
+function questProg(s,q){ return q.id==='races'? s.races : (q.id==='missions'? s.missions : s.medal); }
+// 완주 시 호출 → 진행 누적 + 새로 달성한 목표의 EP 지급. 반환: 방금 달성한 목록
+function updateQuests(medal, hits){
+  const s=questState(), w=weekState();
+  s.races+=1; s.missions+=(hits||0);
+  if(medal==='🥇'||medal==='🥈') s.medal=1;
+  w.races+=1;
+  const just=[];
+  for(const q of QUESTS){
+    if(s.done[q.id]) continue;
+    if(questProg(s,q)>=q.goal){ s.done[q.id]=true; just.push({icon:q.icon, label:T('q_'+q.id), ep:q.ep}); }
+  }
+  if(!w.done && w.races>=WEEKLY.goal){ w.done=true; just.push({icon:WEEKLY.icon, label:T('q_weekly'), ep:WEEKLY.ep}); }
+  try{ lsSet('fl_quest', JSON.stringify(s)); lsSet('fl_week', JSON.stringify(w)); }catch(e){}
+  if(just.length) awardEP(just.map(j=>({ label:j.icon+' '+j.label, ep:j.ep })));
+  return just;
+}
+// 홈 컴팩트 진행 표시(한 줄 칩 3개 + 주간) — 홈이 한 화면에 들어가도록 작게
+function renderQuestStrip(){
+  const box=$("questBox"); if(!box) return;
+  const s=questState(), w=weekState();
+  let html='<div class="q-head">'+T('q_title')+'</div><div class="q-chips">';
+  for(const q of QUESTS){
+    const p=Math.min(questProg(s,q), q.goal), ok=s.done[q.id]||p>=q.goal;
+    html+='<span class="q-chip'+(ok?' ok':'')+'">'+q.icon+' '+T('q_'+q.id+'_s')+' '+(ok?'✓':p+'/'+q.goal)+'</span>';
+  }
+  html+='</div><div class="q-week'+(w.done?' ok':'')+'">'+WEEKLY.icon+' '+T('q_weekly')+' '
+    +(w.done?'✓':Math.min(w.races,WEEKLY.goal)+'/'+WEEKLY.goal)+'</div>';
+  box.innerHTML=html;
+}
 
 // ----- 꾸미기(스킨/테마) : EP 소비처. 경쟁엔 무영향 — 비주얼만 -----
 // 표시 이름은 i18n 키(`skin_<id>` / `theme_<id>`, shopItemName 참조) — 여기에 이름을 두지 말 것
@@ -3586,6 +3655,7 @@ function finish(){
   $("streakResult").textContent = streak<=1 ? T('streak_start',{n:streak}) : T('streak_days',{n:streak});
 
   const ep=computeRaceEP(t, isBest, streak);   // EP 계산·적립(일일 상한 300)
+  const questDone=updateQuests(medalFor(t), G.hits);   // 일일/주간 목표 누적(+달성 시 EP) — EP 총합 표시 전에
   const atCap = epToday() >= EP_DAILY_CAP;      // 오늘 총합이 상한 도달?
   let epHtml;
   if(ep.net>0){
@@ -3597,6 +3667,10 @@ function finish(){
   if(atCap) epHtml+='<small style="color:var(--gold)">'+T('ep_cap')+'</small>';
   epHtml+='<small>'+T('ep_total',{n:epTotal().toLocaleString(), today:epToday(), cap:EP_DAILY_CAP})+'</small>';
   $("rEP").innerHTML=epHtml;
+  // 목표 달성 축하(달성한 순간에만) + 홈 진행바 갱신
+  $("rQuest").innerHTML = questDone.length
+    ? questDone.map(q=>'🎉 '+T('q_clear',{q:q.icon+' '+q.label})+' <b>+'+q.ep+' EP</b>').join('<br>') : '';
+  renderQuestStrip();
 
   // ---- 고스트 대결 결과 + 도전장 공유 준비 ----
   lastRunEv=curEvent.id; lastRunMs=t*1000;
@@ -4237,6 +4311,7 @@ window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curE
   makeObstacles, hashStr, PROGRAMS,              // 미션 배치 검증/튜닝용
   encodeChallenge, decodeChallenge, challengeURL, initChallenge, shareChallenge, shareResultCard, buildResultCard, showCardModal, drawScene,   // 친구 도전장 테스트용
   computeHeadPose, get SENS(){return SENS;},   // roll 진단/튜닝용
+  QUESTS, WEEKLY, questState, weekState, updateQuests, renderQuestStrip,   // 일일/주간 목표 테스트용
 
   get activeChallenge(){return activeChallenge;}, set activeChallenge(v){activeChallenge=v;} };
 </script>
