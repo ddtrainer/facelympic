@@ -660,7 +660,8 @@ I18N.en = {
   skin_basic:"Basic Blue", skin_red:"Red Sprinter", skin_green:"Lime Runner", skin_purple:"Purple Ace", skin_gold:"Gold Champion", skin_holo:"Hologram Runner",
   skin_rainbow:"Rainbow Runner", hat_halo:"Angel Halo", theme_aurora:"Aurora Track",
   wipe_confirm:"Delete all your records, settings and consent?",
-  wipe_note:"(Data saved on this device will be erased and cannot be undone.)", wipe_done:"Deleted.",
+  wipe_note:"(Data saved on this device will be erased and cannot be undone. Items you paid Pi for are kept.)", wipe_done:"Deleted.",
+  buy_restored:"Restored {n} purchased item(s) 🎁", buy_pending:"Payment received. If the item isn't there yet, sign in with Pi to restore it.",
   pi_need_browser:"Please open this in Pi Browser.", pi_need_signin:"Please sign in with Pi first.",
   pay_failed:"Couldn't complete the payment. Please try again in a moment.",
   medal_top:"🏅 Top grade — {d}s under the mark", medal_next_gold:"🎯 {d}s to gold", medal_next_silver:"🎯 {d}s to silver",
@@ -751,7 +752,8 @@ I18N.ko = {
   skin_basic:"기본 블루", skin_red:"레드 스프린터", skin_green:"라임 러너", skin_purple:"퍼플 에이스", skin_gold:"골드 챔피언", skin_holo:"홀로그램 러너",
   skin_rainbow:"무지개 러너", hat_halo:"천사 후광", theme_aurora:"오로라 트랙",
   wipe_confirm:"내 기록·설정·동의를 모두 삭제할까요?",
-  wipe_note:"(이 기기에 저장된 데이터가 지워지며 되돌릴 수 없어요)", wipe_done:"삭제했어요.",
+  wipe_note:"(이 기기에 저장된 데이터가 지워지며 되돌릴 수 없어요. Pi로 구매한 아이템은 보존돼요)", wipe_done:"삭제했어요.",
+  buy_restored:"구매한 아이템 {n}개를 복원했어요 🎁", buy_pending:"결제가 접수됐어요. 아이템이 아직 없다면 Pi로 로그인하면 복원돼요.",
   pi_need_browser:"Pi Browser에서 열어주세요.", pi_need_signin:"Pi 로그인이 필요해요.",
   pay_failed:"결제를 완료하지 못했어요. 잠시 후 다시 시도해 주세요.",
   medal_top:"🏅 최고 등급! 기준보다 {d}초 빠름", medal_next_gold:"🎯 금메달까지 {d}초", medal_next_silver:"🎯 은메달까지 {d}초",
@@ -4170,7 +4172,10 @@ $("shopBack").addEventListener('click', ()=>{ show('intro'); updateStreakIntro()
 
 // --- 내 데이터 삭제 ---
 function clearMyData(){
-  try{ Object.keys(localStorage).forEach(k=>{ if(k.indexOf('fl_')===0) localStorage.removeItem(k); }); }catch(e){}
+  // 유료 구매 보유목록은 남긴다 — 실제 Pi로 산 아이템이라 지우면 돈을 잃는 것.
+  // (개인정보가 아니라 꾸미기 아이템 ID 목록. Pi 로그인 시 서버에서도 복원됨)
+  const KEEP={ fl_owned:1, fl_pend_buy:1 };
+  try{ Object.keys(localStorage).forEach(k=>{ if(k.indexOf('fl_')===0 && !KEEP[k]) localStorage.removeItem(k); }); }catch(e){}
   SENS={smile:1,brow:1,roll:1}; FLIP=false; LOWSPEC=false; CAL_FIRST=false; calibrated=false; applyCosmetics();
 }
 $("delData").addEventListener('click', ()=>{
@@ -4211,8 +4216,58 @@ async function verifyPi(token){       // 서버에서 /me 로 토큰 검증 → 
     const r = await fetch(PI_API_BASE+'/api/verify', { method:'POST', headers:{ 'Authorization':'Bearer '+token } });
     if(!r.ok) return;                 // 서버 없음/프록시 미전달/무효 → 조용히(미검증 유지)
     const j = await r.json();
-    if(j && j.ok && j.username){ piVerified=true; lsSet('fl_pi_user', j.username); updatePiUI(); }
+    if(j && j.ok && j.username){ piVerified=true; lsSet('fl_pi_user', j.username); updatePiUI();
+      restorePurchases(); }                                   // 검증된 계정 → 서버 보유목록 복원(기기 바꿔도 유지)
   }catch(e){ /* 검증 실패는 비차단 — 게임·표시엔 영향 없음 */ }
+}
+// ===== 유료 구매 보존·복원 =====
+// 구매를 기기 localStorage에만 두면 데이터 삭제·폰 교체 시 실제 Pi로 산 아이템이 영구 소실된다.
+// → 결제 완료 시 Pi 계정에 묶어 서버 기록, 로그인 시 복원. 기록 실패는 대기열에 넣어 재시도.
+function pendingGrants(){ try{ return JSON.parse(lsGet('fl_pend_buy')||'[]'); }catch(e){ return []; } }
+function savePendingGrants(a){ try{ lsSet('fl_pend_buy', JSON.stringify(a.slice(0,20))); }catch(e){} }
+async function recordPurchase(meta, paymentId, txid){
+  if(!meta || !meta.id || !meta.type) return false;
+  const entry={ itemId:meta.id, kind:meta.type, paymentId:paymentId||'', txid:txid||'' };
+  if(!piToken){ const q=pendingGrants(); q.push(entry); savePendingGrants(q); return false; }   // 토큰 없으면 나중에
+  try{
+    const r=await fetch(PI_API_BASE+'/api/entitlements', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(Object.assign({ action:'grant', accessToken:piToken }, entry)) });
+    if(r.ok) return true;
+  }catch(e){}
+  const q=pendingGrants(); q.push(entry); savePendingGrants(q);   // 실패 → 대기열(다음 로그인 때 재시도)
+  return false;
+}
+async function flushPendingGrants(){
+  const q=pendingGrants(); if(!q.length || !piToken) return;
+  const left=[];
+  for(const e of q){
+    let ok=false;
+    try{
+      const r=await fetch(PI_API_BASE+'/api/entitlements', { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(Object.assign({ action:'grant', accessToken:piToken }, e)) });
+      ok=r.ok;
+    }catch(err){}
+    if(!ok) left.push(e);
+  }
+  savePendingGrants(left);
+}
+async function restorePurchases(){
+  if(!piToken) return;
+  await flushPendingGrants();                                  // 밀린 기록 먼저 올리고
+  try{
+    const r=await fetch(PI_API_BASE+'/api/entitlements', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'list', accessToken:piToken }) });
+    if(!r.ok) return;
+    const j=await r.json();
+    if(!j || !j.ok || !Array.isArray(j.items)) return;
+    const maps={ skin:SKINS, theme:THEMES, hat:HATS };
+    let added=0;
+    for(const it of j.items){                                  // 서버에 있는데 이 기기에 없으면 되살림(합집합 — 지우진 않음)
+      const m=maps[it.kind];
+      if(m && it.item_id && m[it.item_id] && !isOwned(it.item_id)){ addOwned(it.item_id); added++; }
+    }
+    if(added){ try{ renderShop(); }catch(e){} toast(T('buy_restored',{n:added})); }
+  }catch(e){}
 }
 // ----- Pi 결제 (Test-Pi) : 서버 승인/완료 필요(앱 API키는 서버 환경변수) -----
 function onIncompletePaymentFound(payment){   // 미완료 결제 있으면 서버로 완료 처리
@@ -4227,13 +4282,24 @@ async function piApprove(paymentId){
   catch(e){ console.warn('approve failed', e); }
 }
 async function piComplete(paymentId, txid, meta){
+  const map = meta && ({ skin:SKINS, theme:THEMES, hat:HATS })[meta.type];
+  const valid = !!(map && meta.id && map[meta.id]);
   try{
     const r = await fetch(PI_API_BASE+'/api/complete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ paymentId, txid }) });
-    if(!r.ok) return;
-    // 결제 완료 → 지급. 스킨·모자·테마 모두 지원(kind별 맵 조회 후 보유+장착)
-    const map = meta && ({ skin:SKINS, theme:THEMES, hat:HATS })[meta.type];
-    if(map && meta.id && map[meta.id]){ addOwned(meta.id); equip(meta.type, meta.id); renderShop(); }
-  }catch(e){ console.warn('complete failed', e); }
+    if(!r.ok){
+      // 결제는 진행됐는데 서버 완료 처리 실패 → 조용히 넘기면 '돈 냈는데 못 받음'이 된다.
+      if(valid){ addOwned(meta.id); equip(meta.type, meta.id); renderShop();   // 우선 지급하고
+        recordPurchase(meta, paymentId, txid); }                                // 서버 기록은 대기열로 재시도
+      try{ alert(T('buy_pending')); }catch(e){}
+      return;
+    }
+    // 결제 완료 → 지급(스킨·모자·테마) + 계정에 영구 기록(기기 바꿔도 복원)
+    if(valid){ addOwned(meta.id); equip(meta.type, meta.id); renderShop(); recordPurchase(meta, paymentId, txid); }
+  }catch(e){
+    console.warn('complete failed', e);
+    if(valid){ addOwned(meta.id); equip(meta.type, meta.id); renderShop(); recordPurchase(meta, paymentId, txid); }
+    try{ alert(T('buy_pending')); }catch(e2){}
+  }
 }
 async function buyWithPi(kind, id, it){
   if(typeof window.Pi==='undefined'){ alert(T('pi_need_browser')); return; }
@@ -4312,6 +4378,7 @@ window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curE
   encodeChallenge, decodeChallenge, challengeURL, initChallenge, shareChallenge, shareResultCard, buildResultCard, showCardModal, drawScene,   // 친구 도전장 테스트용
   computeHeadPose, get SENS(){return SENS;},   // roll 진단/튜닝용
   QUESTS, WEEKLY, questState, weekState, updateQuests, renderQuestStrip,   // 일일/주간 목표 테스트용
+  restorePurchases, recordPurchase, pendingGrants, isOwned, addOwned, clearMyData,   // 구매 보존·복원 테스트용
 
   get activeChallenge(){return activeChallenge;}, set activeChallenge(v){activeChallenge=v;} };
 </script>
