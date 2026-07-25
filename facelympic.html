@@ -573,7 +573,9 @@
   if(cx) cx.addEventListener('click', function(){ var b=$('chalBanner'); if(b) b.style.display='none'; });
 
   var b=$('chalBanner'); if(b) b.style.display='';
-  var dbg=$('chalDbg');
+  // 진단줄(k:카톡 pi:파이브라우저 mod:모듈실행) — 디버그 모드에서만 표시. 기기별 링크 문제 추적용이라 제거 금지
+  var dbgOn=false; try{ dbgOn=(localStorage.getItem('fl_debug')==='1'); }catch(e){}
+  var dbg=dbgOn?$('chalDbg'):null;
   if(dbg) dbg.textContent='k:'+(isKakao?1:0)+' pi:'+(isPi?1:0)+' mod:0';
   window.__flChalDbg=function(){ if(dbg) dbg.textContent='k:'+(isKakao?1:0)+' pi:'+(isPi?1:0)+' mod:1'; };
 
