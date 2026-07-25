@@ -213,6 +213,9 @@
   /* 상점 */
   #shop{padding:0;justify-content:flex-start;}
   .shop-ep{text-align:center;font-weight:900;color:var(--lime);font-size:18px;padding:2px 0 8px;flex-shrink:0;}
+  /* 구매 복원 — 기기 변경·데이터 삭제 후 Pi 계정에 묶인 구매를 되살림(앱스토어 표준 기능) */
+  .shop-restore{display:block;margin:0 auto 10px;padding:7px 16px;border:1px solid var(--line);border-radius:999px;
+    background:rgba(255,255,255,.05);color:var(--dim);font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;flex-shrink:0;}
   .shop-item{display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--line);}
   .set-group>.set-glabel+.shop-item{border-top:none;}
   .shop-sw{width:36px;height:36px;border-radius:9px;flex-shrink:0;border:1px solid rgba(255,255,255,.22);}
@@ -436,6 +439,7 @@
     <button class="sel-back" id="shopBack">‹</button>
     <h2 class="set-header" data-i18n="shop">Shop</h2>
     <div class="shop-ep" id="shopEP">⚡ 0 EP</div>
+    <button class="shop-restore" id="shopRestore" data-i18n="buy_restore">Restore purchases</button>
     <div class="set-scroll" id="shopScroll"></div>
   </section>
 
@@ -662,6 +666,8 @@ I18N.en = {
   wipe_confirm:"Delete all your records, settings and consent?",
   wipe_note:"(Data saved on this device will be erased and cannot be undone. Items you paid Pi for are kept.)", wipe_done:"Deleted.",
   buy_restored:"Restored {n} purchased item(s) 🎁", buy_pending:"Payment received. If the item isn't there yet, sign in with Pi to restore it.",
+  buy_restore:"🎁 Restore purchases", buy_none:"Nothing to restore — you already have everything you bought.",
+  buy_need_login:"Sign in with Pi to restore your purchases.", buy_restore_fail:"Couldn't reach the server. Please try again in a moment.",
   pi_need_browser:"Please open this in Pi Browser.", pi_need_signin:"Please sign in with Pi first.",
   pay_failed:"Couldn't complete the payment. Please try again in a moment.",
   medal_top:"🏅 Top grade — {d}s under the mark", medal_next_gold:"🎯 {d}s to gold", medal_next_silver:"🎯 {d}s to silver",
@@ -754,6 +760,8 @@ I18N.ko = {
   wipe_confirm:"내 기록·설정·동의를 모두 삭제할까요?",
   wipe_note:"(이 기기에 저장된 데이터가 지워지며 되돌릴 수 없어요. Pi로 구매한 아이템은 보존돼요)", wipe_done:"삭제했어요.",
   buy_restored:"구매한 아이템 {n}개를 복원했어요 🎁", buy_pending:"결제가 접수됐어요. 아이템이 아직 없다면 Pi로 로그인하면 복원돼요.",
+  buy_restore:"🎁 구매 복원", buy_none:"복원할 구매가 없어요 — 산 아이템은 이미 다 있어요.",
+  buy_need_login:"Pi로 로그인하면 구매한 아이템을 복원할 수 있어요.", buy_restore_fail:"서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.",
   pi_need_browser:"Pi Browser에서 열어주세요.", pi_need_signin:"Pi 로그인이 필요해요.",
   pay_failed:"결제를 완료하지 못했어요. 잠시 후 다시 시도해 주세요.",
   medal_top:"🏅 최고 등급! 기준보다 {d}초 빠름", medal_next_gold:"🎯 금메달까지 {d}초", medal_next_silver:"🎯 은메달까지 {d}초",
@@ -4169,6 +4177,7 @@ function buy(kind,id,it){
 }
 $("openShop").addEventListener('click', ()=>{ renderShop(); show('shop'); });
 $("shopBack").addEventListener('click', ()=>{ show('intro'); updateStreakIntro(); });
+$("shopRestore").addEventListener('click', ()=>{ restorePurchases(true); });   // 기기 변경·데이터 삭제 후 구매 되살리기
 
 // --- 내 데이터 삭제 ---
 function clearMyData(){
@@ -4251,15 +4260,22 @@ async function flushPendingGrants(){
   }
   savePendingGrants(left);
 }
-async function restorePurchases(){
-  if(!piToken) return;
+async function restorePurchases(manual){
+  if(!piToken){
+    if(manual){                                                // 버튼으로 직접 눌렀을 땐 안내까지
+      if(typeof window.Pi==='undefined'){ alert(T('pi_need_browser')); return; }
+      await piSignIn(true);                                    // 로그인 성공 시 verifyPi가 복원을 이어서 수행
+      if(!piToken) toast(T('buy_need_login'));
+    }
+    return;
+  }
   await flushPendingGrants();                                  // 밀린 기록 먼저 올리고
   try{
     const r=await fetch(PI_API_BASE+'/api/entitlements', { method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ action:'list', accessToken:piToken }) });
-    if(!r.ok) return;
+    if(!r.ok){ if(manual) toast(T('buy_restore_fail')); return; }
     const j=await r.json();
-    if(!j || !j.ok || !Array.isArray(j.items)) return;
+    if(!j || !j.ok || !Array.isArray(j.items)){ if(manual) toast(T('buy_restore_fail')); return; }
     const maps={ skin:SKINS, theme:THEMES, hat:HATS };
     let added=0;
     for(const it of j.items){                                  // 서버에 있는데 이 기기에 없으면 되살림(합집합 — 지우진 않음)
@@ -4267,7 +4283,8 @@ async function restorePurchases(){
       if(m && it.item_id && m[it.item_id] && !isOwned(it.item_id)){ addOwned(it.item_id); added++; }
     }
     if(added){ try{ renderShop(); }catch(e){} toast(T('buy_restored',{n:added})); }
-  }catch(e){}
+    else if(manual) toast(T('buy_none'));                      // 복원할 게 없어도 눌렀으면 응답을 준다
+  }catch(e){ if(manual) toast(T('buy_restore_fail')); }
 }
 // ----- Pi 결제 (Test-Pi) : 서버 승인/완료 필요(앱 API키는 서버 환경변수) -----
 function onIncompletePaymentFound(payment){   // 미완료 결제 있으면 서버로 완료 처리
