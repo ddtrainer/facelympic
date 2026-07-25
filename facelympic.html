@@ -30,6 +30,16 @@
   #intro .btn{padding:14px;}
   #intro .pi-signin{margin-top:9px;padding:11px;}
   #intro>*{flex-shrink:0;}
+  /* ---------- 친구 도전장 배너 ---------- */
+  .chal-banner{position:relative;margin:2px 0 10px;padding:14px 16px 16px;border-radius:16px;text-align:center;
+    background:linear-gradient(135deg,rgba(155,230,53,.16),rgba(55,214,255,.14));border:1.5px solid rgba(155,230,53,.5);
+    box-shadow:0 8px 26px -12px rgba(155,230,53,.5);}
+  .chal-banner .chal-flag{font-size:26px;line-height:1;margin-bottom:4px;}
+  .chal-banner .chal-text{font-size:14.5px;font-weight:700;color:var(--ink);line-height:1.45;margin-bottom:11px;}
+  .chal-banner .chal-text b{color:var(--lime);font-weight:900;}
+  .chal-banner .chal-go{padding:12px;font-size:15.5px;max-width:100%;}
+  .chal-x{position:absolute;top:8px;right:9px;width:26px;height:26px;border:none;border-radius:50%;
+    background:rgba(255,255,255,.1);color:var(--dim);font-size:13px;cursor:pointer;line-height:1;}
   /* ---------- 홈 히어로 (폰 최적화: JS 로고맞춤 fitHomeLogo + JS 반동 heroBob, 컴팩트) ---------- */
   .hero{text-align:center;margin-bottom:8px;}
   .tagline{font-size:16.5px;color:var(--cyan);font-weight:800;margin-bottom:1px;text-shadow:0 0 14px rgba(55,214,255,.45);}
@@ -217,6 +227,11 @@
   .big-time{font-size:62px;font-weight:900;letter-spacing:-.02em;line-height:1.05;margin:2px 0 6px;}
   .self-best{font-size:21px;font-weight:800;color:var(--dim);margin-bottom:2px;}
   .medal-gap{font-size:15px;font-weight:800;color:var(--gold);margin-top:4px;}   /* 메달이 왜 이 등급인지 + 다음 등급까지 */
+  .vs-result{font-size:17px;font-weight:900;margin-top:10px;padding:9px 14px;border-radius:12px;max-width:360px;line-height:1.4;}
+  .vs-result.win{color:#0a2a10;background:linear-gradient(135deg,#9be635,#5fd0a0);}
+  .vs-result.lose{color:var(--ink);background:rgba(255,138,149,.14);border:1px solid rgba(255,138,149,.5);}
+  .btn-share{background:linear-gradient(135deg,#9be635,#37d6ff);color:#062033;margin-bottom:10px;
+    box-shadow:0 10px 28px -10px rgba(155,230,53,.6);}
   .self-best.beat{color:var(--lime);animation:bestpop .6s cubic-bezier(.2,1.5,.4,1);}
   @keyframes bestpop{0%{transform:scale(.5);opacity:0}55%{transform:scale(1.18)}100%{transform:scale(1)}}
   .r-divider{width:100%;max-width:360px;height:1px;background:var(--line);margin:13px 0;}
@@ -255,6 +270,12 @@
   <!-- INTRO -->
   <section id="intro" class="screen active">
     <div class="streak-top" id="streakIntro"></div>
+    <div class="chal-banner" id="chalBanner" style="display:none;">
+      <button class="chal-x" id="chalClose" aria-label="close">✕</button>
+      <div class="chal-flag">🏁</div>
+      <div class="chal-text" id="chalText"></div>
+      <button class="btn btn-primary chal-go" id="chalStart"><span data-i18n="chal_accept">Accept challenge</span> ⚡</button>
+    </div>
     <button class="intro-shop" id="openShop" data-i18n-aria="aria_shop" aria-label="Shop">🛍️ <span data-i18n="shop">Shop</span></button>
     <button class="intro-set" id="openSet" data-i18n-aria="aria_set" aria-label="Settings">⚙️</button>
     <div class="hero">
@@ -422,6 +443,7 @@
     <div class="big-time" id="rTime">0.00초</div>
     <div class="self-best" id="rBest">—</div>
     <div class="medal-gap" id="rMedal"></div>
+    <div class="vs-result" id="rVs" style="display:none;"></div>
     <div class="r-divider"></div>
     <div class="world-rank" id="rRank"></div>
     <div class="r-divider"></div>
@@ -430,6 +452,7 @@
     <div class="streak-result" id="streakResult"></div>
     <div class="ep-earn" id="rEP"></div>
     <div class="r-divider"></div>
+    <button class="btn btn-share" id="shareChalBtn" style="max-width:380px;">🏁 <span id="shareChalLabel" data-i18n="chal_send">Challenge a friend</span></button>
     <button class="btn btn-primary" id="againBtn" style="max-width:380px;" data-i18n="again">Run again</button>
     <div class="done-row">
       <button class="btn btn-ghost" id="homeBtn" data-i18n="select">Select event</button>
@@ -479,6 +502,10 @@ I18N.en = {
   cs_brow_cue:"🤨 Raise brows", cs_brow_fn:"Jump — clear obstacles", cs_brow_instr:"Raise your eyebrows high",
   cs_tilt_cue:"↔️ Tilt head (left/right)", cs_tilt_fn:"Dodge arrows left/right", cs_tilt_instr:"Tilt your head left and right",
   settings:"Settings", profile_edit:"Edit profile", nick_none:"No name", nick_anon:"Anonymous",
+  chal_accept:"Accept challenge", chal_send:"Challenge a friend", chal_rematch:"Send a rematch",
+  chal_banner:"{name} challenges you! Beat {ev} in {t}s", chal_share_text:"{name} cleared {ev} in {t}s on Facelympic — can you beat it?",
+  chal_copied:"Challenge link copied!", chal_copy_manual:"Copy this challenge link:",
+  vs_win:"🏆 You beat {name} by {d}s!", vs_lose:"😤 Lost to {name} by {d}s — rematch!",
   set_controls:"Controls", sens_smile:"Smile sensitivity", sens_brow:"Brow sensitivity", sens_roll:"Head-tilt sensitivity",
   flip:"Flip left–right (dodge)", lowspec:"Low-spec mode",
   set_hint:"Higher sensitivity detects smaller expressions. Raise it if detection is weak, lower it if it misfires.",
@@ -559,6 +586,10 @@ I18N.ko = {
   cs_brow_cue:"🤨 눈썹 올리기", cs_brow_fn:"점프 — 장애물 넘기", cs_brow_instr:"눈썹을 위로 번쩍 올려요",
   cs_tilt_cue:"↔️ 고개 기울이기 (좌우)", cs_tilt_fn:"화살 좌우로 피하기", cs_tilt_instr:"고개를 좌·우로 기울여요",
   settings:"설정", profile_edit:"프로필 편집", nick_none:"이름 없음", nick_anon:"익명",
+  chal_accept:"도전 수락", chal_send:"친구에게 도전장 보내기", chal_rematch:"되받아치기 도전장",
+  chal_banner:"{name}님의 도전장! {ev} {t}초를 이겨보세요", chal_share_text:"{name}님이 페이셀림픽 {ev}를 {t}초에 완주했어요. 이길 수 있나요?",
+  chal_copied:"도전장 링크가 복사됐어요!", chal_copy_manual:"이 도전장 링크를 복사하세요:",
+  vs_win:"🏆 {name}님을 {d}초 차로 이겼어요!", vs_lose:"😤 {name}님에게 {d}초 뒤졌어요 — 되받아쳐요!",
   set_controls:"게임 조작", sens_smile:"웃음 민감도", sens_brow:"눈썹 민감도", sens_roll:"고개 기울기 민감도",
   flip:"좌우 반전 (피하기 방향)", lowspec:"저사양 모드",
   set_hint:"민감도를 높이면 작은 표정도 인식돼요. 잘 안 되면 올리고, 오작동하면 내리세요.",
@@ -2036,7 +2067,7 @@ async function runCalibration(){
   function finishWarmup(){
     if(!alive()) return;
     $("calCue").classList.remove('big','demo','ok');
-    calibrated=true; goSelect();
+    calibrated=true; routeAfterWarmup();
   }
 
   doStep();
@@ -2167,6 +2198,8 @@ function startGame(){
     raceTime:0, hits:0, foodCombo:0, tally:{hurdle:0,arrow:0,food:0,monster:0},
     flash:null, flashT:0, shake:0, cue:null, feed:null, feedT:0, slow:1,
     running:true, t:performance.now(), started:false, countdown:3.0,
+    ghost:(activeChallenge && activeChallenge.ev.id===curEvent.id)
+      ? { timeSec:activeChallenge.timeSec, name:activeChallenge.name, dist:0 } : null,
   };
   bgmStart(); sfx.go();
   const myGen=++loopGen;
@@ -2255,6 +2288,7 @@ function gameLoop(now, gen){
 
   const act = activeObstacle();
   G.raceTime += dt;          // 기록 = 완주 시간(유일한 지표)
+  if(G.ghost) G.ghost.dist = TARGET*Math.min(1, G.raceTime/G.ghost.timeSec);   // 친구 고스트: 등속 페이스
 
   // ---- 속도(연속): 무표정=멈춤, 웃을수록 빨라짐 ----
   const sN = Math.min(1, (sig.ok? norm('smile',sig.smile):0) * SENS.smile);   // 감도 반영
@@ -2450,6 +2484,18 @@ function drawScene(sig, speed){
     }
   }
 
+  // 고스트(친구) 러너 — 앞서갈 때만 트랙 위에 표시(뒤처지면 화면 밖 → HUD로만 표시)
+  if(G && G.ghost){
+    const ahead=G.ghost.dist-G.dist;
+    if(ahead>0 && ahead<VIEW){
+      const gd=Math.max(0,Math.min(1,ahead/VIEW)), gff=f(gd);
+      const groadHalf=topHalf+(bottomHalf-topHalf)*gff;
+      const gx=cx + 0.5*groadHalf*0.7, gy=yD(gd), gsc=1.25*Math.max(0.34,gff);
+      ctx.fillStyle='rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(gx,gy,26*gsc/1.25,9*gsc/1.25,0,0,7); ctx.fill();
+      drawGhostRunner(gx,gy,gsc,G.ghost.dist,G.ghost.name);
+    }
+  }
+
   // 플레이어
   if(G){
     const footY=yD(0)-4 - G.py*52;
@@ -2500,6 +2546,7 @@ function drawScene(sig, speed){
 
   // HUD
   drawHUD(W,H,sig);
+  drawGhostHUD(W,H);   // 고스트 대결 격차
 
   // 중앙 액션 큐
   if(G){
@@ -2652,6 +2699,46 @@ function drawRunner(x,y,dist,sx,sy,lean){
   drawFace(faceExpr);
   // 모자(장착 슬롯) — 스킨과 독립, 머리 위에 얹음
   const hd=HAT_DRAW[EQHAT]; if(hd) hd();
+  ctx.restore();
+}
+// 고스트(친구) 러너 — 반투명 실루엣 + 이름표. 친구 기록 페이스로 달림
+function drawGhostRunner(x,y,s,dist,name){
+  const a=dist*9, bob=Math.abs(Math.sin(a))*-2.5;
+  ctx.save(); ctx.translate(x,y+bob*s); ctx.scale(s,s);
+  ctx.lineCap='round'; ctx.lineJoin='round'; ctx.globalAlpha=0.5;
+  function leg(side,aa){ const hipX=side*4,hipY=-26,lift=Math.max(0,Math.sin(aa)),swing=Math.cos(aa);
+    const footX=hipX+swing*3,footY=-1-lift*9,kneeX=hipX+swing*2+side*lift*1.2,kneeY=-15-lift*2;
+    ctx.strokeStyle='#7fc7f5'; ctx.lineWidth=10;
+    ctx.beginPath(); ctx.moveTo(hipX,hipY); ctx.lineTo(kneeX,kneeY); ctx.lineTo(footX,footY); ctx.stroke(); }
+  function arm(side,aa){ const shX=side*11,shY=-54,sw=Math.sin(aa);
+    ctx.strokeStyle='#7fc7f5'; ctx.lineWidth=8;
+    ctx.beginPath(); ctx.moveTo(shX,shY); ctx.lineTo(shX+side*2,-47-sw*4); ctx.lineTo(shX+side*3,-43-sw*11); ctx.stroke(); }
+  leg(-1,a+Math.PI); leg(1,a);
+  ctx.fillStyle='rgba(120,205,255,.55)'; roundRect(-14,-62,28,38,13); ctx.fill();
+  arm(-1,a); arm(1,a+Math.PI);
+  ctx.fillStyle='rgba(205,240,255,.7)'; ctx.beginPath(); ctx.arc(0,-78,15,0,7); ctx.fill();
+  ctx.restore();
+  // 이름표(불투명)
+  ctx.save(); ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+  const ny=y-98*s, fs=Math.max(9,Math.round(12*s));
+  ctx.font='700 '+fs+'px Pretendard'; const tw=ctx.measureText(name).width+12;
+  ctx.fillStyle='rgba(8,22,46,.78)'; roundRect(x-tw/2, ny-fs-4, tw, fs+7, 7); ctx.fill();
+  ctx.fillStyle='#bfe9ff'; ctx.fillText(name, x, ny); ctx.restore();
+}
+// 격차 HUD — vs 친구, 앞/뒤 리드(m). 고스트가 화면 밖(뒤)일 때도 상황을 알려줌
+function drawGhostHUD(W,H){
+  if(!G || !G.ghost) return;
+  const lead=G.dist-G.ghost.dist, ahead=lead>=0, name=G.ghost.name;   // + = 내가 앞
+  const l1='vs '+name, l2=(ahead?'▲ ':'▼ ')+Math.abs(lead).toFixed(0)+'m';
+  const col=ahead?'#9be635':'#ff8a95';
+  ctx.save(); ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.font='800 12px Pretendard'; const w1=ctx.measureText(l1).width;
+  ctx.font='900 16px Pretendard'; const w2=ctx.measureText(l2).width;
+  const pw=Math.max(w1,w2)+20, ph=42, x=14, y=44;
+  ctx.fillStyle='rgba(6,16,31,.66)'; roundRect(x,y,pw,ph,10); ctx.fill();
+  ctx.strokeStyle=col; ctx.globalAlpha=.55; ctx.lineWidth=2; roundRect(x,y,pw,ph,10); ctx.stroke(); ctx.globalAlpha=1;
+  ctx.fillStyle='#bfe0ff'; ctx.font='800 12px Pretendard'; ctx.fillText(l1, x+10, y+6);
+  ctx.fillStyle=col; ctx.font='900 16px Pretendard'; ctx.fillText(l2, x+10, y+20);
   ctx.restore();
 }
 // HUD는 달리는 중에 '꼭 봐야 하는 것'만 — 기록·남은거리·인식상태.
@@ -3096,6 +3183,69 @@ async function updateWorldRank(eventId, time, day){   // 기록 등록 + 오늘�
   }catch(e){ $("rRank").innerHTML='<span style="color:var(--faint)">'+T('rank_later')+'</span>'; }
 }
 
+// ============================================================
+//  친구 도전장 · 고스트 대결 (비동기 2인 경주)
+//  링크에 종목·기록·닉네임만 담아 공유 → 받는 사람은 그 기록 페이스의
+//  '고스트'와 경주. 서버·실시간 연결 불필요(아무 때나 도전 수락 가능).
+// ============================================================
+let activeChallenge=null;    // {ev, timeSec, name} — 대결 중인 친구 기록(없으면 단독)
+let challengePending=false;  // 도전장 배너로 시작 → 워밍업 후 종목선택 건너뛰고 바로 대결
+let lastRunEv=null, lastRunMs=0;   // 방금 완주한 기록(도전장 공유용)
+
+function b64urlEnc(s){ return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function b64urlDec(s){ s=s.replace(/-/g,'+').replace(/_/g,'/'); return decodeURIComponent(escape(atob(s))); }
+function encodeChallenge(evId,timeMs,name){ return b64urlEnc(JSON.stringify({v:1,e:evId,t:Math.round(timeMs),n:String(name||'').slice(0,16)})); }
+function decodeChallenge(code){
+  try{
+    const o=JSON.parse(b64urlDec(code));
+    if(!o||o.v!==1) return null;
+    const ev=EVENTS.find(e=>e.id===o.e); if(!ev) return null;
+    const t=Number(o.t); if(!isFinite(t)||t<=0||t>3600000) return null;
+    const name=String(o.n||'').replace(/[<>]/g,'').slice(0,16)||T('nick_anon');
+    return {ev, timeSec:t/1000, name};
+  }catch(e){ return null; }
+}
+function challengeURL(evId,timeMs,name){ return location.origin+location.pathname+'?c='+encodeChallenge(evId,timeMs,name); }
+
+let _toastT=null;
+function toast(msg){
+  let el=$('flToast');
+  if(!el){ el=document.createElement('div'); el.id='flToast';
+    el.style.cssText='position:fixed;left:50%;bottom:42px;transform:translateX(-50%);z-index:9999;'+
+      'background:rgba(10,20,40,.96);color:#eaf4ff;border:1px solid rgba(120,235,255,.4);'+
+      'padding:12px 18px;border-radius:12px;font-weight:700;font-size:14px;max-width:86%;'+
+      'text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.5);opacity:0;transition:opacity .2s;pointer-events:none;';
+    document.body.appendChild(el); }
+  el.textContent=msg; el.style.opacity='1';
+  clearTimeout(_toastT); _toastT=setTimeout(()=>{ el.style.opacity='0'; },2600);
+}
+async function shareChallenge(evId,timeMs){
+  const name=nickDisplay(), url=challengeURL(evId,timeMs,name);
+  const text=T('chal_share_text',{name, ev:T('ev_'+evId), t:(timeMs/1000).toFixed(2)});
+  try{ if(navigator.share){ await navigator.share({title:'Facelympic', text, url}); return; } }
+  catch(e){ if(e&&e.name==='AbortError') return; }
+  try{ await navigator.clipboard.writeText(text+'\n'+url); toast(T('chal_copied')); }
+  catch(e){ try{ prompt(T('chal_copy_manual'), url); }catch(_){ toast(url); } }
+}
+function initChallenge(){
+  let code=null; try{ code=new URLSearchParams(location.search).get('c'); }catch(e){}
+  if(!code) return;
+  const c=decodeChallenge(code);
+  try{ history.replaceState(null,'',location.pathname); }catch(e){}   // 새로고침 재트리거 방지·주소 정리
+  if(!c) return;
+  activeChallenge=c; curEvent=c.ev; showChallengeBanner(c);
+}
+function showChallengeBanner(c){
+  const b=$('chalBanner'); if(!b) return;
+  $('chalText').innerHTML=T('chal_banner',{name:'<b>'+c.name+'</b>', ev:T('ev_'+c.ev.id), t:c.timeSec.toFixed(2)});
+  b.style.display='';
+}
+function clearChallenge(){ activeChallenge=null; challengePending=false; const b=$('chalBanner'); if(b) b.style.display='none'; }
+function routeAfterWarmup(){   // 워밍업/캘리브 끝난 뒤 진입점
+  if(challengePending && activeChallenge){ challengePending=false; pickEvent(activeChallenge.ev); }
+  else goSelect();
+}
+
 function finish(){
   G.running=false; bgmStop();
   const t=G.raceTime;
@@ -3140,6 +3290,19 @@ function finish(){
   if(atCap) epHtml+='<small style="color:var(--gold)">'+T('ep_cap')+'</small>';
   epHtml+='<small>'+T('ep_total',{n:epTotal().toLocaleString(), today:epToday(), cap:EP_DAILY_CAP})+'</small>';
   $("rEP").innerHTML=epHtml;
+
+  // ---- 고스트 대결 결과 + 도전장 공유 준비 ----
+  lastRunEv=curEvent.id; lastRunMs=t*1000;
+  const vs=$('rVs'), sLbl=$('shareChalLabel');
+  if(G.ghost){
+    const win = t < G.ghost.timeSec, diff=Math.abs(t-G.ghost.timeSec).toFixed(2);
+    vs.style.display=''; vs.className='vs-result '+(win?'win':'lose');
+    vs.innerHTML = win ? T('vs_win',{name:G.ghost.name, d:diff}) : T('vs_lose',{name:G.ghost.name, d:diff});
+    if(sLbl) sLbl.textContent=T('chal_rematch');
+  } else {
+    vs.style.display='none';
+    if(sLbl) sLbl.textContent=T('chal_send');
+  }
 
   show('done');
   if(isBest) fireConfetti();      // 자기최고 경신 시에만 축하
@@ -3255,7 +3418,7 @@ async function beginWarmup(){   // 카메라 켜고 워밍업 → 종목 선택
     $("loadText").textContent=T('load_cam');
     if(!stream) await startCamera(calVideo);
     $("loading").classList.remove('active');
-    if(!calibrated) runCalibration(); else goSelect();   // 세션 첫 진입에 표정·동작 워밍업
+    if(!calibrated) runCalibration(); else routeAfterWarmup();   // 세션 첫 진입에 표정·동작 워밍업
   }catch(e){
     $("loading").classList.remove('active'); console.error(e);
     let msg=T('err_generic',{m:(e.message||e)});
@@ -3265,6 +3428,10 @@ async function beginWarmup(){   // 카메라 켜고 워밍업 → 종목 선택
   }
 }
 $("startBtn").addEventListener('click', ()=>{ if(hasConsent()) beginWarmup(); else showConsent(); });
+// 친구 도전장: 배너 수락 → 워밍업 후 바로 그 종목으로(challengePending) / 닫기 / 결과화면 공유
+$("chalStart").addEventListener('click', ()=>{ challengePending=true; if(hasConsent()) beginWarmup(); else showConsent(); });
+$("chalClose").addEventListener('click', clearChallenge);
+$("shareChalBtn").addEventListener('click', ()=>{ if(lastRunMs>0) shareChallenge(lastRunEv, lastRunMs); });
 $("consentChk").addEventListener('change', e=>{ $("consentGo").disabled=!e.target.checked; });
 $("consentGo").addEventListener('click', ()=>{ if(!$("consentChk").checked) return; saveConsent(); beginWarmup(); });
 $("consentBack").addEventListener('click', ()=>{ show('intro'); updateStreakIntro(); });
@@ -3631,7 +3798,7 @@ $("delData").addEventListener('click', ()=>{
 $("selBack").addEventListener('click', ()=>{ stopCamera(); show('intro'); updateStreakIntro(); });
 $("calSkip").addEventListener('click', ()=>{ calGen++;   // 대기중 타이머 무효화
   if(calRAF)cancelAnimationFrame(calRAF);
-  $("calCue").classList.remove('big','demo','ok'); calibrated=true; goSelect(); });
+  $("calCue").classList.remove('big','demo','ok'); calibrated=true; routeAfterWarmup(); });
 $("gExit").addEventListener('click', ()=>{ if(G)G.running=false; bgmStop(); goSelect(); });   // 게임 중 ‹ → 종목 선택(카메라 유지)
 $("gMute").addEventListener('click', ()=>{ muted=!muted; $("gMute").textContent=muted?'🔇':'🔊'; if(master)master.gain.value=muted?0:.5; });
 $("againBtn").addEventListener('click', ()=>{ if(actx&&actx.state==='suspended')actx.resume(); startGame(); });   // 같은 종목 다시
@@ -3746,6 +3913,7 @@ initLang();            // 언어 초기화 (기본 영어)
 applyI18n();           // 정적 텍스트 다국어 적용
 loadSettings();        // 저장된 설정 적용
 updateStreakIntro();   // 로드 시 streak 배지 표시(+fitHomeLogo)
+initChallenge();       // ?c= 친구 도전장 링크 파싱 → 홈 배너
 startHeroBob();        // 홈 이모지 반동 시작(JS rAF — 구형기기서도 작동)
 renderMoveFaces();     // 표정 카드 아이콘(벡터 얼굴) 렌더
 try{ if(document.fonts&&document.fonts.ready) document.fonts.ready.then(fitHomeLogo); }catch(e){}   // 폰트 늦게 로드돼도 로고 재맞춤
@@ -3756,7 +3924,9 @@ window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curE
   T, setLang, get LANG(){return LANG;}, LANGS, initPi, piSignIn, get piUser(){return piUser;},
   runCalibration, CAL_STEPS,     // 워밍업 흐름 테스트용
   initAudio, bgmStart, bgmStop, bgmSchedule,     // BGM 테스트/튜닝용
-  makeObstacles, hashStr, PROGRAMS };            // 미션 배치 검증/튜닝용
+  makeObstacles, hashStr, PROGRAMS,              // 미션 배치 검증/튜닝용
+  encodeChallenge, decodeChallenge, challengeURL, initChallenge, shareChallenge, drawScene,   // 친구 도전장 테스트용
+  get activeChallenge(){return activeChallenge;}, set activeChallenge(v){activeChallenge=v;} };
 </script>
 </body>
 </html>
