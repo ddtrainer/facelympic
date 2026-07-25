@@ -666,6 +666,7 @@ I18N.en = {
   wipe_confirm:"Delete all your records, settings and consent?",
   wipe_note:"(Data saved on this device will be erased and cannot be undone. Items you paid Pi for are kept.)", wipe_done:"Deleted.",
   buy_restored:"Restored {n} purchased item(s) 🎁", buy_pending:"Payment received. If the item isn't there yet, sign in with Pi to restore it.",
+  wipe_buy_ask:"Also delete items you bought with Pi?\n\nOK = delete them too (you can get them back with 'Restore purchases' after signing in with Pi)\nCancel = keep them (recommended)",
   buy_restore:"🎁 Restore purchases", buy_none:"Nothing to restore — you already have everything you bought.",
   buy_need_login:"Sign in with Pi to restore your purchases.", buy_restore_fail:"Couldn't reach the server. Please try again in a moment.",
   pi_need_browser:"Please open this in Pi Browser.", pi_need_signin:"Please sign in with Pi first.",
@@ -760,6 +761,7 @@ I18N.ko = {
   wipe_confirm:"내 기록·설정·동의를 모두 삭제할까요?",
   wipe_note:"(이 기기에 저장된 데이터가 지워지며 되돌릴 수 없어요. Pi로 구매한 아이템은 보존돼요)", wipe_done:"삭제했어요.",
   buy_restored:"구매한 아이템 {n}개를 복원했어요 🎁", buy_pending:"결제가 접수됐어요. 아이템이 아직 없다면 Pi로 로그인하면 복원돼요.",
+  wipe_buy_ask:"Pi로 구매한 아이템도 지울까요?\n\n확인 = 함께 삭제 (Pi 로그인 후 '구매 복원'으로 되살릴 수 있어요)\n취소 = 그대로 보존 (권장)",
   buy_restore:"🎁 구매 복원", buy_none:"복원할 구매가 없어요 — 산 아이템은 이미 다 있어요.",
   buy_need_login:"Pi로 로그인하면 구매한 아이템을 복원할 수 있어요.", buy_restore_fail:"서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.",
   pi_need_browser:"Pi Browser에서 열어주세요.", pi_need_signin:"Pi 로그인이 필요해요.",
@@ -4180,16 +4182,18 @@ $("shopBack").addEventListener('click', ()=>{ show('intro'); updateStreakIntro()
 $("shopRestore").addEventListener('click', ()=>{ restorePurchases(true); });   // 기기 변경·데이터 삭제 후 구매 되살리기
 
 // --- 내 데이터 삭제 ---
-function clearMyData(){
-  // 유료 구매 보유목록은 남긴다 — 실제 Pi로 산 아이템이라 지우면 돈을 잃는 것.
-  // (개인정보가 아니라 꾸미기 아이템 ID 목록. Pi 로그인 시 서버에서도 복원됨)
-  const KEEP={ fl_owned:1, fl_pend_buy:1 };
+function clearMyData(alsoPurchases){
+  // 기본은 유료 구매 보유목록을 남긴다 — 실제 Pi로 산 아이템이라 지우면 돈을 잃는 것.
+  // 사용자가 '완전 삭제'를 선택하면 구매까지 지운다(서버 기록이 있어 Pi 로그인 시 복원 가능).
+  const KEEP = alsoPurchases ? {} : { fl_owned:1, fl_pend_buy:1 };
   try{ Object.keys(localStorage).forEach(k=>{ if(k.indexOf('fl_')===0 && !KEEP[k]) localStorage.removeItem(k); }); }catch(e){}
   SENS={smile:1,brow:1,roll:1}; FLIP=false; LOWSPEC=false; CAL_FIRST=false; calibrated=false; applyCosmetics();
 }
 $("delData").addEventListener('click', ()=>{
   if(confirm(T('wipe_confirm')+'\n'+T('wipe_note'))){
-    clearMyData(); alert(T('wipe_done')); show('intro'); updateStreakIntro();
+    // 유료 구매까지 지울지는 따로 묻는다(기본은 보존). 지워도 Pi 로그인 → '구매 복원'으로 되살릴 수 있음
+    const alsoBuy = confirm(T('wipe_buy_ask'));
+    clearMyData(alsoBuy); alert(T('wipe_done')); show('intro'); updateStreakIntro();
   }
 });
 $("selBack").addEventListener('click', ()=>{ stopCamera(); show('intro'); updateStreakIntro(); });
