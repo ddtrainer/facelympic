@@ -1696,7 +1696,7 @@ let lastVT=-1, lastInferMs=-999;
 const CAL = {
   smile:{min:.05,max:.7}, jaw:{min:.05,max:.6}, pucker:{min:.05,max:.5}, brow:{min:.05,max:.5},
 };
-function norm(sig,v){ const c=CAL[sig]; const d=Math.max(c.max-c.min,1e-3); return Math.min(1,Math.max(0,(v-c.min)/d)); }
+function norm(sig,v){ const c=CAL[sig]; const d=Math.max(c.max-c.min,1e-3); const r=(v-c.min)/d; return isFinite(r)?Math.min(1,Math.max(0,r)):0; }
 
 // ============================================================
 //  MediaPipe
@@ -1950,7 +1950,7 @@ function renderCalDots(idx){
     d.className='cal-dot'+(i<=idx?' on':''); w.appendChild(d); });
 }
 function calDbg(s){
-  // ⚠️ 임시 진단(폴드7 roll 이슈): fl_debug 게이트 없이 항상 표시 — 확정 후 다시 게이트 복원
+  if(lsGet('fl_debug')!=='1') return;   // 디버그 모드에서만(기기문제 진단용 — 제거 금지)
   const el=$("calDbg"); if(!el) return;
   const rollAmp=(s.roll||0)*SENS.roll;
   const dodge=Math.abs(rollAmp)>0.10 ? 'Y' : 'N';   // 게임 게이트가 켜질지(피하기 작동)
@@ -2380,6 +2380,13 @@ function gameLoop(now, gen){
 
   // ---- 전진 & 판정 ----
   G.dist += G.speed*dt;
+  // 기기 이상값(NaN/∞) 최종 방어 — 신호는 이미 정화되지만, 어떤 기기서도 소프트락·렌더 깨짐이 없게
+  if(!isFinite(G.speed)) G.speed=0;
+  if(!isFinite(G.px)) G.px=0;
+  if(!isFinite(G.py)){ G.py=0; G.grounded=true; }
+  if(!isFinite(G.vy)) G.vy=0;
+  if(!isFinite(G.lean)) G.lean=0;
+  if(isFinite(G.dist)) G.distSafe=G.dist; else G.dist=G.distSafe||0;   // dist 오염 시 직전 유효값으로(무한 미종료 방지)
   for(const o of G.obstacles){ if(!o.resolved && (o.at-G.dist)<=0.5) resolve(o); }
 
   // ---- 타이머 감쇠 ----
@@ -3761,7 +3768,7 @@ async function openDiag(){
         const res=detectFrame(v, now);
         faces=res.faceLandmarks?res.faceLandmarks.length:0;
         bs=res.faceBlendshapes?res.faceBlendshapes.length:0;
-        if(faces) rollV=computeHeadPose(res.faceLandmarks[0], v.videoWidth, v.videoHeight).roll.toFixed(3);
+        if(faces){ const rr=computeHeadPose(res.faceLandmarks[0], v.videoWidth, v.videoHeight).roll; rollV=(rr!=null&&isFinite(rr))?rr.toFixed(3):'NaN(랜드마크 오류)'; }
         // (전환은 detect '에러'시에만 — 얼굴 미검출은 정상 상황일 수 있어 전환 안 함)
         if(bs){ const m={}; for(const c of res.faceBlendshapes[0].categories) m[c.categoryName]=c.score;
           smile=(((m.mouthSmileLeft||0)+(m.mouthSmileRight||0))/2).toFixed(3); jaw=(m.jawOpen||0).toFixed(3);
