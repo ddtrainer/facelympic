@@ -521,7 +521,9 @@
   var ko=(lang==='ko');
   var EVN={ sprint:(ko?'단거리':'Sprint'), middle:(ko?'중거리':'Middle'), long:(ko?'장거리':'Long') };
   var evName=EVN[evId]||evId, t=(timeMs/1000).toFixed(2);
-  var PINET='https://facelympicg8883.pinet.com', url=PINET+'/?c='+raw;
+  // 공유/탈출용 = 우리 도메인(쿼리 보존). Pi Browser 진입용 = pinet(Pi Browser선 쿼리 살아있음)
+  var PINET='https://facelympicg8883.pinet.com', SHARE='https://facelympic.vercel.app';
+  var url=SHARE+'/?c='+raw, piUrl=PINET+'/?c='+raw;
   var who=name||(ko?'익명':'Anonymous');
 
   // 1) 카드 — 순수 DOM(캔버스·blob·dataURL 없음 = 어떤 웹뷰서도 렌더됨)
@@ -3343,9 +3345,11 @@ let activeChallenge=null;    // {ev, timeSec, name} — 대결 중인 친구 기
 let challengePending=false;  // 도전장 배너로 시작 → 워밍업 후 종목선택 건너뛰고 바로 대결
 let lastRunEv=null, lastRunMs=0;   // 방금 완주한 기록(도전장 공유용)
 
-// 공유 링크는 항상 Pi 앱 주소(pinet.com)로 — 카톡/문자로 받아도 Pi 생태계로 진입.
-// (location.origin 대신 고정: 웹(vercel)에서 공유해도 링크는 Pi 앱을 가리키게)
-const PINET_URL='https://facelympicg8883.pinet.com';
+const PINET_URL='https://facelympicg8883.pinet.com';   // Pi 앱 주소(Pi Browser 전용 진입 — 여기선 쿼리 보존됨)
+// ⚠️ 공유 링크는 pinet이 아니라 '우리 도메인'으로 보낸다.
+// PiNet 웹 래퍼는 앱을 <iframe src="https://facelympic.vercel.app//">로 감싸면서 **쿼리(?c=)를 떼어버림**
+// → pinet 링크로 공유하면 일반 브라우저(카톡·크롬)에선 도전 코드가 앱에 영영 도달하지 않는다(검증됨).
+const SHARE_BASE='https://facelympic.vercel.app';
 function isPiBrowser(){ return /PiBrowser/i.test(navigator.userAgent||'') || !!piUser; }   // UA 즉시판별 + 로그인되면 확정
 function b64urlEnc(s){ return btoa(unescape(encodeURIComponent(s))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
 function b64urlDec(s){ s=s.replace(/-/g,'+').replace(/_/g,'/'); return decodeURIComponent(escape(atob(s))); }
@@ -3360,7 +3364,7 @@ function decodeChallenge(code){
     return {ev, timeSec:t/1000, name};
   }catch(e){ return null; }
 }
-function challengeURL(evId,timeMs,name){ return PINET_URL+'/?c='+encodeChallenge(evId,timeMs,name); }
+function challengeURL(evId,timeMs,name){ return SHARE_BASE+'/?c='+encodeChallenge(evId,timeMs,name); }
 
 let _toastT=null;
 function toast(msg){
@@ -3520,13 +3524,14 @@ function isKakaoInApp(){ return /KAKAOTALK/i.test(navigator.userAgent||''); }
 function openInPiBrowser(){
   if(!activeChallenge) return;
   const code=encodeChallenge(activeChallenge.ev.id, activeChallenge.timeSec*1000, activeChallenge.name);
-  const httpsUrl=PINET_URL+'/?c='+code;
+  const httpsUrl=PINET_URL+'/?c='+code;                 // Pi Browser 진입용(거기선 쿼리 보존)
+  const shareUrl=SHARE_BASE+'/?c='+code;                 // 일반 브라우저용(PiNet 래퍼가 쿼리를 떼므로 우리 도메인)
   const ua=navigator.userAgent||'';
-  // 카카오톡 인앱 브라우저 → 외부 브라우저로 탈출(인앱선 카드 이미지·Pi 로그인·딥링크 전부 막힘)
-  if(/KAKAOTALK/i.test(ua)){ try{ location.href='kakaotalk://web/openExternal?url='+encodeURIComponent(httpsUrl); return; }catch(e){} }
+  // 카카오톡 인앱 브라우저 → 외부 브라우저로 탈출(인앱선 카드·Pi 로그인·딥링크 전부 막힘)
+  if(/KAKAOTALK/i.test(ua)){ try{ location.href='kakaotalk://web/openExternal?url='+encodeURIComponent(shareUrl); return; }catch(e){} }
   if(/Android/i.test(ua)){
     const host=PINET_URL.replace(/^https?:\/\//,'');   // facelympicg8883.pinet.com
-    const intent='intent://'+host+'/?c='+code+'#Intent;scheme=https;package=pi.browser;S.browser_fallback_url='+encodeURIComponent(httpsUrl)+';end';
+    const intent='intent://'+host+'/?c='+code+'#Intent;scheme=https;package=pi.browser;S.browser_fallback_url='+encodeURIComponent(shareUrl)+';end';   // Pi Browser 없으면 카드 보이는 우리 도메인으로
     try{ window.location.href=intent; return; }catch(e){}
   }
   copyChallengeLinkForPi();   // iOS·데스크톱·인텐트 실패 → 복사 안내
