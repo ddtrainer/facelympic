@@ -5,8 +5,10 @@
 // 신원은 반드시 **서버에서** Pi accessToken을 검증해 얻는다(클라가 보낸 uid는 신뢰하지 않음).
 //   action 'grant' : 결제 완료된 아이템 기록(중복은 병합)
 //   action 'list'  : 이 계정이 보유한 아이템 목록 반환(복원용)
+// ⚠️ 이 테이블은 **service key**로만 접근한다(Vercel 환경변수 SUPABASE_SERVICE_KEY).
+// anon 키는 클라이언트에 공개돼 있어서, 그 키로 접근 가능하면 누구나 구매 기록을 위조 삽입해
+// 유료 아이템을 무료로 복원받을 수 있다. 테이블은 RLS로 잠그고 서버만 통과시킨다.
 const SB_URL = 'https://yixigkpyncjmbfyaocjl.supabase.co';
-const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpeGlna3B5bmNqbWJmeWFvY2psIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0OTg2NjksImV4cCI6MjA5NDA3NDY2OX0.7XDv1emSYABdYDcdGa54MCLH-iAiwEPHr43HiWP_kD4';
 const TABLE = 'fl_purchases';
 const KINDS = { skin: 1, theme: 1, hat: 1 };
 
@@ -32,6 +34,9 @@ export default async function handler(req, res) {
 
   if (!accessToken) { res.status(400).json({ error: 'no_token' }); return; }
 
+  const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
+  if (!SB_KEY) { res.status(500).json({ error: 'no_service_key' }); return; }   // Vercel 환경변수 미설정
+
   // ---- 신원 검증: Pi 플랫폼에 직접 물어본다(위조 불가) ----
   let uid = '';
   try {
@@ -44,7 +49,7 @@ export default async function handler(req, res) {
   }
   if (!uid) { res.status(401).json({ error: 'no_uid' }); return; }
 
-  const sbHeaders = { apikey: SB_ANON, Authorization: 'Bearer ' + SB_ANON, 'Content-Type': 'application/json' };
+  const sbHeaders = { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' };
 
   try {
     if (action === 'list') {
