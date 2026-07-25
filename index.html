@@ -36,6 +36,19 @@
     box-shadow:0 8px 26px -12px rgba(155,230,53,.5);}
   .chal-banner .chal-flag{font-size:26px;line-height:1;margin-bottom:4px;}
   .chal-banner .chal-card{display:block;width:min(62%,220px);margin:2px auto 10px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.45);}
+  /* DOM 카드 — 캔버스/이미지 없이 순수 HTML. 모듈(MediaPipe CDN)이 실패하는 환경서도 반드시 보임 */
+  .dcard{width:min(62%,220px);margin:2px auto 10px;padding:14px 10px 12px;border-radius:14px;text-align:center;
+    background:linear-gradient(160deg,#17306a,#0a1428);box-shadow:0 10px 30px rgba(0,0,0,.45);}
+  .dcard .d-slogan{font-size:10px;font-weight:800;color:var(--cyan);margin-bottom:1px;}
+  .dcard .d-logo{font-size:17px;font-weight:900;font-style:italic;letter-spacing:-.02em;color:#f2f8ff;line-height:1;}
+  .dcard .d-logo i{color:var(--lime);font-style:italic;}
+  .dcard .d-medal{font-size:26px;line-height:1.1;margin-top:4px;}
+  .dcard .d-run{font-size:44px;line-height:1.05;}
+  .dcard .d-time{font-size:38px;font-weight:900;color:var(--gold);line-height:1;margin-top:2px;}
+  .dcard .d-sub{font-size:11.5px;font-weight:800;color:#f2f6ff;margin-top:4px;}
+  .dcard .d-cta{display:inline-block;margin-top:8px;padding:5px 12px;border-radius:999px;
+    font-size:11.5px;font-weight:900;color:#062033;background:linear-gradient(90deg,var(--lime),var(--cyan));}
+  .chal-dbg{font-size:10px;color:var(--faint);font-family:monospace;margin-top:6px;}
   .chal-banner .chal-text{font-size:14.5px;font-weight:700;color:var(--ink);line-height:1.45;margin-bottom:11px;}
   .chal-banner .chal-text b{color:var(--lime);font-weight:900;}
   .chal-banner .chal-go{padding:12px;font-size:15.5px;max-width:100%;}
@@ -279,6 +292,7 @@
     <div class="streak-top" id="streakIntro"></div>
     <div class="chal-banner" id="chalBanner" style="display:none;">
       <button class="chal-x" id="chalClose" aria-label="close">✕</button>
+      <div id="chalCardDom" class="dcard" style="display:none;"></div>
       <img id="chalCardImg" class="chal-card" alt="" style="display:none;" />
       <div class="chal-text" id="chalText"></div>
       <div class="chal-pi" id="chalPi" style="display:none;">
@@ -288,6 +302,7 @@
         <div class="chal-pi-hint" data-i18n="chal_pi_hint">If it doesn't open: open Pi Browser and paste the link</div>
       </div>
       <button class="btn btn-primary chal-go" id="chalStart"><span data-i18n="chal_accept">Accept challenge</span> ⚡</button>
+      <div class="chal-dbg" id="chalDbg"></div>
     </div>
     <button class="intro-shop" id="openShop" data-i18n-aria="aria_shop" aria-label="Shop">🛍️ <span data-i18n="shop">Shop</span></button>
     <button class="intro-set" id="openSet" data-i18n-aria="aria_set" aria-label="Settings">⚙️</button>
@@ -477,6 +492,95 @@
   <div id="loading"><div class="spin"></div><p id="loadText" data-i18n="load_model">Loading AI model…</p></div>
   <canvas class="confetti" id="confetti"></canvas>
 </div>
+
+<script>
+/* ── 도전장 랜딩(카드·배너·탈출버튼)은 메인 모듈과 '독립' 실행 ──
+   메인 로직은 전부 <script type="module"> 안이고 그 첫 줄이 MediaPipe CDN import다.
+   그 import가 실패하는 환경(카카오톡 인앱 웹뷰 등)에서는 **모듈 전체가 실행되지 않아**
+   배너·카드·탈출버튼이 통째로 사라진다(= 홈 화면만 보이는 증상).
+   → 도전장 랜딩만은 의존성 0인 일반 스크립트로 먼저 그린다. 모듈이 살아나면 캔버스 카드로 업그레이드. */
+(function(){
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  var m=null;
+  try{ m=(location.search||'').match(/[?&]c=([^&#]+)/); }catch(e){}
+  if(!m) return;
+  var raw=m[1], o=null;
+  try{
+    var s=decodeURIComponent(raw).replace(/-/g,'+').replace(/_/g,'/');
+    o=JSON.parse(decodeURIComponent(escape(atob(s))));
+  }catch(e){}
+  if(!o || o.v!==1) return;
+  var evId=String(o.e||''), timeMs=Number(o.t)||0;
+  var name=String(o.n||'').replace(/[<>]/g,'').slice(0,16);
+  if(!timeMs || !isFinite(timeMs)) return;
+
+  var ua=navigator.userAgent||'';
+  var isKakao=/KAKAOTALK/i.test(ua), isPi=/PiBrowser/i.test(ua);
+  var lang='en'; try{ var l=localStorage.getItem('fl_lang'); if(l) lang=l; }catch(e){}
+  var ko=(lang==='ko');
+  var EVN={ sprint:(ko?'단거리':'Sprint'), middle:(ko?'중거리':'Middle'), long:(ko?'장거리':'Long') };
+  var evName=EVN[evId]||evId, t=(timeMs/1000).toFixed(2);
+  var PINET='https://facelympicg8883.pinet.com', url=PINET+'/?c='+raw;
+  var who=name||(ko?'익명':'Anonymous');
+
+  // 1) 카드 — 순수 DOM(캔버스·blob·dataURL 없음 = 어떤 웹뷰서도 렌더됨)
+  var dc=$('chalCardDom');
+  if(dc){
+    dc.innerHTML='<div class="d-slogan">'+(ko?'웃으면 빨라진다':'Smile to go faster')+'</div>'
+      +'<div class="d-logo">FACELY<i>MPIC</i></div><div class="d-medal">🥇</div><div class="d-run">🏃</div>'
+      +'<div class="d-time">'+t+'</div><div class="d-sub">🏁 '+esc(who)+' · '+esc(evName)+'</div>'
+      +'<div class="d-cta">'+(ko?'이 기록 이겨봐! 🔥':'Beat this time? 🔥')+'</div>';
+    dc.style.display='';
+  }
+  var ct=$('chalText');
+  if(ct) ct.innerHTML= ko ? ('<b>'+esc(who)+'</b>님의 도전장! '+esc(evName)+' '+t+'초를 이겨보세요')
+                          : ('<b>'+esc(who)+'</b> challenges you! Beat '+esc(evName)+' in '+t+'s');
+
+  // 2) 인앱/외부 브라우저 탈출 (카톡 인앱은 카드·Pi로그인·딥링크가 전부 막힘)
+  function escapeOut(){
+    if(isKakao){ try{ location.href='kakaotalk://web/openExternal?url='+encodeURIComponent(url); return true; }catch(e){} }
+    if(/Android/i.test(ua)){
+      var host=PINET.replace(/^https?:\/\//,'');
+      var it='intent://'+host+'/?c='+raw+'#Intent;scheme=https;package=pi.browser;S.browser_fallback_url='+encodeURIComponent(url)+';end';
+      try{ location.href=it; return true; }catch(e){}
+    }
+    return false;
+  }
+  var pi=$('chalPi');
+  if(pi && !isPi){
+    var msg=pi.querySelector('.chal-pi-msg'), hint=pi.querySelector('.chal-pi-hint');
+    var ob=$('chalOpenPi'), obl=ob&&ob.querySelector('span');
+    if(msg) msg.textContent = isKakao ? (ko?'카카오톡 안에서는 카드·로그인이 막혀요. 브라우저에서 열어주세요.':'KakaoTalk\'s in-app browser blocks the card & login. Open in a browser.')
+                                      : (ko?'Pi로 로그인하고 보상을 받으려면 Pi Browser에서 열어주세요.':'To log in with Pi and earn rewards, open this in the Pi Browser.');
+    if(obl) obl.textContent = isKakao ? (ko?'브라우저에서 열기':'Open in browser') : (ko?'Pi Browser에서 열기':'Open in Pi Browser');
+    if(hint) hint.textContent = isKakao ? (ko?'안 열리면 우측 상단 ⋮ → \'다른 브라우저로 열기\'':'If nothing happens: tap ⋮ (top right) → \'Open in another browser\'')
+                                        : (ko?'안 열리면 Pi Browser를 열고 주소창에 붙여넣으세요':'If it doesn\'t open, paste the link into Pi Browser');
+    if(ob) ob.addEventListener('click', function(){ escapeOut(); });
+    var cb=$('chalCopyPi'), cbl=cb&&cb.querySelector('span');
+    if(cbl) cbl.textContent = ko?'대신 링크 복사':'Copy link instead';
+    if(cb) cb.addEventListener('click', function(){
+      try{ navigator.clipboard.writeText(url); }catch(e){ try{ prompt(ko?'링크를 복사하세요:':'Copy this link:', url); }catch(_){} }
+    });
+    pi.style.display='';
+  }
+  // 모듈이 죽은 환경에선 '도전 수락'을 눌러도 게임을 못 켬 → 작동하는 브라우저로 보내준다
+  var sb=$('chalStart');
+  if(sb) sb.addEventListener('click', function(){ if(!window.__fl) escapeOut(); });
+  var cx=$('chalClose');
+  if(cx) cx.addEventListener('click', function(){ var b=$('chalBanner'); if(b) b.style.display='none'; });
+
+  var b=$('chalBanner'); if(b) b.style.display='';
+  var dbg=$('chalDbg');
+  if(dbg) dbg.textContent='k:'+(isKakao?1:0)+' pi:'+(isPi?1:0)+' mod:0';
+  window.__flChalDbg=function(){ if(dbg) dbg.textContent='k:'+(isKakao?1:0)+' pi:'+(isPi?1:0)+' mod:1'; };
+
+  // 3) 카톡이면 즉시 외부 브라우저로 탈출 시도(세션 1회) — 버튼은 그대로 남아 재시도 가능
+  try{
+    if(isKakao && !sessionStorage.getItem('fl_kesc')){ sessionStorage.setItem('fl_kesc','1'); setTimeout(escapeOut, 300); }
+  }catch(e){}
+})();
+</script>
 
 <script type="module">
 import { FilesetResolver, FaceLandmarker }
@@ -3379,13 +3483,7 @@ function initChallenge(){
   let code=null; try{ code=new URLSearchParams(location.search).get('c'); }catch(e){}
   if(!code) return;
   const c=decodeChallenge(code);
-  // 카카오톡 인앱브라우저면 즉시 외부 브라우저로 탈출 시도(카드·Pi로그인·딥링크 다 됨). 실패해도 아래 배너 버튼으로 재시도 가능. 세션 가드로 루프 방지
-  try{
-    if(c && /KAKAOTALK/i.test(navigator.userAgent||'') && !sessionStorage.getItem('fl_kesc')){
-      sessionStorage.setItem('fl_kesc','1');
-      location.href='kakaotalk://web/openExternal?url='+encodeURIComponent(PINET_URL+'/?c='+code);
-    }
-  }catch(e){}
+  // (카톡 인앱 탈출은 위쪽 '독립 랜딩 스크립트'가 더 일찍 처리 — 세션가드 fl_kesc 공유)
   try{ history.replaceState(null,'',location.pathname); }catch(e){}   // 새로고침 재트리거 방지·주소 정리
   if(!c) return;
   activeChallenge=c; curEvent=c.ev; showChallengeBanner(c);
@@ -3409,11 +3507,12 @@ function showChallengeBanner(c){
       .then(r=>{ if(!r) return;
         let src=null; if(r.blob){ try{ src=URL.createObjectURL(r.blob); }catch(e){} }   // blob URL: 인앱웹뷰(카톡)서 큰 dataURL 못싣는 문제 회피
         const fb=r.dataUrl||null;
-        ci.onload=()=>{ ci.style.display=''; };
-        ci.onerror=()=>{ if(fb && ci.src!==fb){ ci.src=fb; } else { ci.style.display='none'; } };   // blob 실패 시 dataURL 폴백
+        ci.onload=()=>{ ci.style.display=''; const dc=$('chalCardDom'); if(dc) dc.style.display='none'; };   // 캔버스 카드로 업그레이드 → DOM 카드 숨김
+        ci.onerror=()=>{ if(fb && ci.src!==fb){ ci.src=fb; } else { ci.style.display='none'; } };   // 실패해도 DOM 카드가 남아 있음
         if(src||fb){ ci.src=src||fb; }
       }).catch(()=>{}); }
   b.style.display='';
+  try{ if(window.__flChalDbg) window.__flChalDbg(); }catch(e){}   // 진단: 모듈 정상 실행됨(mod:1)
 }
 // Pi Browser에서 열기: 안드로이드는 인텐트 딥링크(패키지 pi.browser)로 실제 실행,
 // 미설치 시 fallback_url로 pinet 페이지. iOS/기타는 공개 스킴이 없어 복사 안내로 폴백.
