@@ -110,6 +110,8 @@
   .face-report .fr-row{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;}
   .face-report .fr-n{color:var(--dim);font-weight:700;}
   .face-report .fr-v{color:var(--ink);font-weight:900;}
+  .face-report .fr-cta{margin-top:8px;padding-top:8px;border-top:1px solid rgba(55,214,255,.18);
+    font-size:11.5px;font-weight:700;color:var(--cyan);text-align:center;line-height:1.45;}
   .moves{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px;}
   .move{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);
     border-radius:12px;padding:8px 10px;}
@@ -671,6 +673,7 @@ I18N.en = {
   fever_on:"🔥 FEVER!",
   face_title:"Today's facial workout", face_smile:"Smiling", face_brow:"Brow raises",
   face_jaw:"Big mouth opens", face_pucker:"Puckers", unit_times:"×",
+  face_cta:"🏆 Run every day with Facelympic and build up healthy facial muscles!",
   q_title:"Today's goals", q_races:"Finish 3 races", q_missions:"Land 20 missions", q_medal:"Silver or better",
   q_races_s:"3 races", q_missions_s:"20 hits", q_medal_s:"Medal", q_weekly:"15 races this week", q_clear:"Goal complete — {q}",
   card_cta:"Beat this time? 🔥", card_friendsee:"Send the link to a friend — they'll see this card when they open it!",
@@ -777,6 +780,7 @@ I18N.ko = {
   fever_on:"🔥 피버 타임!",
   face_title:"오늘의 얼굴 운동", face_smile:"웃음 유지", face_brow:"눈썹 올리기",
   face_jaw:"입 크게 벌리기", face_pucker:"입 오므리기", unit_times:"회",
+  face_cta:"🏆 Facelympic과 함께 매일 재미있게 달리고, 건강한 얼굴 근육을 완성해 보세요!",
   q_title:"오늘의 목표", q_races:"3판 완주", q_missions:"미션 20개 성공", q_medal:"은메달 이상",
   q_races_s:"3판", q_missions_s:"미션 20", q_medal_s:"메달", q_weekly:"이번 주 15판", q_clear:"목표 달성 — {q}",
   card_cta:"이 기록 이겨봐! 🔥", card_friendsee:"친구에게 링크를 보내세요. 친구가 열면 이 카드가 자동으로 떠요!",
@@ -3862,7 +3866,7 @@ function finish(){
   ];
   $("rFace").innerHTML='<div class="fr-head">💪 '+T('face_title')+'</div><div class="fr-grid">'
     + rows.map(r=>'<div class="fr-row"><span class="fr-n">'+r[0]+' '+r[1]+'</span><span class="fr-v">'+r[2]+'</span></div>').join('')
-    + '</div>';
+    + '</div><div class="fr-cta">'+T('face_cta')+'</div>';
 
   // ---- 고스트 대결 결과 + 도전장 공유 준비 ----
   lastRunEv=curEvent.id; lastRunMs=t*1000;
