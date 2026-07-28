@@ -659,6 +659,7 @@ I18N.en = {
   chal_banner:"{name} challenges you! Beat {ev} in {t}s", chal_share_text:"{name} cleared {ev} in {t}s on Facelympic — can you beat it?",
   chal_copied:"Challenge link copied!", chal_copy_manual:"Copy this challenge link:",
   vs_win:"🏆 You beat {name} by {d}s!", vs_lose:"😤 Lost to {name} by {d}s — rematch!",
+  fever_on:"🔥 FEVER!",
   q_title:"Today's goals", q_races:"Finish 3 races", q_missions:"Land 20 missions", q_medal:"Silver or better",
   q_races_s:"3 races", q_missions_s:"20 hits", q_medal_s:"Medal", q_weekly:"15 races this week", q_clear:"Goal complete — {q}",
   card_cta:"Beat this time? 🔥", card_friendsee:"Send the link to a friend — they'll see this card when they open it!",
@@ -762,6 +763,7 @@ I18N.ko = {
   chal_banner:"{name}님의 도전장! {ev} {t}초를 이겨보세요", chal_share_text:"{name}님이 페이셀림픽 {ev}를 {t}초에 완주했어요. 이길 수 있나요?",
   chal_copied:"도전장 링크가 복사됐어요!", chal_copy_manual:"이 도전장 링크를 복사하세요:",
   vs_win:"🏆 {name}님을 {d}초 차로 이겼어요!", vs_lose:"😤 {name}님에게 {d}초 뒤졌어요 — 되받아쳐요!",
+  fever_on:"🔥 피버 타임!",
   q_title:"오늘의 목표", q_races:"3판 완주", q_missions:"미션 20개 성공", q_medal:"은메달 이상",
   q_races_s:"3판", q_missions_s:"미션 20", q_medal_s:"메달", q_weekly:"이번 주 15판", q_clear:"목표 달성 — {q}",
   card_cta:"이 기록 이겨봐! 🔥", card_friendsee:"친구에게 링크를 보내세요. 친구가 열면 이 카드가 자동으로 떠요!",
@@ -2065,6 +2067,9 @@ const sfx = {
   miss:()=>{ tone(320,.16,'square',.34,.6); setTimeout(()=>tone(200,.24,'square',.36,.55),110);   // 하강 2음
     tone(85,.2,'sine',.32); },                                                // 둔탁 저음 동시
   whiff:()=>{ tone(520,.12,'triangle',.34,.55); setTimeout(()=>tone(300,.18,'sine',.3,.7),80); },   // 음식 놓침: 가볍지만 또렷한 하강 2음
+  // 피버 발동: 상승 4음 팡파르 — 다른 어떤 효과음보다 크고 화려하게(최고의 순간)
+  fever:()=>{ [523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,.16,'square',.34),i*70));
+    setTimeout(()=>{ tone(1568,.30,'triangle',.30); tone(1046,.30,'square',.20); },300); },
 };
 // BGM: 드럼(킥·스네어·하이햇) + 베이스라인 + 리드 멜로디. 속도에 따라 템포 상승.
 const BASS=[110,110,164,146, 110,131,164,196];      // 8스텝 베이스 그루브
@@ -2420,7 +2425,7 @@ function startGame(){
     dist:0, speed:4, px:0, py:0, vy:0, grounded:true, sN:0, boosting:false,
     jumpReady:true, hitDist:9, fx:[], pops:[], squashT:0, lean:0, prevSpeed:4, landFx:false,
     obstacles:makeObstacles(curEvent, seed),
-    raceTime:0, hits:0, foodCombo:0, tally:{hurdle:0,arrow:0,food:0,monster:0},
+    raceTime:0, hits:0, foodCombo:0, combo:0, feverT:0, tally:{hurdle:0,arrow:0,food:0,monster:0},
     flash:null, flashT:0, shake:0, cue:null, feed:null, feedT:0, slow:1,
     running:true, t:performance.now(), started:false, countdown:3.0,
     ghost:(activeChallenge && activeChallenge.ev.id===curEvent.id)
@@ -2458,6 +2463,17 @@ function spawnBoom(x,y){
       life:0.7+Math.random()*0.45, size:3+Math.random()*5, color:cols[i%cols.length] }); }
 }
 
+// ---- 콤보 피버 ----
+// 미션을 연속으로 성공하면 짧게 폭발적으로 빨라진다. 순수 실력 보상이라 결제·광고와 무관(공정성 유지).
+// 무표정이면 여전히 멈춤 — 배수만 곱하므로 '웃어야 달린다'는 핵심 규칙은 그대로.
+const FEVER_N=5;       // 연속 성공 이만큼이면 발동
+const FEVER_SEC=4.0;   // 지속 시간(초)
+const FEVER_MUL=1.25;  // 속도 배수
+function startFever(){
+  G.feverT=FEVER_SEC; G.combo=0;
+  setFlash('rgba(255,211,78,.40)'); G.shake=14;   // 발동 알림은 상단 배지 + 플래시 + 팡파르로 충분(중앙 팝업은 예고 큐와 겹쳐 생략)
+  try{ sfx.fever(); }catch(e){}
+}
 function resolve(o){
   o.resolved=true;
   let ok=false;
@@ -2470,6 +2486,8 @@ function resolve(o){
   const B=curEvent.foodBoost;            // 종목별 미션 임팩트 기준
   if(ok){
     G.hits++; G.tally[o.type]++;
+    G.combo=(G.combo||0)+1;                                   // 종류 무관 연속 성공
+    if(G.combo>=FEVER_N) startFever();                        // 발동 시 콤보 초기화(연속 발동 방지)
     // 미션 성공 = 물리적 이득(전진 부스트). 점수 없음 → 빨라져서 기록이 좋아짐
     let fwd, pop, popCol='#9be635';
     if(o.type==='food'){
@@ -2490,6 +2508,7 @@ function resolve(o){
   }else{
     // 미션 실패 = 물리적 손해(감속). 점수 페널티 없음 → 느려져서 기록이 나빠짐
     // T()는 없는 키를 키 이름 그대로 돌려주므로 폴백은 맵으로 처리(||로는 안 걸림)
+    G.combo=0;                                                // 실패하면 연속 끊김
     const FAILKEY={ monster:'fail_monster', food:'fail_food', arrow:'fail_arrow', hurdle:'fail_hurdle' };
     spawnPop(sx, sy, T(FAILKEY[o.type]||'fail_generic'), o.type==='food'?'#9fb3d8':'#ff5d6c');
     if(o.type==='food'){ G.foodCombo=0; sfx.whiff(); }     // 음식 놓치면 콤보 끊김 + 가벼운 헛방음
@@ -2524,6 +2543,8 @@ function gameLoop(now, gen){
   else targetSpeed = MOVE_MIN + Math.pow((sN-STOP_TH)/(1-STOP_TH),0.8)*(MAXSP-MOVE_MIN);
   // 입을 쓰는 미션(먹기/괴물) 중엔 입이 막혀 못 웃으니 멈추지 않게 살짝 코스트
   if(act && (act.type==='food'||act.type==='monster')) targetSpeed=Math.max(targetSpeed,6);
+  // 피버: 배수만 곱한다 — 무표정이면 여전히 0(핵심 규칙 유지)
+  if(G.feverT>0){ G.feverT-=dt; targetSpeed*=FEVER_MUL; if(G.feverT<0) G.feverT=0; }
   G.sN = sN; G.boosting = sN>0.62;
   if(G.boosting && targetSpeed>G.speed+2 && Math.random()<.05) sfx.boost();
   G.speed += (targetSpeed-G.speed)*Math.min(1,dt*6);   // 반응 더 빠르게
@@ -2779,6 +2800,7 @@ function drawScene(sig, speed){
   }
 
   // HUD
+  drawFever(W,H);      // 피버 연출은 HUD 아래(글자를 가리지 않게)
   drawHUD(W,H,sig);
   drawGhostHUD(W,H);   // 고스트 대결 격차
 
@@ -2973,6 +2995,34 @@ function drawGhostHUD(W,H){
   ctx.strokeStyle=col; ctx.globalAlpha=.55; ctx.lineWidth=2; roundRect(x,y,pw,ph,10); ctx.stroke(); ctx.globalAlpha=1;
   ctx.fillStyle='#bfe0ff'; ctx.font='800 12px Pretendard'; ctx.fillText(l1, x+10, y+6);
   ctx.fillStyle=col; ctx.font='900 16px Pretendard'; ctx.fillText(l2, x+10, y+20);
+  ctx.restore();
+}
+// 피버 연출 — 화면 테두리 발광 + 상단 배지(남은 시간 바). 달리는 중에도 한눈에 '지금 폭발 중'이 읽히게
+function drawFever(W,H){
+  if(!G || G.feverT<=0) return;
+  const p=Math.max(0,Math.min(1,G.feverT/FEVER_SEC));
+  const pulse=0.55+0.45*Math.sin(G.raceTime*14);
+  ctx.save();
+  // 가장자리만 발광 — 화면 전체를 덮으면 트랙·오브젝트 색이 씻겨 가독성이 떨어진다
+  const band=Math.min(110, H*0.16);
+  const gTop=ctx.createLinearGradient(0,0,0,band);
+  gTop.addColorStop(0,'rgba(255,211,78,'+(0.42*pulse).toFixed(3)+')');
+  gTop.addColorStop(1,'rgba(255,211,78,0)');
+  ctx.fillStyle=gTop; ctx.fillRect(0,0,W,band);
+  const gBot=ctx.createLinearGradient(0,H-band,0,H);
+  gBot.addColorStop(0,'rgba(255,120,60,0)');
+  gBot.addColorStop(1,'rgba(255,120,60,'+(0.38*pulse).toFixed(3)+')');
+  ctx.fillStyle=gBot; ctx.fillRect(0,H-band,W,band);
+  ctx.strokeStyle='rgba(255,211,78,'+(0.8*pulse).toFixed(3)+')'; ctx.lineWidth=6;
+  ctx.strokeRect(3,3,W-6,H-6);
+  // 상단 배지 + 잔여 게이지
+  const label=T('fever_on'), bw=150, bh=30, bx=W/2-bw/2, by=64;
+  ctx.fillStyle='rgba(20,10,0,.55)'; roundRect(bx,by,bw,bh,15); ctx.fill();
+  ctx.fillStyle='#ffd34e'; roundRect(bx,by+bh-5,bw*p,4,2); ctx.fill();      // 남은 시간
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.font='900 17px Pretendard'; ctx.fillStyle='#ffd34e';
+  ctx.shadowColor='rgba(255,150,40,.9)'; ctx.shadowBlur=12;
+  ctx.fillText(label, W/2, by+bh/2-2); ctx.shadowBlur=0;
   ctx.restore();
 }
 // HUD는 달리는 중에 '꼭 봐야 하는 것'만 — 기록·남은거리·인식상태.
@@ -4534,6 +4584,7 @@ window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curE
   QUESTS, WEEKLY, questState, weekState, updateQuests, renderQuestStrip,   // 일일/주간 목표 테스트용
   restorePurchases, recordPurchase, pendingGrants, isOwned, addOwned, clearMyData,   // 구매 보존·복원 테스트용
   track, anonId,   // 익명 지표 테스트용
+  startFever, FEVER_N, FEVER_SEC, FEVER_MUL, drawFever,   // 콤보 피버 테스트/튜닝용
 
   get activeChallenge(){return activeChallenge;}, set activeChallenge(v){activeChallenge=v;} };
 </script>
