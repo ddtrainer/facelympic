@@ -667,6 +667,10 @@ I18N.en = {
   ios_pi_msg:"iPhone can't open the Pi Browser automatically. Copy the link and paste it there.", ios_pi_btn:"Copy link for Pi Browser",
   ios_pi_hint:"No Pi login needed? Just tap 'Accept challenge' below and play right here.",
   ios_pi_copied:"Link copied!\n\n1) Open the Pi Browser app\n2) Paste it into the address bar\n\n(You can also just play right here)", ios_pi_manual:"Copy this link and paste it into the Pi Browser:",
+  iosapp_msg:"The camera doesn't work inside this in-app browser. Open it in Safari to play.",
+  iosapp_btn:"Copy link for Safari", iosapp_hint:"Tap the compass icon (🧭) at the bottom right → 'Open in Safari'.",
+  iosapp_copied:"Link copied!\n\n1) Open Safari\n2) Paste it into the address bar\n\n(Or tap 🧭 at the bottom right → 'Open in Safari')",
+  err_ios_inapp:"The camera is blocked inside this in-app browser. Please open the link in Safari (tap 🧭 at the bottom right → 'Open in Safari').",
   set_controls:"Controls", sens_smile:"Smile sensitivity", sens_brow:"Brow sensitivity", sens_roll:"Head-tilt sensitivity",
   flip:"Flip left–right (dodge)", lowspec:"Low-spec mode",
   set_hint:"Higher sensitivity detects smaller expressions. Raise it if detection is weak, lower it if it misfires.",
@@ -765,6 +769,10 @@ I18N.ko = {
   ios_pi_msg:"아이폰은 Pi Browser를 자동으로 열 수 없어요. 링크를 복사해 붙여넣으세요.", ios_pi_btn:"Pi Browser용 링크 복사",
   ios_pi_hint:"Pi 로그인이 필요 없다면 아래 '도전 수락'으로 여기서 바로 플레이하세요.",
   ios_pi_copied:"링크가 복사됐어요!\n\n① Pi Browser 앱을 여세요\n② 주소창에 붙여넣기\n\n(로그인이 필요 없다면 여기서 바로 플레이해도 돼요)", ios_pi_manual:"이 링크를 복사해 Pi Browser 주소창에 붙여넣으세요:",
+  iosapp_msg:"이 인앱 브라우저에서는 카메라가 안 돼요. 사파리에서 열어야 플레이할 수 있어요.",
+  iosapp_btn:"사파리용 링크 복사", iosapp_hint:"우측 하단 나침반(🧭) → 'Safari로 열기'를 눌러도 돼요.",
+  iosapp_copied:"링크가 복사됐어요!\n\n① 사파리를 여세요\n② 주소창에 붙여넣기\n\n(또는 우측 하단 🧭 → 'Safari로 열기')",
+  err_ios_inapp:"이 인앱 브라우저에서는 카메라가 차단돼요. 사파리에서 열어주세요 (우측 하단 🧭 → 'Safari로 열기').",
   set_controls:"게임 조작", sens_smile:"웃음 민감도", sens_brow:"눈썹 민감도", sens_roll:"고개 기울기 민감도",
   flip:"좌우 반전 (피하기 방향)", lowspec:"저사양 모드",
   set_hint:"민감도를 높이면 작은 표정도 인식돼요. 잘 안 되면 올리고, 오작동하면 내리세요.",
@@ -3600,10 +3608,11 @@ function showChallengeBanner(c){
   const pi=$('chalPi');
   if(pi){
     pi.style.display = isPiBrowser() ? 'none' : '';   // Pi Browser 밖이면 '열기' 안내
-    // 환경별 안내: 카톡 인앱(탈출) > 아이폰(자동실행 불가 → 복사 안내) > 기본(안드= Pi Browser 실행)
-    const mode = isKakaoInApp() ? 'kakao' : (isIOS() ? 'ios' : 'pi');
+    // 환경별 안내 우선순위: iOS 인앱(카메라 막힘 = 게임 자체 불가라 가장 급함) > 카톡(탈출) > 아이폰(복사) > 기본(안드)
+    const mode = isIOSInApp() ? 'iosapp' : (isKakaoInApp() ? 'kakao' : (isIOS() ? 'ios' : 'pi'));
     const msgEl=pi.querySelector('.chal-pi-msg'), hintEl=pi.querySelector('.chal-pi-hint'), openLbl=$('chalOpenPi')&&$('chalOpenPi').querySelector('span');
-    const K={ kakao:['kakao_msg','kakao_open','kakao_hint'], ios:['ios_pi_msg','ios_pi_btn','ios_pi_hint'], pi:['chal_pi_msg','chal_pi_open','chal_pi_hint'] }[mode];
+    const K={ iosapp:['iosapp_msg','iosapp_btn','iosapp_hint'], kakao:['kakao_msg','kakao_open','kakao_hint'],
+              ios:['ios_pi_msg','ios_pi_btn','ios_pi_hint'], pi:['chal_pi_msg','chal_pi_open','chal_pi_hint'] }[mode];
     if(msgEl) msgEl.textContent=T(K[0]);
     if(openLbl) openLbl.textContent=T(K[1]);
     if(hintEl) hintEl.textContent=T(K[2]);
@@ -3628,10 +3637,15 @@ function isKakaoInApp(){ return /KAKAOTALK/i.test(navigator.userAgent||''); }
 // iOS는 Pi Browser를 자동 실행할 방법이 없다(공개 URL 스킴 없음 + pinet.com에 Universal Link 미연결 — 둘 다 Pi 소관).
 // → 강제 실행을 시도하지 말고 '복사 후 붙여넣기'를 명확히 안내한다.
 function isIOS(){ const ua=navigator.userAgent||''; return /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document); }
-async function copyLinkForIOS(url){
+// iOS 인앱 브라우저(카톡·인스타 등) 판별 — 여기선 카메라(getUserMedia)가 막히는 경우가 많아 게임이 안 켜진다.
+// 실제 사파리 UA엔 'Safari/'가 있고, 앱 내장 웹뷰엔 대개 없다.
+function isIOSInApp(){ const ua=navigator.userAgent||'';
+  return isIOS() && (/KAKAOTALK|FBAN|FBAV|Instagram|Line\/|NAVER|DaumApps/i.test(ua) || !/Safari\//.test(ua)); }
+async function copyLinkForIOS(url, msgKey){
   let ok=false;
   try{ await navigator.clipboard.writeText(url); ok=true; }catch(e){}
-  if(ok){ try{ alert(T('ios_pi_copied')); }catch(e){ toast(T('ios_pi_copied')); } }
+  const m=T(msgKey||'ios_pi_copied');
+  if(ok){ try{ alert(m); }catch(e){ toast(m); } }
   else { try{ prompt(T('ios_pi_manual'), url); }catch(e){ toast(url); } }
 }
 // Pi Browser로 이동. 도전장이 있으면 코드를 실어 보내고, 없으면(로그인 목적) 앱 홈으로.
@@ -3643,6 +3657,8 @@ function openInPiBrowser(){
   const qs = code ? '/?c='+code : '/';
   const shareUrl = SHARE_BASE+qs;                        // 일반 브라우저용(PiNet 래퍼가 쿼리를 떼므로 우리 도메인)
   const ua=navigator.userAgent||'';
+  // iOS 인앱 브라우저: 탈출 스킴이 불확실하고 카메라도 막히므로 '복사 → 사파리에 붙여넣기'를 확실히 안내
+  if(isIOSInApp()){ copyLinkForIOS(shareUrl, 'iosapp_copied'); return; }
   // 카카오톡 인앱 브라우저 → 외부 브라우저로 탈출(인앱선 카드·Pi 로그인·딥링크 전부 막힘)
   if(/KAKAOTALK/i.test(ua)){ try{ location.href='kakaotalk://web/openExternal?url='+encodeURIComponent(shareUrl); return; }catch(e){} }
   if(/Android/i.test(ua)){
@@ -3827,6 +3843,7 @@ async function beginEvent(){
     let msg=T('err_generic',{m:(e.message||e)});
     if(e.name==='NotAllowedError') msg=T('err_denied');
     if(e.name==='NotFoundError') msg=T('err_notfound');
+    if(isIOSInApp()) msg=T('err_ios_inapp');   // 아이폰 인앱 브라우저는 카메라가 막히는 게 원인 — 사파리로 안내
     err.textContent=msg; err.style.display='block';
   }
 }
@@ -3852,6 +3869,7 @@ async function beginWarmup(){   // 카메라 켜고 워밍업 → 종목 선택
     let msg=T('err_generic',{m:(e.message||e)});
     if(e.name==='NotAllowedError') msg=T('err_denied');
     if(e.name==='NotFoundError') msg=T('err_notfound');
+    if(isIOSInApp()) msg=T('err_ios_inapp');   // 아이폰 인앱 브라우저는 카메라가 막히는 게 원인 — 사파리로 안내
     show('intro'); err.textContent=msg; err.style.display='block';
   }
 }
