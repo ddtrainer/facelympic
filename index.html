@@ -674,6 +674,7 @@ I18N.en = {
   face_title:"Today's facial workout", face_smile:"Smiling", face_brow:"Brow raises",
   face_jaw:"Big mouth opens", face_pucker:"Puckers", unit_times:"×",
   face_cta:"🏆 Run every day with Facelympic and build up healthy facial muscles!",
+  card_face:"😄 Smiled {n}s today",
   q_title:"Today's goals", q_races:"Finish 3 races", q_missions:"Land 20 missions", q_medal:"Silver or better",
   q_races_s:"3 races", q_missions_s:"20 hits", q_medal_s:"Medal", q_weekly:"15 races this week", q_clear:"Goal complete — {q}",
   card_cta:"Beat this time? 🔥", card_friendsee:"Send the link to a friend — they'll see this card when they open it!",
@@ -781,6 +782,7 @@ I18N.ko = {
   face_title:"오늘의 얼굴 운동", face_smile:"웃음 유지", face_brow:"눈썹 올리기",
   face_jaw:"입 크게 벌리기", face_pucker:"입 오므리기", unit_times:"회",
   face_cta:"🏆 Facelympic과 함께 매일 재미있게 달리고, 건강한 얼굴 근육을 완성해 보세요!",
+  card_face:"😄 오늘 {n}초 웃었어요",
   q_title:"오늘의 목표", q_races:"3판 완주", q_missions:"미션 20개 성공", q_medal:"은메달 이상",
   q_races_s:"3판", q_missions_s:"미션 20", q_medal_s:"메달", q_weekly:"이번 주 15판", q_clear:"목표 달성 — {q}",
   card_cta:"이 기록 이겨봐! 🔥", card_friendsee:"친구에게 링크를 보내세요. 친구가 열면 이 카드가 자동으로 떠요!",
@@ -3653,15 +3655,21 @@ function buildResultCard(o){
   faceExpr.smile=0.95; faceExpr.jaw=0; faceExpr.pucker=0; faceExpr.brow=0;
   drawRunner(S/2, 728, 0.32, 4.2, 4.2, 0);
   Object.assign(faceExpr, savedFace);
+  // 오늘의 운동량 한 줄 — **내 카드에만**. 도전장 받은 사람에게 보이는 카드(showName)엔 넣지 않는다
+  // (운동량은 이 기기의 기록이라, 남의 도전 카드에 붙이면 보는 사람 자신의 수치가 표시돼 오해를 준다)
+  let faceLine='';
+  if(!o.showName){ const f=faceToday(); if(f.smileSec>=1) faceLine=T('card_face',{n:Math.round(f.smileSec)}); }
+  const timeY = faceLine?890:906, line2Y = faceLine?942:962, ctaY = faceLine?1046:1024;
   // 기록 + 종목·메달
   ctx.fillStyle='#ffd34e'; ctx.font='900 148px Pretendard';
-  ctx.fillText(t.toFixed(2), S/2, 906);
+  ctx.fillText(t.toFixed(2), S/2, timeY);
   ctx.fillStyle='#f2f6ff'; ctx.font='800 44px Pretendard';
   const line2 = (o.showName && o.name) ? '🏁 '+o.name+'  ·  '+T('ev_'+ev.id) : T('ev_'+ev.id)+'  ·  '+medal;
-  ctx.fillText(line2, S/2, 962);
+  ctx.fillText(line2, S/2, line2Y);
+  if(faceLine){ ctx.fillStyle='#7fe3ff'; ctx.font='800 34px Pretendard'; ctx.fillText(faceLine, S/2, 988); }
   // 도전 CTA 알약
   const cta=T('card_cta'); ctx.font='900 42px Pretendard';
-  const tw=ctx.measureText(cta).width, pw=tw+64, px=S/2-pw/2, cy=1024;
+  const tw=ctx.measureText(cta).width, pw=tw+64, px=S/2-pw/2, cy=ctaY;
   const gg=ctx.createLinearGradient(px,0,px+pw,0); gg.addColorStop(0,'#9be635'); gg.addColorStop(1,'#37d6ff');
   ctx.fillStyle=gg; roundRect(px,cy-46,pw,62,31); ctx.fill();
   ctx.fillStyle='#062033'; ctx.fillText(cta, S/2, cy-4);
