@@ -102,6 +102,14 @@
   .quest-box .q-week{margin-top:5px;font-size:10.5px;font-weight:700;color:var(--faint);}
   .quest-box .q-week.ok{color:var(--lime);font-weight:900;}
   .quest-done{font-size:14px;font-weight:800;color:var(--lime);margin-top:6px;line-height:1.5;}
+  /* 오늘의 얼굴 운동 — 측정한 사실만 표시(효능 주장 없음) */
+  .face-report{width:100%;max-width:360px;margin:10px 0 0;padding:10px 12px;border-radius:12px;
+    background:rgba(55,214,255,.07);border:1px solid rgba(55,214,255,.22);}
+  .face-report .fr-head{font-size:11.5px;font-weight:800;color:var(--cyan);margin-bottom:6px;}
+  .face-report .fr-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;}
+  .face-report .fr-row{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;}
+  .face-report .fr-n{color:var(--dim);font-weight:700;}
+  .face-report .fr-v{color:var(--ink);font-weight:900;}
   .moves{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px;}
   .move{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);
     border-radius:12px;padding:8px 10px;}
@@ -496,6 +504,7 @@
     <div class="streak-result" id="streakResult"></div>
     <div class="ep-earn" id="rEP"></div>
     <div class="quest-done" id="rQuest"></div>
+    <div class="face-report" id="rFace"></div>
     <div class="r-divider"></div>
     <button class="btn btn-share" id="shareChalBtn" style="max-width:380px;">🏁 <span id="shareChalLabel" data-i18n="chal_send">Challenge a friend</span></button>
     <button class="btn btn-primary" id="againBtn" style="max-width:380px;" data-i18n="again">Run again</button>
@@ -660,6 +669,8 @@ I18N.en = {
   chal_copied:"Challenge link copied!", chal_copy_manual:"Copy this challenge link:",
   vs_win:"🏆 You beat {name} by {d}s!", vs_lose:"😤 Lost to {name} by {d}s — rematch!",
   fever_on:"🔥 FEVER!",
+  face_title:"Today's facial workout", face_smile:"Smiling", face_brow:"Brow raises",
+  face_jaw:"Big mouth opens", face_pucker:"Puckers", unit_times:"×",
   q_title:"Today's goals", q_races:"Finish 3 races", q_missions:"Land 20 missions", q_medal:"Silver or better",
   q_races_s:"3 races", q_missions_s:"20 hits", q_medal_s:"Medal", q_weekly:"15 races this week", q_clear:"Goal complete — {q}",
   card_cta:"Beat this time? 🔥", card_friendsee:"Send the link to a friend — they'll see this card when they open it!",
@@ -764,6 +775,8 @@ I18N.ko = {
   chal_copied:"도전장 링크가 복사됐어요!", chal_copy_manual:"이 도전장 링크를 복사하세요:",
   vs_win:"🏆 {name}님을 {d}초 차로 이겼어요!", vs_lose:"😤 {name}님에게 {d}초 뒤졌어요 — 되받아쳐요!",
   fever_on:"🔥 피버 타임!",
+  face_title:"오늘의 얼굴 운동", face_smile:"웃음 유지", face_brow:"눈썹 올리기",
+  face_jaw:"입 크게 벌리기", face_pucker:"입 오므리기", unit_times:"회",
   q_title:"오늘의 목표", q_races:"3판 완주", q_missions:"미션 20개 성공", q_medal:"은메달 이상",
   q_races_s:"3판", q_missions_s:"미션 20", q_medal_s:"메달", q_weekly:"이번 주 15판", q_clear:"목표 달성 — {q}",
   card_cta:"이 기록 이겨봐! 🔥", card_friendsee:"친구에게 링크를 보내세요. 친구가 열면 이 카드가 자동으로 떠요!",
@@ -2426,6 +2439,9 @@ function startGame(){
     jumpReady:true, hitDist:9, fx:[], pops:[], squashT:0, lean:0, prevSpeed:4, landFx:false,
     obstacles:makeObstacles(curEvent, seed),
     raceTime:0, hits:0, foodCombo:0, combo:0, feverT:0, tally:{hurdle:0,arrow:0,food:0,monster:0},
+    // 얼굴 운동량 — 미션 성공과 무관하게 '실제로 움직인 양'을 잰다(사실 측정치, 효능 주장 아님)
+    face:{ smileSec:0, brow:0, jaw:0, pucker:0, tilt:0 },
+    faceFx:{ brow:false, jaw:false, pucker:false, tilt:false },
     flash:null, flashT:0, shake:0, cue:null, feed:null, feedT:0, slow:1,
     running:true, t:performance.now(), started:false, countdown:3.0,
     ghost:(activeChallenge && activeChallenge.ev.id===curEvent.id)
@@ -2463,6 +2479,12 @@ function spawnBoom(x,y){
       life:0.7+Math.random()*0.45, size:3+Math.random()*5, color:cols[i%cols.length] }); }
 }
 
+// 얼굴 움직임 1회 카운트(상승 에지 + 히스테리시스) — 0.45 넘으면 1회, 0.20 아래로 내려와야 다음 회 인정
+function faceEdge(key, v){
+  const F=G.faceFx;
+  if(!F[key]){ if(v>0.45){ F[key]=true; G.face[key]++; } }
+  else if(v<0.20) F[key]=false;
+}
 // ---- 콤보 피버 ----
 // 미션을 연속으로 성공하면 짧게 폭발적으로 빨라진다. 순수 실력 보상이라 결제·광고와 무관(공정성 유지).
 // 무표정이면 여전히 멈춤 — 배수만 곱하므로 '웃어야 달린다'는 핵심 규칙은 그대로.
@@ -2571,6 +2593,13 @@ function gameLoop(now, gen){
     pucker: Math.min(1, norm('pucker', sig.pucker)),
     brow:   Math.max(0, Math.min(1, browEff)),
   } : {smile:0, jaw:0, pucker:0, brow:0});
+  // ---- 얼굴 운동량 집계 (사실 측정) ----
+  // 미션 성공 여부와 무관하게 '실제로 움직인 양'을 센다. 히스테리시스로 떨림 중복 카운트 방지.
+  if(sN>0.30) G.face.smileSec += dt;
+  faceEdge('brow',   browEff);
+  faceEdge('jaw',    sig.ok ? norm('jaw', sig.jaw) : 0);
+  faceEdge('pucker', sig.ok ? norm('pucker', sig.pucker) : 0);
+  faceEdge('tilt',   Math.abs(roll));
   if(!G.grounded){ G.vy-=20*dt; G.py+=G.vy*dt; if(G.py<=0){ G.py=0; G.grounded=true; G.vy=0; sfx.land(); G.squashT=0.16; G.landFx=true; } }
   // 관성: 감속 시 앞으로 쏠림 + 착지 압축 타이머
   const _accel=G.speed-G.prevSpeed; G.prevSpeed=G.speed;
@@ -3357,6 +3386,20 @@ function updateQuests(medal, hits){
   if(just.length) awardEP(just.map(j=>({ label:j.icon+' '+j.label, ep:j.ep })));
   return just;
 }
+// ----- 오늘의 얼굴 운동량(사실 측정치 누적) -----
+// ⚠️ 효능·건강 효과를 주장하지 않는다. "무엇을 얼마나 움직였는가"만 기록·표시한다.
+function faceToday(){
+  let s=null; try{ s=JSON.parse(lsGet('fl_face')||'null'); }catch(e){}
+  if(!s || s.day!==todayStr()) s={ day:todayStr(), smileSec:0, brow:0, jaw:0, pucker:0, tilt:0 };
+  return s;
+}
+function addFaceToday(f){
+  const s=faceToday();
+  s.smileSec+=(f.smileSec||0); s.brow+=(f.brow||0); s.jaw+=(f.jaw||0);
+  s.pucker+=(f.pucker||0); s.tilt+=(f.tilt||0);
+  try{ lsSet('fl_face', JSON.stringify(s)); }catch(e){}
+  return s;
+}
 // 홈 컴팩트 진행 표시(한 줄 칩 3개 + 주간) — 홈이 한 화면에 들어가도록 작게
 function renderQuestStrip(){
   const box=$("questBox"); if(!box) return;
@@ -3808,6 +3851,18 @@ function finish(){
   $("rQuest").innerHTML = questDone.length
     ? questDone.map(q=>'🎉 '+T('q_clear',{q:q.icon+' '+q.label})+' <b>+'+q.ep+' EP</b>').join('<br>') : '';
   renderQuestStrip();
+
+  // 오늘의 얼굴 운동 — 이번 판을 오늘 누적에 더해 '측정된 사실'만 표시
+  const fd=addFaceToday(G.face);
+  const rows=[
+    ['😄', T('face_smile'),  Math.round(fd.smileSec)+T('unit_sec')],
+    ['🤨', T('face_brow'),   fd.brow+T('unit_times')],
+    ['😮', T('face_jaw'),    fd.jaw+T('unit_times')],
+    ['😗', T('face_pucker'), fd.pucker+T('unit_times')],
+  ];
+  $("rFace").innerHTML='<div class="fr-head">💪 '+T('face_title')+'</div><div class="fr-grid">'
+    + rows.map(r=>'<div class="fr-row"><span class="fr-n">'+r[0]+' '+r[1]+'</span><span class="fr-v">'+r[2]+'</span></div>').join('')
+    + '</div>';
 
   // ---- 고스트 대결 결과 + 도전장 공유 준비 ----
   lastRunEv=curEvent.id; lastRunMs=t*1000;
@@ -4585,6 +4640,7 @@ window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curE
   restorePurchases, recordPurchase, pendingGrants, isOwned, addOwned, clearMyData,   // 구매 보존·복원 테스트용
   track, anonId,   // 익명 지표 테스트용
   startFever, FEVER_N, FEVER_SEC, FEVER_MUL, drawFever,   // 콤보 피버 테스트/튜닝용
+  faceToday, addFaceToday, faceEdge,   // 얼굴 운동량 측정 테스트용
 
   get activeChallenge(){return activeChallenge;}, set activeChallenge(v){activeChallenge=v;} };
 </script>
