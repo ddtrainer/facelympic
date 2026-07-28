@@ -726,6 +726,7 @@ I18N.en = {
   unit_sec:"s", load_model:"Loading AI model…", load_cam:"Starting camera…",
   err_generic:"Something went wrong: {m}", err_denied:"Camera permission needed. Please allow it in your browser settings.",
   err_notfound:"No camera found.", pi_signin:"Sign in with Pi",
+  err_constraint:"This device won't allow the camera to start. If your phone restricts the camera (work/school/security policy), the game can't run. Try another device.",
   cal_again:"One more!", cal_nice:"Nice! ✓",
   cal_hint:"💡 Take your time. Face the camera in good light, and make the expression bigger.",
   cal_trouble:"Recognition seems hard right now. Try Settings › Camera check.",
@@ -828,6 +829,7 @@ I18N.ko = {
   unit_sec:"초", load_model:"AI 모델을 불러오는 중…", load_cam:"카메라를 켜는 중…",
   err_generic:"오류가 발생했어요: {m}", err_denied:"카메라 권한이 필요해요. 브라우저 설정에서 허용해 주세요.",
   err_notfound:"카메라를 찾을 수 없어요.", pi_signin:"Pi로 로그인",
+  err_constraint:"이 기기에서 카메라를 켤 수 없어요. 보안 정책(회사·학교·부대 등)으로 카메라가 제한된 기기라면 게임을 할 수 없어요. 다른 기기에서 시도해 주세요.",
   cal_again:"한 번 더!", cal_nice:"좋아요! ✓",
   cal_hint:"💡 천천히 해도 괜찮아요. 밝은 곳에서 얼굴을 화면에 맞추고, 더 크게 지어보세요.",
   cal_trouble:"지금은 인식이 어려운 것 같아요. 설정 › 카메라 진단을 확인해 보세요.",
@@ -1903,9 +1905,25 @@ async function fallbackToCPU(reason){
   }catch(e){ console.warn('CPU fallback failed', e); }
   delegateSwitching=false;
 }
+// 카메라 제약은 기기·정책마다 지원 범위가 달라 **단계적으로 완화하며 재시도**한다.
+// 예) 보안정책으로 전면 카메라가 막힌 기기는 facingMode:"user"를 만족하는 장치가 없어
+//     'Invalid constraint'(OverconstrainedError)로 실패 → 조건을 풀면 후면 카메라로라도 동작.
+const CAM_TRIES=[
+  { video:{ facingMode:"user", width:{ideal:640}, height:{ideal:480} }, audio:false },
+  { video:{ facingMode:"user" }, audio:false },
+  { video:{ width:{ideal:640}, height:{ideal:480} }, audio:false },
+  { video:true, audio:false },
+];
+async function getCameraStream(){
+  let lastErr=null;
+  for(const c of CAM_TRIES){
+    try{ return await navigator.mediaDevices.getUserMedia(c); }
+    catch(e){ lastErr=e; console.warn('getUserMedia failed for', c, e && e.name); }
+  }
+  throw lastErr || new Error('camera_unavailable');
+}
 async function startCamera(videoEl){
-  stream = await navigator.mediaDevices.getUserMedia({
-    video:{ facingMode:"user", width:{ideal:640}, height:{ideal:480} }, audio:false });
+  stream = await getCameraStream();
   videoEl.srcObject = stream;
   await new Promise(res=>{ videoEl.onloadedmetadata=()=>{ videoEl.play(); res(); }; });
   detVideo = videoEl;
@@ -3843,6 +3861,8 @@ async function beginEvent(){
     let msg=T('err_generic',{m:(e.message||e)});
     if(e.name==='NotAllowedError') msg=T('err_denied');
     if(e.name==='NotFoundError') msg=T('err_notfound');
+    // 조건 불만족(전면 카메라 차단 등) — 이미 조건을 최대한 완화해 재시도한 뒤라 기기·정책 제약일 가능성이 큼
+    if(e.name==='OverconstrainedError' || /invalid constraint/i.test((e&&e.message)||'')) msg=T('err_constraint');
     if(isIOSInApp()) msg=T('err_ios_inapp');   // 아이폰 인앱 브라우저는 카메라가 막히는 게 원인 — 사파리로 안내
     err.textContent=msg; err.style.display='block';
   }
@@ -3869,6 +3889,8 @@ async function beginWarmup(){   // 카메라 켜고 워밍업 → 종목 선택
     let msg=T('err_generic',{m:(e.message||e)});
     if(e.name==='NotAllowedError') msg=T('err_denied');
     if(e.name==='NotFoundError') msg=T('err_notfound');
+    // 조건 불만족(전면 카메라 차단 등) — 이미 조건을 최대한 완화해 재시도한 뒤라 기기·정책 제약일 가능성이 큼
+    if(e.name==='OverconstrainedError' || /invalid constraint/i.test((e&&e.message)||'')) msg=T('err_constraint');
     if(isIOSInApp()) msg=T('err_ios_inapp');   // 아이폰 인앱 브라우저는 카메라가 막히는 게 원인 — 사파리로 안내
     show('intro'); err.textContent=msg; err.style.display='block';
   }
@@ -4134,7 +4156,7 @@ async function openDiag(){
   // 모델·카메라는 백그라운드 로드(루프를 막지 않음 → 느리거나 멈춰도 무한로딩 안 됨)
   (async()=>{ try{ if(!faceLM) await loadModel(); modelInfo='OK'; }catch(e){ modelInfo='FAIL: '+((e&&e.message)||e); } })();
   (async()=>{ try{
-      diagStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user', width:{ideal:640}, height:{ideal:480} }, audio:false });
+      diagStream = await getCameraStream();   // 게임과 동일한 단계적 완화 재시도
       v.srcObject=diagStream; await new Promise(r=>{ v.onloadedmetadata=()=>{ v.play(); r(); }; }); camInfo='OK';
     }catch(e){ camInfo='FAIL: '+((e&&e.name)||'')+' '+((e&&e.message)||e); } })();
   function loop(now){
@@ -4460,7 +4482,7 @@ window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curE
   initAudio, bgmStart, bgmStop, bgmSchedule,     // BGM 테스트/튜닝용
   makeObstacles, hashStr, PROGRAMS,              // 미션 배치 검증/튜닝용
   encodeChallenge, decodeChallenge, challengeURL, initChallenge, shareChallenge, shareResultCard, buildResultCard, showCardModal, drawScene,   // 친구 도전장 테스트용
-  computeHeadPose, get SENS(){return SENS;},   // roll 진단/튜닝용
+  computeHeadPose, get SENS(){return SENS;}, getCameraStream, CAM_TRIES,   // roll·카메라 진단/튜닝용
   QUESTS, WEEKLY, questState, weekState, updateQuests, renderQuestStrip,   // 일일/주간 목표 테스트용
   restorePurchases, recordPurchase, pendingGrants, isOwned, addOwned, clearMyData,   // 구매 보존·복원 테스트용
 
