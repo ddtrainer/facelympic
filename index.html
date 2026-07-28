@@ -620,6 +620,8 @@
 import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
+// 배포 식별자 — 원격 진단 시 "새 버전을 받았는지" 즉시 확인용(진단 화면 첫 줄). 배포할 때마다 갱신.
+const BUILD='2026-07-26c';
 const $ = (id)=>document.getElementById(id);
 const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), diag:$("diag"), shop:$("shop"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
@@ -4133,10 +4135,19 @@ let diagRAF=null, diagStream=null, diagLastCT=-1, diagCTmoved=false;
 async function openDiag(){
   show('diag');
   const out=$("diagOut"), v=$("diagVid");
-  let modelInfo='loading…', camInfo='loading…', frames=0, detErr='none';
+  let modelInfo='loading…', camInfo='loading…', frames=0, detErr='none', camCount='?';
+  // 기기에 인식되는 카메라 장치 수 — 0이면 보안정책(MDM)·하드웨어로 **카메라가 차단된 기기**라는 확정 근거
+  (async()=>{ try{
+      const ds=await navigator.mediaDevices.enumerateDevices();
+      camCount=ds.filter(d=>d.kind==='videoinput').length;
+    }catch(e){ camCount='ERR'; }
+    try{ render(null); }catch(e){}   // rAF가 멈춘 환경(백그라운드 탭 등)에서도 값이 보이게 즉시 갱신
+  })();
   const render=(extra)=>{ out.textContent=[
+    'build: '+BUILD,
     'model: '+modelInfo,
     'delegate: '+(window.__flDelegate||'?')+'   input: '+(safeInput?'canvas':'video'),
+    'cameras found: '+camCount+'   (0 = blocked by device policy)',
     'camera: '+camInfo,
     'video: '+(v.videoWidth||0)+'x'+(v.videoHeight||0)+'  readyState:'+v.readyState+'  paused:'+v.paused,
     'currentTime: '+(v.currentTime||0).toFixed(3)+'  (advancing: '+(diagCTmoved?'YES':'NO')+')',
