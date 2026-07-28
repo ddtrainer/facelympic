@@ -3604,25 +3604,29 @@ function showChallengeBanner(c){
 // Pi Browser에서 열기: 안드로이드는 인텐트 딥링크(패키지 pi.browser)로 실제 실행,
 // 미설치 시 fallback_url로 pinet 페이지. iOS/기타는 공개 스킴이 없어 복사 안내로 폴백.
 function isKakaoInApp(){ return /KAKAOTALK/i.test(navigator.userAgent||''); }
+// Pi Browser로 이동. 도전장이 있으면 코드를 실어 보내고, 없으면(로그인 목적) 앱 홈으로.
+// 안드로이드는 인텐트 딥링크(패키지 pi.browser)로 실제 실행, 미설치 시 fallback_url.
+// iOS/기타는 공개 스킴이 없어 복사 안내로 폴백.
 function openInPiBrowser(){
-  if(!activeChallenge) return;
-  const code=encodeChallenge(activeChallenge.ev.id, activeChallenge.timeSec*1000, activeChallenge.name);
-  const httpsUrl=PINET_URL+'/?c='+code;                 // Pi Browser 진입용(거기선 쿼리 보존)
-  const shareUrl=SHARE_BASE+'/?c='+code;                 // 일반 브라우저용(PiNet 래퍼가 쿼리를 떼므로 우리 도메인)
+  const code = activeChallenge
+    ? encodeChallenge(activeChallenge.ev.id, activeChallenge.timeSec*1000, activeChallenge.name) : '';
+  const qs = code ? '/?c='+code : '/';
+  const shareUrl = SHARE_BASE+qs;                        // 일반 브라우저용(PiNet 래퍼가 쿼리를 떼므로 우리 도메인)
   const ua=navigator.userAgent||'';
   // 카카오톡 인앱 브라우저 → 외부 브라우저로 탈출(인앱선 카드·Pi 로그인·딥링크 전부 막힘)
   if(/KAKAOTALK/i.test(ua)){ try{ location.href='kakaotalk://web/openExternal?url='+encodeURIComponent(shareUrl); return; }catch(e){} }
   if(/Android/i.test(ua)){
     const host=PINET_URL.replace(/^https?:\/\//,'');   // facelympicg8883.pinet.com
-    const intent='intent://'+host+'/?c='+code+'#Intent;scheme=https;package=pi.browser;S.browser_fallback_url='+encodeURIComponent(shareUrl)+';end';   // Pi Browser 없으면 카드 보이는 우리 도메인으로
+    const intent='intent://'+host+qs+'#Intent;scheme=https;package=pi.browser;S.browser_fallback_url='+encodeURIComponent(shareUrl)+';end';   // Pi Browser 없으면 우리 도메인으로
     try{ window.location.href=intent; return; }catch(e){}
   }
-  copyChallengeLinkForPi();   // iOS·데스크톱·인텐트 실패 → 복사 안내
+  copyChallengeLinkForPi(shareUrl);   // iOS·데스크톱·인텐트 실패 → 복사 안내
 }
-// 도전장 링크를 클립보드에 복사(→ Pi Browser 주소창에 붙여넣어 로그인 상태로 플레이)
-async function copyChallengeLinkForPi(){
-  if(!activeChallenge) return;
-  const url=challengeURL(activeChallenge.ev.id, activeChallenge.timeSec*1000, activeChallenge.name);
+// 링크를 클립보드에 복사(→ Pi Browser 주소창에 붙여넣어 로그인 상태로 플레이)
+async function copyChallengeLinkForPi(forceUrl){
+  const url = forceUrl || (activeChallenge
+    ? challengeURL(activeChallenge.ev.id, activeChallenge.timeSec*1000, activeChallenge.name)
+    : SHARE_BASE+'/');
   try{ if(navigator.share){ await navigator.share({title:'Facelympic', text:T('chal_pi_share'), url}); return; } }
   catch(e){ if(e&&e.name==='AbortError') return; }
   try{ await navigator.clipboard.writeText(url); toast(T('chal_pi_copied')); }
@@ -4229,9 +4233,17 @@ async function verifyPi(token){       // 서버에서 /me 로 토큰 검증 → 
     const r = await fetch(PI_API_BASE+'/api/verify', { method:'POST', headers:{ 'Authorization':'Bearer '+token } });
     if(!r.ok) return;                 // 서버 없음/프록시 미전달/무효 → 조용히(미검증 유지)
     const j = await r.json();
-    if(j && j.ok && j.username){ piVerified=true; lsSet('fl_pi_user', j.username); updatePiUI();
+    if(j && j.ok && j.username){ piVerified=true; lsSet('fl_pi_user', j.username); adoptPiNickname(j.username); updatePiUI();
       restorePurchases(); }                                   // 검증된 계정 → 서버 보유목록 복원(기기 바꿔도 유지)
   }catch(e){ /* 검증 실패는 비차단 — 게임·표시엔 영향 없음 */ }
+}
+// Pi 로그인 이름을 프로필 이름으로 자동 등록(닉네임을 아직 정하지 않았을 때만 — 직접 정한 이름은 존중)
+function adoptPiNickname(username){
+  if(!username || getNick()) return;
+  const n=String(username).replace(/^π\s*/,'').trim().slice(0,12);
+  if(!n) return;
+  lsSet('fl_nick', n);
+  try{ refreshNickVal(); }catch(e){}
 }
 // ===== 유료 구매 보존·복원 =====
 // 구매를 기기 localStorage에만 두면 데이터 삭제·폰 교체 시 실제 Pi로 산 아이템이 영구 소실된다.
@@ -4328,7 +4340,7 @@ async function buyWithPi(kind, id, it){
   if(!piReady){ alert(T('pi_need_signin')); return; }
   try{
     const auth = await window.Pi.authenticate(['username','payments'], onIncompletePaymentFound);   // 결제 권한 확보
-    piUser=(auth&&auth.user)?auth.user:null; if(piUser&&piUser.username) lsSet('fl_pi_user',piUser.username);
+    piUser=(auth&&auth.user)?auth.user:null; if(piUser&&piUser.username){ lsSet('fl_pi_user',piUser.username); adoptPiNickname(piUser.username); }
     piToken=(auth&&auth.accessToken)||null; if(piToken) verifyPi(piToken);
     const meta={ type:kind, id:id };
     window.Pi.createPayment({
@@ -4352,7 +4364,9 @@ async function initPi(){
   return piReady;
 }
 async function piSignIn(manual){
-  if(typeof window.Pi==='undefined'){ if(manual){ try{ alert(T('pi_signin')+' — Pi Browser'); }catch(e){} } return; }
+  // ⚠️ Pi SDK 스크립트는 **어떤 브라우저에서도** window.Pi를 만든다. 하지만 실제 로그인은 Pi Browser에서만 된다.
+  // 그래서 'SDK 존재'가 아니라 'Pi Browser인지'로 판단 — 아니면 조용히 실패(무반응)하므로 Pi Browser로 데려간다.
+  if(typeof window.Pi==='undefined' || !isPiBrowser()){ if(manual) openInPiBrowser(); return; }
   if(!piReady) await initPi();
   if(!piReady) return;
   try{
@@ -4360,7 +4374,7 @@ async function piSignIn(manual){
     piUser = (auth && auth.user) ? auth.user : null;
     piVerified = false;
     piToken = (auth && auth.accessToken) || null;   // 점수 서버 제출 검증용
-    if(piUser && piUser.username){ lsSet('fl_pi_user', piUser.username); }
+    if(piUser && piUser.username){ lsSet('fl_pi_user', piUser.username); adoptPiNickname(piUser.username); }   // 로그인 즉시 프로필 이름 반영
     updatePiUI();
     if(piToken) verifyPi(piToken);   // 서버 검증(비차단)
   }catch(e){ console.warn('Pi.authenticate failed', e); }
