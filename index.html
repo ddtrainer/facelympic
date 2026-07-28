@@ -1925,7 +1925,9 @@ async function getCameraStream(){
   throw lastErr || new Error('camera_unavailable');
 }
 async function startCamera(videoEl){
-  stream = await getCameraStream();
+  try{ stream = await getCameraStream(); }
+  catch(e){ track('cam_fail',{e:String((e&&e.name)||'err').slice(0,24)},true); throw e; }   // 퍼널: 카메라 실패 지점
+  track('cam_ok',null,true);
   videoEl.srcObject = stream;
   await new Promise(res=>{ videoEl.onloadedmetadata=()=>{ videoEl.play(); res(); }; });
   detVideo = videoEl;
@@ -2290,7 +2292,7 @@ async function runCalibration(){
   function finishWarmup(){
     if(!alive()) return;
     $("calCue").classList.remove('big','demo','ok');
-    calibrated=true; routeAfterWarmup();
+    calibrated=true; track('warmup_done',null,true); routeAfterWarmup();
   }
 
   doStep();
@@ -2425,6 +2427,7 @@ function startGame(){
       ? { timeSec:activeChallenge.timeSec, name:activeChallenge.name, dist:0 } : null,
   };
   bgmStart(); sfx.go();
+  track('race_start',{ev:curEvent.id, ghost:G.ghost?1:0});
   const myGen=++loopGen;
   requestAnimationFrame((t)=>gameLoop(t,myGen));
 }
@@ -3735,6 +3738,7 @@ function finish(){
   $("rCoach").textContent=coachingLine();
 
   const streak=markPlayedToday();
+  track('race_done',{ev:curEvent.id, t:Math.round(t*100)/100, ghost:G.ghost?1:0, hits:G.hits|0});
   $("streakResult").textContent = streak<=1 ? T('streak_start',{n:streak}) : T('streak_days',{n:streak});
 
   const ep=computeRaceEP(t, isBest, streak);   // EP 계산·적립(일일 상한 300)
@@ -3903,9 +3907,9 @@ $("chalStart").addEventListener('click', ()=>{ challengePending=true; if(hasCons
 $("chalClose").addEventListener('click', clearChallenge);
 $("chalOpenPi").addEventListener('click', openInPiBrowser);
 $("chalCopyPi").addEventListener('click', copyChallengeLinkForPi);
-$("shareChalBtn").addEventListener('click', ()=>{ if(lastRunMs>0) shareResultCard(); });
+$("shareChalBtn").addEventListener('click', ()=>{ if(lastRunMs>0){ track('share',{ev:lastRunEv}); shareResultCard(); } });
 $("consentChk").addEventListener('change', e=>{ $("consentGo").disabled=!e.target.checked; });
-$("consentGo").addEventListener('click', ()=>{ if(!$("consentChk").checked) return; saveConsent(); beginWarmup(); });
+$("consentGo").addEventListener('click', ()=>{ if(!$("consentChk").checked) return; saveConsent(); track('consent_ok',null,true); beginWarmup(); });
 $("consentBack").addEventListener('click', ()=>{ show('intro'); updateStreakIntro(); });
 
 // --- 약관 / 개인정보 처리방침 (초안 — 법률 검토 전) ---
@@ -3939,6 +3943,9 @@ const LEGAL = {
 
 1. 수집·전송 항목
 - 서버로 전송: 게임 기록(완주 시간, 종목, 날짜), 선택 입력한 닉네임, Pi 로그인 시 Pi 액세스 토큰(본인 확인용), 결제 시 결제 식별자.
+- 서버로 전송(익명 이용 통계): 앱 진입·동의·카메라 허용·워밍업·경기 시작/완주·구매·공유 같은 '단계 통과 여부'와 종목·기록 시간, 언어, 기기가 만든 무작위 익명 ID.
+  · 이 익명 ID는 이름·이메일·Pi 계정과 연결되지 않으며, 중복 집계를 피하고 재방문율을 계산하는 용도로만 씁니다.
+  · 목적: 어느 단계에서 이용이 중단되는지 파악해 앱을 개선하기 위함입니다. '내 데이터 삭제'를 실행하면 이 익명 ID도 사라집니다.
 - 기기에만 저장: 최고기록, 연속 도전일, 감도·화면 설정, 보유·장착한 꾸미기 항목.
 - 서버로 전송되지 않음: 카메라 영상, 얼굴 사진, 얼굴 특징점(랜드마크), 표정 데이터.
 
@@ -3949,7 +3956,7 @@ const LEGAL = {
 - 카메라 권한은 기기·브라우저 설정에서 언제든 해제할 수 있습니다.
 
 3. 수집 목적
-- 게임 진행, 기록 경쟁(세계 순위), 유료 상품 지급.
+- 게임 진행, 기록 경쟁(세계 순위), 유료 상품 지급, 익명 통계에 기반한 서비스 개선.
 
 4. Pi 결제
 - 결제는 Pi Network를 통해 처리됩니다. Pi 사용자명·지갑 등 결제 수단 정보는 Pi가 관리하며, 이 앱은 결제 승인·완료를 위한 결제 식별자와 결과만 처리합니다.
@@ -4285,7 +4292,7 @@ $("delData").addEventListener('click', ()=>{
 $("selBack").addEventListener('click', ()=>{ stopCamera(); show('intro'); updateStreakIntro(); });
 $("calSkip").addEventListener('click', ()=>{ calGen++;   // 대기중 타이머 무효화
   if(calRAF)cancelAnimationFrame(calRAF);
-  $("calCue").classList.remove('big','demo','ok'); calibrated=true; routeAfterWarmup(); });
+  $("calCue").classList.remove('big','demo','ok'); calibrated=true; track('warmup_skip',null,true); routeAfterWarmup(); });
 $("gExit").addEventListener('click', ()=>{ if(G)G.running=false; bgmStop(); goSelect(); });   // 게임 중 ‹ → 종목 선택(카메라 유지)
 $("gMute").addEventListener('click', ()=>{ muted=!muted; $("gMute").textContent=muted?'🔇':'🔊'; if(master)master.gain.value=muted?0:.5; });
 $("againBtn").addEventListener('click', ()=>{ if(actx&&actx.state==='suspended')actx.resume(); startGame(); });   // 같은 종목 다시
@@ -4309,6 +4316,34 @@ const PI_SANDBOX = true;   // 테스트/App Studio/Testnet=true · 메인넷 출
 let piReady=false, piUser=null, piInitTried=false, piVerified=false, piToken=null;
 // pinet.com 프록시는 /api/* 를 가로채므로(자체 Next.js) 절대 URL(Vercel)로 호출. CORS 허용됨.
 const PI_API_BASE = 'https://facelympic.vercel.app';
+
+// ============================================================
+//  익명 사용 지표 — "어디서 이탈하는가"를 추측이 아니라 데이터로 보기 위함
+//  ⚠️ 얼굴·영상은 절대 보내지 않는다(기기 내 처리 유지). 이름·계정 등 식별정보도 저장하지 않는다.
+//  aid = 기기가 만든 무작위 익명 ID(중복제거·리텐션 계산 전용) — '내 데이터 삭제' 시 함께 사라짐.
+//  전송 실패는 전부 무시(게임 동작에 절대 영향 주지 않음).
+// ============================================================
+function anonId(){
+  let v=lsGet('fl_aid');
+  if(!v){
+    try{ v=(crypto&&crypto.randomUUID)?crypto.randomUUID():null; }catch(e){ v=null; }
+    if(!v) v=Date.now().toString(36)+Math.random().toString(36).slice(2,10);
+    lsSet('fl_aid', v);
+  }
+  return v;
+}
+const _trackOnce={};
+function track(ev, meta, once){
+  try{
+    if(once){ if(_trackOnce[ev]) return; _trackOnce[ev]=true; }
+    const body=JSON.stringify({ aid:anonId(), ev, day:todayStr(), meta:meta||null,
+      lang:(typeof LANG!=='undefined'?LANG:''), pi:isPiBrowser()?1:0 });
+    const url=PI_API_BASE+'/api/track';
+    // sendBeacon = 페이지를 떠나도 전송 보장 + 게임 루프를 막지 않음
+    if(navigator.sendBeacon){ navigator.sendBeacon(url, new Blob([body],{type:'application/json'})); return; }
+    fetch(url,{ method:'POST', headers:{'Content-Type':'application/json'}, body, keepalive:true }).catch(()=>{});
+  }catch(e){ /* 계측 실패는 게임에 영향 없음 */ }
+}
 async function verifyPi(token){       // 서버에서 /me 로 토큰 검증 → 신뢰된 신원
   if(!token) return;
   try{
@@ -4316,6 +4351,7 @@ async function verifyPi(token){       // 서버에서 /me 로 토큰 검증 → 
     if(!r.ok) return;                 // 서버 없음/프록시 미전달/무효 → 조용히(미검증 유지)
     const j = await r.json();
     if(j && j.ok && j.username){ piVerified=true; lsSet('fl_pi_user', j.username); adoptPiNickname(j.username); updatePiUI();
+      track('pi_login',null,true);
       restorePurchases(); }                                   // 검증된 계정 → 서버 보유목록 복원(기기 바꿔도 유지)
   }catch(e){ /* 검증 실패는 비차단 — 게임·표시엔 영향 없음 */ }
 }
@@ -4409,7 +4445,7 @@ async function piComplete(paymentId, txid, meta){
       return;
     }
     // 결제 완료 → 지급(스킨·모자·테마) + 계정에 영구 기록(기기 바꿔도 복원)
-    if(valid){ addOwned(meta.id); equip(meta.type, meta.id); renderShop(); recordPurchase(meta, paymentId, txid); }
+    if(valid){ addOwned(meta.id); equip(meta.type, meta.id); renderShop(); recordPurchase(meta, paymentId, txid); track('buy',{id:meta.id, kind:meta.type}); }
   }catch(e){
     console.warn('complete failed', e);
     if(valid){ addOwned(meta.id); equip(meta.type, meta.id); renderShop(); recordPurchase(meta, paymentId, txid); }
@@ -4485,6 +4521,7 @@ startHeroBob();        // 홈 이모지 반동 시작(JS rAF — 구형기기서
 renderMoveFaces();     // 표정 카드 아이콘(벡터 얼굴) 렌더
 try{ if(document.fonts&&document.fonts.ready) document.fonts.ready.then(fitHomeLogo); }catch(e){}   // 폰트 늦게 로드돼도 로고 재맞춤
 updatePiUI();          // 이전 Pi 로그인 상태 반영
+track('land', { c: activeChallenge?1:0, ret: currentStreak()>0?1:0 }, true);   // 퍼널 시작점(도전장 유입 여부 포함)
 initPi().then(ok=>{ if(ok) piSignIn(false); });   // 로드 시 자동 로그인 시도(비차단·조용히 실패)
 window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curEvent(v){curEvent=v;}, get G(){return G;},
   awardEP, epTotal, epToday, EP_DAILY_CAP, SKINS, THEMES, HATS, get SKIN(){return SKIN;}, get THEME(){return THEME;}, get EQHAT(){return EQHAT;}, equip, equippedHat,
@@ -4496,6 +4533,7 @@ window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curE
   computeHeadPose, get SENS(){return SENS;}, getCameraStream, CAM_TRIES,   // roll·카메라 진단/튜닝용
   QUESTS, WEEKLY, questState, weekState, updateQuests, renderQuestStrip,   // 일일/주간 목표 테스트용
   restorePurchases, recordPurchase, pendingGrants, isOwned, addOwned, clearMyData,   // 구매 보존·복원 테스트용
+  track, anonId,   // 익명 지표 테스트용
 
   get activeChallenge(){return activeChallenge;}, set activeChallenge(v){activeChallenge=v;} };
 </script>
