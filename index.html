@@ -2398,6 +2398,13 @@ const PROGRAMS = {
 };
 const MIN_GAP = 15;   // 최소 간격(m) — 반응 시간 확보(콤보는 서로 다른 동작이라 겹쳐도 구분됨)
 const MAX_GAP = 50;   // 최대 간격(m) — 지터·콤보로 생기는 '미션 없이 달리기만' 구간 방지
+// ⚠️ 점프 직후에는 더 넓게 띄운다.
+//   점프 체공이 약 1.08초(vy 10.8 / 중력 20)인데, 15m 간격은 최고속에서 0.79초·피버(×1.25)에선 0.63초라
+//   **착지하기도 전에 다음 미션이 도착**한다. 게다가 콤보 배치는 일부러 '다른 표정'을 고르므로
+//   (눈썹 → 입 오므리기처럼) 표정 전환 시간(~0.5~0.8초)까지 겹쳐 사실상 불가능한 구간이 된다.
+//   26m면 피버 최고속에서도 1.09초를 확보해 체공이 끝난 뒤 다음 표정을 지을 수 있다.
+const GAP_AFTER_JUMP = 26;
+function minGapAfter(prevType){ return prevType==='hurdle' ? GAP_AFTER_JUMP : MIN_GAP; }
 // 타입 선택기: mix를 '목표 비율'로 삼되 풀이 고갈되지 않게(가중치 방식)
 //  → 제약(3연속 금지 · 콤보시 다른 동작)을 항상 만족시킬 수 있음
 function makeTypePicker(mix, total, rng){
@@ -2425,11 +2432,16 @@ function makeObstacles(ev, seed){
   for(const ph of prog){
     const a=startD+span*ph.from, b=startD+span*ph.to, slot=(b-a)/ph.n;
     for(let i=0;i<ph.n;i++){
+      const gapMin = minGapAfter(prev1);                             // 점프 뒤엔 더 넓게(체공+표정전환 시간)
       let at = a + slot*(i+0.5) + (rng()-0.5)*slot*0.5*ph.tight;   // 균등 + 지터
-      if(i>0 && rng()<ph.burst) at = prevAt + MIN_GAP*(1+rng()*0.2);   // 콤보: 앞 미션에 바짝
+      if(i>0 && rng()<ph.burst) at = prevAt + gapMin*(1+rng()*0.2);    // 콤보: 앞 미션에 바짝
       if(arr.length) at = Math.min(at, prevAt+MAX_GAP);                // 빈 구간 상한(첫 미션 제외)
-      at = Math.min(endD, Math.max(prevAt+MIN_GAP, at));               // 최소 간격 보장
-      const burstNow = (at-prevAt) < MIN_GAP*1.5;
+      at = Math.max(prevAt+gapMin, at);                                // 최소 간격 보장(끝단 클램프보다 우선)
+      // ⚠️ 예전엔 여기서 Math.min(endD, …)로 끝에 붙였는데, 그러면 마지막 미션이 트랙 끝에 뭉쳐
+      //    간격이 10m대로 무너졌다(단거리 후반의 '허들 직후 괴물' 불가능 구간의 원인).
+      //    간격을 깨느니 미션을 하나 줄인다.
+      if(at > endD) continue;
+      const burstNow = (at-prevAt) < gapMin*1.5;
       const type = nextType(prev1, prev2, burstNow);
       arr.push({ type, at, lane:0,    // 화살 포함 모두 중앙(정면) — 좌우로 비켜 회피
         resolved:false, charge:0, bites:0, result:null });
