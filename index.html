@@ -92,6 +92,11 @@
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .lb-pi{color:#c9b8ff;font-size:12px;font-weight:800;margin-left:5px;}
   .lb-flag{margin-right:6px;font-size:15px;}
+  .lb-views{display:flex;gap:7px;justify-content:center;margin:0 0 10px;}
+  .lb-view{flex:0 0 auto;padding:6px 14px;border-radius:999px;border:1px solid transparent;background:rgba(255,255,255,.05);
+    color:var(--dim);font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer;}
+  .lb-view.on{background:rgba(255,211,78,.16);border-color:rgba(255,211,78,.45);color:var(--ink);}
+  .lb-cnt{flex:0 0 auto;font-size:11.5px;font-weight:700;color:var(--faint);margin-left:6px;}
   .lb-tabs .lb-tab{padding:7px 13px;font-size:12.5px;}   /* 탭 3개 — 좁은 폰에서 한 줄 유지 */
   .lb-t{flex:0 0 auto;font-size:15px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums;}
   .lb-empty{padding:22px 14px;text-align:center;color:var(--dim);font-size:13.5px;font-weight:700;line-height:1.6;}
@@ -539,10 +544,15 @@
   <section id="lb" class="screen">
     <button class="sel-back" id="lbBack">‹</button>
     <h2 class="set-header" data-i18n="lb_title">Leaderboard</h2>
+    <!-- 두 축을 나눠 둔다: 위=기간, 아래=보는 대상. '이번 주 국가 순위'처럼 조합해서 볼 수 있다. -->
     <div class="lb-tabs">
       <button class="lb-tab on" id="lbTabAll" data-i18n="lb_all">All time</button>
       <button class="lb-tab" id="lbTabWeek" data-i18n="lb_week">This week</button>
       <button class="lb-tab" id="lbTabDay" data-i18n="lb_today">Today</button>
+    </div>
+    <div class="lb-views">
+      <button class="lb-view on" id="lbViewPlayer" data-i18n="lb_view_player">🌍 Players</button>
+      <button class="lb-view" id="lbViewCountry" data-i18n="lb_view_country">🚩 Countries</button>
     </div>
     <div class="set-scroll">
       <div class="lb-me" id="lbMe"></div>
@@ -768,7 +778,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 // 배포 식별자 — 원격 진단 시 "새 버전을 받았는지" 즉시 확인용(진단 화면 첫 줄). 배포할 때마다 갱신.
-const BUILD='2026-07-30s';
+const BUILD='2026-07-30t';
 const $ = (id)=>document.getElementById(id);
 const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), diag:$("diag"), shop:$("shop"), lb:$("lb"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
@@ -869,6 +879,10 @@ I18N.en = {
   lb_empty:"<b>The #1 spot is open.</b><br>Run a sprint and take it.",
   lb_note:"Sprint · fastest run per player · the This week tab resets every Monday",
   lb_all:"All time", lb_scope_all:"overall", lb_scope_week:"this week", lb_scope_day:"today",
+  lb_view_player:"🌍 Players", lb_view_country:"🚩 Countries",
+  lb_country_players:"{n} players", lb_country_me:"{flag} {name} is <b>#{rank}</b> of {n} countries {scope}",
+  lb_country_none:"Your country has no time {scope} yet — set the first one",
+  lb_country_empty:"<b>No country has a flag yet.</b><br>Run once and plant yours.",
   lb_me:"You're <b>#{rank}</b> of {n} {scope}", lb_me_first:"👑 You're <b>#1</b> of {n} {scope}!",
   lb_me_none:"No time {scope} yet — run one and get on the board",
   lb_gap:"{d}s behind the player above you",
@@ -989,6 +1003,10 @@ I18N.ko = {
   lb_empty:"<b>1위 자리가 비어 있습니다.</b><br>단거리 한 판이면 차지할 수 있어요.",
   lb_note:"단거리 · 선수당 최고 기록 · '이번 주' 탭은 월요일마다 초기화",
   lb_all:"전체", lb_scope_all:"전체", lb_scope_week:"이번 주", lb_scope_day:"오늘",
+  lb_view_player:"🌍 선수", lb_view_country:"🚩 국가",
+  lb_country_players:"{n}명", lb_country_me:"{flag} {name} — {scope} {n}개국 중 <b>{rank}위</b>",
+  lb_country_none:"{scope} 우리나라 기록이 아직 없어요 — 첫 기록을 세워보세요",
+  lb_country_empty:"<b>아직 국기가 붙은 나라가 없어요.</b><br>한 판 뛰면 우리나라 국기가 첫 번째로 올라갑니다.",
   lb_me:"{scope} {n}명 중 <b>{rank}위</b>", lb_me_first:"👑 {scope} {n}명 중 <b>1위</b>!",
   lb_me_none:"{scope} 기록이 아직 없어요 — 한 판 뛰고 이름을 올려보세요",
   lb_gap:"바로 위 선수와 {d}초 차이",
@@ -3742,11 +3760,12 @@ function coachingLine(){            // 점수 아님 — "이걸 깨면 더 빠�
 function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 // ⚠️ DB는 /api/score 를 통해서만 만진다. 예전엔 여기서 공개 anon 키로 직접 읽고 썼는데,
 //    그러면 누구나 0.1초짜리 기록을 꽂아 넣을 수 있어 이름이 붙은 순위표가 첫날에 죽는다.
-// scope: 'all'(누적, 기본) | 'week' | 'day'
-async function fetchBoard(eventId, scope){
+// scope: 'all'(누적, 기본) | 'week' | 'day'   view: 'player'(기본) | 'country'
+async function fetchBoard(eventId, scope, view){
   const s=scope||'all';
   const q='?ev='+encodeURIComponent(eventId)+'&aid='+encodeURIComponent(anonId())
-    +'&scope='+s+(s==='day'?'&day='+encodeURIComponent(todayStr()):'');
+    +'&scope='+s+(view==='country'?'&view=country':'')
+    +(s==='day'?'&day='+encodeURIComponent(todayStr()):'');
   const r=await fetch(PI_API_BASE+'/api/score'+q);
   if(!r.ok) throw new Error('board');
   return await r.json();
@@ -4100,6 +4119,7 @@ async function copyChallengeLinkForPi(forceUrl){
 // 선수가 적은 지금은 기록이 쌓이는 맛이 사라진다. 사람이 많아지면 주간이 기본이 되는 게 낫다
 // (신규 유저가 노려볼 판이 필요해지므로) — 그래서 주간 탭은 지우지 않고 남겨 둔다.
 let lbScope='all';                        // 'all' | 'week' | 'day'
+let lbView='player';                      // 'player'(전 세계 선수) | 'country'(국가 대항)
 const LB_EVENT='sprint';                  // 1차는 단거리만(플레이어가 적어 종목을 쪼개면 표가 텅 빈다)
 function lbFmt(t){ return (+t).toFixed(2)+T('unit_sec'); }
 // 국가 코드(KR) → 국기(🇰🇷). 유니코드 지역표시문자 두 개로 만든다.
@@ -4119,7 +4139,8 @@ async function openLeaderboard(){
   $("lbList").innerHTML='<div class="lb-empty">'+T('lb_loading')+'</div>';
   $("lbMe").style.display='none';
   try{
-    renderBoard(await fetchBoard(LB_EVENT, lbScope));
+    const b=await fetchBoard(LB_EVENT, lbScope, lbView);
+    if(lbView==='country') renderCountryBoard(b); else renderBoard(b);
   }catch(e){
     $("lbList").innerHTML='<div class="lb-empty">'+T('lb_fail')+'</div>';
   }
@@ -4128,6 +4149,35 @@ function renderLbTabs(){
   $("lbTabAll").classList.toggle('on', lbScope==='all');
   $("lbTabWeek").classList.toggle('on', lbScope==='week');
   $("lbTabDay").classList.toggle('on', lbScope==='day');
+  $("lbViewPlayer").classList.toggle('on', lbView==='player');
+  $("lbViewCountry").classList.toggle('on', lbView==='country');
+}
+// 나라 이름은 브라우저가 현재 언어로 번역해 준다(한국·Korea·韓国…). 없으면 코드 그대로.
+function ccName(cc){
+  try{ return new Intl.DisplayNames([LANG],{type:'region'}).of(cc)||cc; }catch(e){ return cc; }
+}
+function renderCountryBoard(b){
+  const rows=(b.countries||[]);
+  if(!rows.length){
+    $("lbList").innerHTML='<div class="lb-empty">'+T('lb_country_empty')+'</div>';
+    $("lbMe").style.display='none';
+    return;
+  }
+  const medal=['🥇','🥈','🥉'];
+  $("lbList").innerHTML=rows.map(r=>
+    '<div class="lb-row'+(r.me?' me':'')+(r.rank<=3?' top'+r.rank:'')+'">'
+    +'<div class="lb-rk">'+(r.rank<=3?medal[r.rank-1]:r.rank)+'</div>'
+    +'<div class="lb-nm"><span class="lb-flag">'+ccFlag(r.cc)+'</span>'+esc(ccName(r.cc))
+      +'<span class="lb-cnt">'+T('lb_country_players',{n:r.players})+'</span></div>'
+    +'<div class="lb-t">'+lbFmt(r.t)+'</div></div>').join('');
+
+  const me=$("lbMe");
+  const sc=T(b.scope==='day' ? 'lb_scope_day' : b.scope==='week' ? 'lb_scope_week' : 'lb_scope_all');
+  me.innerHTML = b.myCountry
+    ? T('lb_country_me',{scope:sc, flag:ccFlag(b.myCountry.cc), name:esc(ccName(b.myCountry.cc)),
+                         rank:b.myCountry.rank, n:b.players})
+    : T('lb_country_none',{scope:sc});
+  me.style.display='';
 }
 function renderBoard(b){
   const rows=(b.top||[]);
@@ -4766,6 +4816,8 @@ $("shopBack").addEventListener('click', ()=>{ show('intro'); updateStreakIntro()
 $("lbBack").addEventListener('click', ()=>{ show('intro'); updateStreakIntro(); });
 $("lbStrip").addEventListener('click', openLeaderboard);
 $("rLbOpen").addEventListener('click', openLeaderboard);
+$("lbViewPlayer").addEventListener('click', ()=>{ if(lbView!=='player'){ lbView='player'; openLeaderboard(); } });
+$("lbViewCountry").addEventListener('click', ()=>{ if(lbView!=='country'){ lbView='country'; openLeaderboard(); } });
 $("lbTabAll").addEventListener('click', ()=>{ if(lbScope!=='all'){ lbScope='all'; openLeaderboard(); } });
 $("lbTabWeek").addEventListener('click', ()=>{ if(lbScope!=='week'){ lbScope='week'; openLeaderboard(); } });
 $("lbTabDay").addEventListener('click', ()=>{ if(lbScope!=='day'){ lbScope='day'; openLeaderboard(); } });

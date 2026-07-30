@@ -100,6 +100,33 @@ export default async function handler(req, res) {
       if (!r.ok) { res.status(502).json({ error: 'db_read_failed', status: r.status }); return; }
       const best = bestPerPlayer(await r.json().catch(() => []));
 
+      // 국가별 순위 — 선수별 최고기록을 국가로 묶는다.
+      // 정렬은 '그 나라 최고 기록'. 이 게임의 모든 순위가 기록 기준이라 여기만 참가자 수로
+      // 세면 의미가 어긋난다. 참가자 수는 옆에 함께 보여 준다.
+      if (clean(q.view || '', 8) === 'country') {
+        const byCc = new Map();
+        for (const x of best) {
+          if (!x.country) continue;                       // 국가 컬럼이 생기기 전 기록은 제외
+          const c = byCc.get(x.country) || { cc: x.country, players: 0, best: Infinity };
+          c.players++; c.best = Math.min(c.best, +x.time_sec);
+          byCc.set(x.country, c);
+        }
+        const list = [...byCc.values()].sort((a, b) => a.best - b.best);
+        // 내 나라 표시도 요청 헤더로 판단한다(클라이언트 주장 불신 — 제출 때와 같은 기준)
+        const mine = String(req.headers['x-vercel-ip-country'] || '').toUpperCase();
+        let myCountry = null;
+        const out = list.map((c, i) => {
+          const row = { rank: i + 1, cc: c.cc, players: c.players, t: c.best, me: c.cc === mine };
+          if (row.me) myCountry = row;
+          return row;
+        });
+        res.status(200).json({
+          ok: true, scope, view: 'country', week: wk, day: day || null, event: ev,
+          countries: out.slice(0, 50), players: out.length, myCountry
+        });
+        return;
+      }
+
       let myRank = null, myTime = null;
       for (let i = 0; i < best.length; i++) {
         if (aid && best[i].aid === aid) { myRank = i + 1; myTime = +best[i].time_sec; break; }
