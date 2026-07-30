@@ -551,7 +551,7 @@
       <button class="lb-tab" id="lbTabDay" data-i18n="lb_today">Today</button>
     </div>
     <div class="lb-views">
-      <button class="lb-view on" id="lbViewPlayer" data-i18n="lb_view_player">🌍 Players</button>
+      <button class="lb-view on" id="lbViewPlayer" data-i18n="lb_view_player">🌍 World</button>
       <button class="lb-view" id="lbViewCountry" data-i18n="lb_view_country">🚩 Countries</button>
     </div>
     <div class="set-scroll">
@@ -778,7 +778,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 // 배포 식별자 — 원격 진단 시 "새 버전을 받았는지" 즉시 확인용(진단 화면 첫 줄). 배포할 때마다 갱신.
-const BUILD='2026-07-30t';
+const BUILD='2026-07-30u';
 const $ = (id)=>document.getElementById(id);
 const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), diag:$("diag"), shop:$("shop"), lb:$("lb"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
@@ -879,7 +879,7 @@ I18N.en = {
   lb_empty:"<b>The #1 spot is open.</b><br>Run a sprint and take it.",
   lb_note:"Sprint · fastest run per player · the This week tab resets every Monday",
   lb_all:"All time", lb_scope_all:"overall", lb_scope_week:"this week", lb_scope_day:"today",
-  lb_view_player:"🌍 Players", lb_view_country:"🚩 Countries",
+  lb_view_player:"🌍 World", lb_view_country:"🚩 Countries",
   lb_country_players:"{n} players", lb_country_me:"{flag} {name} is <b>#{rank}</b> of {n} countries {scope}",
   lb_country_none:"Your country has no time {scope} yet — set the first one",
   lb_country_empty:"<b>No country has a flag yet.</b><br>Run once and plant yours.",
@@ -1003,7 +1003,7 @@ I18N.ko = {
   lb_empty:"<b>1위 자리가 비어 있습니다.</b><br>단거리 한 판이면 차지할 수 있어요.",
   lb_note:"단거리 · 선수당 최고 기록 · '이번 주' 탭은 월요일마다 초기화",
   lb_all:"전체", lb_scope_all:"전체", lb_scope_week:"이번 주", lb_scope_day:"오늘",
-  lb_view_player:"🌍 선수", lb_view_country:"🚩 국가",
+  lb_view_player:"🌍 세계", lb_view_country:"🚩 국가",
   lb_country_players:"{n}명", lb_country_me:"{flag} {name} — {scope} {n}개국 중 <b>{rank}위</b>",
   lb_country_none:"{scope} 우리나라 기록이 아직 없어요 — 첫 기록을 세워보세요",
   lb_country_empty:"<b>아직 국기가 붙은 나라가 없어요.</b><br>한 판 뛰면 우리나라 국기가 첫 번째로 올라갑니다.",

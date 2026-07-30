@@ -59,6 +59,9 @@ function bestPerPlayer(rows) {
       const kept = seen.get(key);
       if (!kept.pi_name && x.pi_name) kept.pi_name = x.pi_name;
       if (!kept.country && x.country) kept.country = x.country;
+      // aid도 옮긴다. 안 옮기면 '내 순위'가 안 잡힌다 — 가장 빠른 기록이 aid 컬럼이
+      // 생기기 전 것이면 그 줄에 기기 ID가 없어, 1위가 본인인데도 "기록이 아직 없어요"가 뜬다.
+      if (!kept.aid && x.aid) kept.aid = x.aid;
       continue;
     }
     if (key) seen.set(key, x);
