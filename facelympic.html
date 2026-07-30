@@ -709,7 +709,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 // 배포 식별자 — 원격 진단 시 "새 버전을 받았는지" 즉시 확인용(진단 화면 첫 줄). 배포할 때마다 갱신.
-const BUILD='2026-07-30g';
+const BUILD='2026-07-30h';
 const $ = (id)=>document.getElementById(id);
 const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), diag:$("diag"), shop:$("shop"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
@@ -843,7 +843,7 @@ I18N.ko = {
   mv_brow_t:"눈썹 올리기", mv_brow_d:"점프", mv_tilt_t:"고개 기울이기", mv_tilt_d:"좌우 피하기",
   mv_open_t:"입 벌리기", mv_open_d:"음식 먹기", mv_pucker_t:"입 오므리기", mv_pucker_d:"괴물 꽝!",
   start:"지금 플레이하기", aria_shop:"상점", aria_set:"설정",
-  hero_sub:"지금, 당신의 얼굴로 <b>올림픽</b>에 도전하세요", home_foot:"표정이 힘이 되고, 미션이 승리가 된다!",
+  hero_sub:"지금, 당신의 웃는 얼굴로 <b>올림픽</b>에 도전하세요", home_foot:"표정이 힘이 되고, 미션이 승리가 된다!",
   calib_title:"표정·동작 익히기", calib_sub:"달리기 전, 표정·동작을 워밍업해요.",
   cal_ready:"준비", cal_fit:"화면 안에 얼굴을 맞춰 주세요", skip:"건너뛰기",
   cs_neutral_cue:"😐 무표정", cs_neutral_fn:"멈춤 — 쉬어가기", cs_neutral_instr:"힘을 빼면 멈춰요. 편안하게 정면을!",
