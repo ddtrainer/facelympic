@@ -598,7 +598,8 @@
   var evName=EVN[evId]||evId, t=(timeMs/1000).toFixed(2);
   // 공유/탈출용 = 우리 도메인(쿼리 보존). Pi Browser 진입용 = pinet(Pi Browser선 쿼리 살아있음)
   var PINET='https://facelympicg8883.pinet.com', SHARE='https://facelympic.vercel.app';
-  var url=SHARE+'/?c='+raw, piUrl=PINET+'/?c='+raw;
+  var piq=''; try{ if(/[?&]pi=1/.test(location.search)) piq='&pi=1'; }catch(e){}   // 탈출한 브라우저에서도 Pi 안내가 유지되도록
+  var url=SHARE+'/?c='+raw+piq;   // pinet 진입은 escapeOut의 인텐트가 '경로'(/c/CODE)로 처리한다
   var who=name||(ko?'익명':'Anonymous');
 
   // 1) 카드 — 순수 DOM(캔버스·blob·dataURL 없음 = 어떤 웹뷰서도 렌더됨)
@@ -623,13 +624,20 @@
     try{ navigator.clipboard.writeText(url).then(function(){ alert(msg); }, function(){ prompt(ko?'이 링크를 복사하세요:':'Copy this link:', url); }); }
     catch(e){ try{ prompt(ko?'이 링크를 복사하세요:':'Copy this link:', url); }catch(_){} }
   }
-  function escapeOut(){
-    if(isKakao){ try{ location.href='kakaotalk://web/openExternal?url='+encodeURIComponent(url); return true; }catch(e){} }
+  function kakaoOut(){ try{ location.href='kakaotalk://web/openExternal?url='+encodeURIComponent(url); return true; }catch(e){ return false; } }
+  // viaTap = 사용자가 버튼을 눌렀을 때. 이때만 인텐트를 먼저 시도한다 —
+  // 카톡 분기를 앞에 두면 늘 기본 브라우저부터 열려 Pi Browser까지 한 단계가 더 생긴다(사용자 신고).
+  // 자동 호출(랜딩 직후)은 제스처가 없어 인텐트가 막힐 수 있으므로 검증된 카톡 탈출을 그대로 쓴다.
+  function escapeOut(viaTap){
+    if(isKakao && !viaTap){ if(kakaoOut()) return true; }
     if(/Android/i.test(ua)){
       var host=PINET.replace(/^https?:\/\//,'');
-      var it='intent://'+host+'/?c='+raw+'#Intent;scheme=https;package=pi.browser;S.browser_fallback_url='+encodeURIComponent(url)+';end';
-      try{ location.href=it; return true; }catch(e){}
+      var it='intent://'+host+'/c/'+raw+'#Intent;scheme=https;package=pi.browser;S.browser_fallback_url='+encodeURIComponent(url)+';end';
+      try{ location.href=it; }catch(e){}
+      if(isKakao) setTimeout(function(){ if(!document.hidden) kakaoOut(); }, 1400);   // 인텐트를 못 다루는 웹뷰면 그때 탈출
+      return true;
     }
+    if(isKakao){ if(kakaoOut()) return true; }
     if(isIOSdev){ copyIOS(); return true; }
     return false;
   }
@@ -646,7 +654,7 @@
     if(hint) hint.textContent = isKakao ? (ko?'안 열리면 우측 상단 ⋮ → \'다른 브라우저로 열기\'':'If nothing happens: tap ⋮ (top right) → \'Open in another browser\'')
                             : isIOSdev ? (ko?'Pi 로그인이 필요 없다면 아래 \'도전 수락\'으로 바로 플레이하세요':'No Pi login needed? Just tap \'Accept challenge\' below and play')
                                       : (ko?'안 열리면 Pi Browser를 열고 주소창에 붙여넣으세요':'If it doesn\'t open, paste the link into Pi Browser');
-    if(ob) ob.addEventListener('click', function(){ escapeOut(); });
+    if(ob) ob.addEventListener('click', function(){ escapeOut(true); });   // 사용자 탭 → 인텐트 우선
     var cb=$('chalCopyPi'), cbl=cb&&cb.querySelector('span');
     if(cbl) cbl.textContent = ko?'대신 링크 복사':'Copy link instead';
     if(cb) cb.addEventListener('click', function(){
@@ -664,7 +672,7 @@
   }
   // 모듈이 죽은 환경에선 '도전 수락'을 눌러도 게임을 못 켬 → 작동하는 브라우저로 보내준다
   var sb=$('chalStart');
-  if(sb) sb.addEventListener('click', function(){ if(!window.__fl) escapeOut(); });
+  if(sb) sb.addEventListener('click', function(){ if(!window.__fl) escapeOut(true); });
   var cx=$('chalClose');
   if(cx) cx.addEventListener('click', function(){ var b=$('chalBanner'); if(b) b.style.display='none'; });
 
@@ -687,7 +695,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 // 배포 식별자 — 원격 진단 시 "새 버전을 받았는지" 즉시 확인용(진단 화면 첫 줄). 배포할 때마다 갱신.
-const BUILD='2026-07-30c';
+const BUILD='2026-07-30d';
 const $ = (id)=>document.getElementById(id);
 const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), diag:$("diag"), shop:$("shop"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
@@ -3909,18 +3917,33 @@ async function copyLinkForIOS(url, msgKey){
 function openInPiBrowser(){
   const code = activeChallenge
     ? encodeChallenge(activeChallenge.ev.id, activeChallenge.timeSec*1000, activeChallenge.name) : '';
-  const shareUrl = SHARE_BASE+(code ? '/?c='+code : '/');   // 일반 브라우저용 — 우리 도메인은 쿼리 그대로 받는다
+  const q=[]; if(code) q.push('c='+code); if(piPref()) q.push('pi=1');
+  const shareUrl = SHARE_BASE+(q.length ? '/?'+q.join('&') : '/');   // 일반 브라우저용 — 우리 도메인은 쿼리 그대로 받는다
+  //  ↑ pi=1을 반드시 함께 넘긴다. 탈출한 브라우저에서도 'Pi Browser로 열기' 바가 맨 위에 다시 떠야
+  //    사용자가 화면을 뒤져 'Pi로 로그인'을 찾는 일이 없다(실제 신고: 단계가 하나 더 늘어남).
   const piPath   = code ? '/c/'+code : '/';                 // pinet용 — 래퍼가 쿼리는 떼고 경로만 넘기므로 경로에 싣는다
   const ua=navigator.userAgent||'';
   // iOS 인앱 브라우저: 탈출 스킴이 불확실하고 카메라도 막히므로 '복사 → 사파리에 붙여넣기'를 확실히 안내
   if(isIOSInApp()){ copyLinkForIOS(shareUrl, 'iosapp_copied'); return; }
-  // 카카오톡 인앱 브라우저 → 외부 브라우저로 탈출(인앱선 카드·Pi 로그인·딥링크 전부 막힘)
-  if(/KAKAOTALK/i.test(ua)){ try{ location.href='kakaotalk://web/openExternal?url='+encodeURIComponent(shareUrl); return; }catch(e){} }
   if(/Android/i.test(ua)){
+    // ⚠️ 카톡 인앱이라도 **인텐트를 먼저** 시도한다. 예전엔 카톡 분기가 위에 있어서 무조건
+    //    기본 브라우저로 먼저 탈출했고, 거기서 Pi 로그인을 한 번 더 눌러야 Pi Browser가 열렸다(사용자 신고).
     const host=PINET_URL.replace(/^https?:\/\//,'');   // facelympicg8883.pinet.com
     const intent='intent://'+host+piPath+'#Intent;scheme=https;package=pi.browser;S.browser_fallback_url='+encodeURIComponent(shareUrl)+';end';   // Pi Browser 없으면 우리 도메인으로
-    try{ window.location.href=intent; return; }catch(e){}
+    let left=false;
+    const onHide=()=>{ if(document.hidden) left=true; };
+    document.addEventListener('visibilitychange', onHide);
+    try{ window.location.href=intent; }catch(e){}
+    // 인텐트를 못 다루는 웹뷰면 화면이 그대로다 → 그때만 카톡 탈출로 폴백(인앱선 카드·Pi로그인·카메라가 다 막히므로).
+    if(/KAKAOTALK/i.test(ua)) setTimeout(()=>{
+      document.removeEventListener('visibilitychange', onHide);
+      if(left || document.hidden) return;              // 이미 Pi Browser로 넘어갔으면 아무것도 하지 않는다
+      try{ location.href='kakaotalk://web/openExternal?url='+encodeURIComponent(shareUrl); }catch(e){}
+    }, 1400);
+    return;
   }
+  // 카카오톡(비안드로이드) 인앱 브라우저 → 외부 브라우저로 탈출(인앱선 카드·Pi 로그인·딥링크 전부 막힘)
+  if(/KAKAOTALK/i.test(ua)){ try{ location.href='kakaotalk://web/openExternal?url='+encodeURIComponent(shareUrl); return; }catch(e){} }
   if(isIOS()){ copyLinkForIOS(shareUrl); return; }   // 아이폰: 자동 실행 불가 → 복사+붙여넣기 안내(공유시트 대신)
   copyChallengeLinkForPi(shareUrl);   // 데스크톱·인텐트 실패 → 복사 안내
 }
