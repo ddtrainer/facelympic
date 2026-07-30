@@ -13,7 +13,7 @@
 <meta property="og:description" content="웃으면 달리고, 눈썹 올리면 점프. 한 판 10초. 카메라는 기기 안에서만 처리됩니다.">
 <meta property="og:url" content="https://facelympic.vercel.app/">
 <!-- ⚠️ 카톡·SNS는 이미지를 URL 단위로 캐시한다. og.jpg를 바꾸면 v를 올려야 새 카드가 뜬다. -->
-<meta property="og:image" content="https://facelympic.vercel.app/og.jpg?v=2">
+<meta property="og:image" content="https://facelympic.vercel.app/og.jpg?v=3">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
@@ -713,7 +713,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 // 배포 식별자 — 원격 진단 시 "새 버전을 받았는지" 즉시 확인용(진단 화면 첫 줄). 배포할 때마다 갱신.
-const BUILD='2026-07-30l';
+const BUILD='2026-07-30m';
 const $ = (id)=>document.getElementById(id);
 const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), diag:$("diag"), shop:$("shop"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
