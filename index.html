@@ -606,14 +606,17 @@
 
   var ua=navigator.userAgent||'';
   var isKakao=/KAKAOTALK/i.test(ua), isPi=/PiBrowser/i.test(ua);
-  var lang='en'; try{ var l=localStorage.getItem('fl_lang'); if(l) lang=l; }catch(e){}
+  // 언어: 직접 고른 값 > 링크가 실어 온 값(?lang= 또는 경로 /l/xx) > 브라우저 언어
+  var lang=''; try{ lang=localStorage.getItem('fl_lang')||''; }catch(e){}
+  if(!lang){ try{ var lm=(location.search||'').match(/[?&]lang=([a-z]{2})/) || (location.pathname||'').match(/\/l\/([a-z]{2})(?:\/|$)/); if(lm) lang=lm[1]; }catch(e){} }
+  if(!lang){ try{ lang=String((navigator.languages&&navigator.languages[0])||navigator.language||'en').toLowerCase().split('-')[0]; }catch(e){ lang='en'; } }
   var ko=(lang==='ko');
   var EVN={ sprint:(ko?'단거리':'Sprint'), middle:(ko?'중거리':'Middle'), long:(ko?'장거리':'Long') };
   var evName=EVN[evId]||evId, t=(timeMs/1000).toFixed(2);
   // 공유/탈출용 = 우리 도메인(쿼리 보존). Pi Browser 진입용 = pinet(Pi Browser선 쿼리 살아있음)
   var PINET='https://facelympicg8883.pinet.com', SHARE='https://facelympic.vercel.app';
   var piq=''; try{ if(/[?&]pi=1/.test(location.search)) piq='&pi=1'; }catch(e){}   // 탈출한 브라우저에서도 Pi 안내가 유지되도록
-  var url=SHARE+'/?c='+raw+piq;   // pinet 진입은 escapeOut의 인텐트가 '경로'(/c/CODE)로 처리한다
+  var url=SHARE+'/?c='+raw+piq+'&lang='+lang;   // pinet 진입은 escapeOut의 인텐트가 '경로'로 처리한다
   var who=name||(ko?'익명':'Anonymous');
 
   // 1) 카드 — 순수 DOM(캔버스·blob·dataURL 없음 = 어떤 웹뷰서도 렌더됨)
@@ -646,7 +649,7 @@
     if(isKakao && !viaTap){ if(kakaoOut()) return true; }
     if(/Android/i.test(ua)){
       var host=PINET.replace(/^https?:\/\//,'');
-      var it='intent://'+host+'/c/'+raw+'#Intent;scheme=https;package=pi.browser;S.browser_fallback_url='+encodeURIComponent(url)+';end';
+      var it='intent://'+host+'/l/'+lang+'/c/'+raw+'#Intent;scheme=https;package=pi.browser;S.browser_fallback_url='+encodeURIComponent(url)+';end';
       try{ location.href=it; }catch(e){}
       if(isKakao) setTimeout(function(){ if(!document.hidden) kakaoOut(); }, 1400);   // 인텐트를 못 다루는 웹뷰면 그때 탈출
       return true;
@@ -709,7 +712,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 // 배포 식별자 — 원격 진단 시 "새 버전을 받았는지" 즉시 확인용(진단 화면 첫 줄). 배포할 때마다 갱신.
-const BUILD='2026-07-30i';
+const BUILD='2026-07-30j';
 const $ = (id)=>document.getElementById(id);
 const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), diag:$("diag"), shop:$("shop"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
@@ -1941,17 +1944,53 @@ function T(key, vars){
   if(vars) for(const k in vars) s = s.split('{'+k+'}').join(vars[k]);
   return s;
 }
+// 내장 웹뷰(Pi Browser 등)는 기기 언어를 넘기지 않고 en으로 보고하는 경우가 있다.
+// 시간대는 그런 웹뷰에서도 기기 값이 오므로 마지막 보루로 쓴다.
+const TZ_LANG={
+  'Asia/Seoul':'ko','Asia/Pyongyang':'ko','Asia/Tokyo':'ja',
+  'Asia/Shanghai':'zh','Asia/Chongqing':'zh','Asia/Harbin':'zh','Asia/Urumqi':'zh','Asia/Taipei':'zh','Asia/Hong_Kong':'zh','Asia/Macau':'zh',
+  'Asia/Ho_Chi_Minh':'vi','Asia/Saigon':'vi','Asia/Bangkok':'th','Asia/Manila':'tl',
+  'Asia/Jakarta':'id','Asia/Pontianak':'id','Asia/Makassar':'id','Asia/Jayapura':'id',
+  'Asia/Kolkata':'hi','Asia/Calcutta':'hi','Europe/Istanbul':'tr',
+  'Europe/Moscow':'ru','Europe/Kaliningrad':'ru','Asia/Yekaterinburg':'ru','Asia/Novosibirsk':'ru','Asia/Vladivostok':'ru',
+  'Europe/Paris':'fr','Europe/Brussels':'fr',
+  'Europe/Madrid':'es','America/Mexico_City':'es','America/Bogota':'es','America/Lima':'es','America/Santiago':'es','America/Argentina/Buenos_Aires':'es',
+  'Europe/Lisbon':'pt','America/Sao_Paulo':'pt',
+  'Asia/Riyadh':'ar','Asia/Dubai':'ar','Asia/Baghdad':'ar','Africa/Cairo':'ar'
+};
+function tzLang(){ try{ return TZ_LANG[Intl.DateTimeFormat().resolvedOptions().timeZone]||null; }catch(e){ return null; } }
+// 링크가 실어 보낸 언어. 우리 도메인은 ?lang=ko, pinet은 쿼리를 떼므로 경로 /l/ko.
+// 주소는 initChallenge가 곧 지우므로 세션에 옮겨 담는다.
+function linkLang(){
+  let v=null;
+  try{ v=new URLSearchParams(location.search).get('lang'); }catch(e){}
+  if(!v){ try{ const m=(location.pathname||'').match(/\/l\/([a-z]{2})(?:\/|$)/); if(m) v=m[1]; }catch(e){} }
+  try{
+    if(v && LANGS.some(x=>x.code===v)) sessionStorage.setItem('fl_linklang', v);
+    return sessionStorage.getItem('fl_linklang')||null;
+  }catch(e){ return (v && LANGS.some(x=>x.code===v)) ? v : null; }
+}
 function initLang(){
-  let l = lsGet('fl_lang');
-  // 저장된 선택이 없으면 **브라우저 언어**를 따른다(직접 고른 언어는 항상 존중).
-  // 예전엔 무조건 영어로 시작해서, 한국인 친구가 링크를 열면 영어 화면을 보고 이탈했다(실측: en 110 vs ko 14 이벤트).
+  let l = lsGet('fl_lang');           // 직접 고른 언어가 최우선 — 항상 존중
+  const explicit = !!l;               // 아래 시간대 보정이 이 선택을 덮지 않도록 표시해 둔다
+  if(!l){ l = linkLang(); if(l) return applyLang(l); }   // 링크가 실어 보낸 언어(대상이 확실할 때 가장 정확)
+  // 그다음이 **브라우저 언어**. 예전엔 무조건 영어로 시작해서, 한국인이 링크를 열면
+  // 영어 화면을 보고 이탈했다(실측: en 110 vs ko 14 이벤트).
+  let navBase='';
   if(!l){
     try{
       const nav=(navigator.languages&&navigator.languages[0])||navigator.language||'';
-      const base=String(nav).toLowerCase().split('-')[0];   // ko-KR→ko, zh-CN→zh, pt-BR→pt
-      if(LANGS.some(x=>x.code===base)) l=base;
+      navBase=String(nav).toLowerCase().split('-')[0];   // ko-KR→ko, zh-CN→zh, pt-BR→pt
+      if(LANGS.some(x=>x.code===navBase)) l=navBase;
     }catch(e){}
   }
+  // en으로 나왔다면 두 가지가 섞여 있다 — 진짜 영어 사용자, 그리고 기기 언어를 안 넘기는 웹뷰.
+  // 시간대가 다른 언어권을 가리키면 그쪽을 따른다(카톡선 한국어인데 Pi Browser선 영어로 뜨던 문제).
+  // America/* 처럼 매핑에 없는 시간대면 그대로 영어 — 진짜 영어 사용자는 영향받지 않는다.
+  if(!explicit && (!l || l==='en')){ const t=tzLang(); if(t) l=t; }
+  applyLang(l);
+}
+function applyLang(l){
   if(!l || !LANGS.some(x=>x.code===l)) l='en';   // 지원하지 않는 언어는 영어로
   LANG=l;
   document.documentElement.lang=l;
@@ -3942,11 +3981,13 @@ async function copyLinkForIOS(url, msgKey){
 function openInPiBrowser(){
   const code = activeChallenge
     ? encodeChallenge(activeChallenge.ev.id, activeChallenge.timeSec*1000, activeChallenge.name) : '';
-  const q=[]; if(code) q.push('c='+code); if(piPref()) q.push('pi=1');
-  const shareUrl = SHARE_BASE+(q.length ? '/?'+q.join('&') : '/');   // 일반 브라우저용 — 우리 도메인은 쿼리 그대로 받는다
+  const q=[]; if(code) q.push('c='+code); if(piPref()) q.push('pi=1'); q.push('lang='+LANG);
+  const shareUrl = SHARE_BASE+'/?'+q.join('&');   // 일반 브라우저용 — 우리 도메인은 쿼리 그대로 받는다
   //  ↑ pi=1을 반드시 함께 넘긴다. 탈출한 브라우저에서도 'Pi Browser로 열기' 바가 맨 위에 다시 떠야
   //    사용자가 화면을 뒤져 'Pi로 로그인'을 찾는 일이 없다(실제 신고: 단계가 하나 더 늘어남).
-  const piPath   = code ? '/c/'+code : '/';                 // pinet용 — 래퍼가 쿼리는 떼고 경로만 넘기므로 경로에 싣는다
+  //  ↑ lang도 함께. Pi Browser는 기기 언어를 안 넘기는지 영어로 뜨는데, 지금 화면의 언어를
+  //    그대로 실어 보내면 추측할 필요가 없다(실제 신고: 카톡선 한국어인데 Pi Browser선 영어).
+  const piPath   = '/l/'+LANG+(code ? '/c/'+code : '');     // pinet용 — 래퍼가 쿼리는 떼고 경로만 넘기므로 경로에 싣는다
   const ua=navigator.userAgent||'';
   // iOS 인앱 브라우저: 탈출 스킴이 불확실하고 카메라도 막히므로 '복사 → 사파리에 붙여넣기'를 확실히 안내
   if(isIOSInApp()){ copyLinkForIOS(shareUrl, 'iosapp_copied'); return; }
@@ -4458,6 +4499,9 @@ async function openDiag(){
     'video: '+(v.videoWidth||0)+'x'+(v.videoHeight||0)+'  readyState:'+v.readyState+'  paused:'+v.paused,
     'currentTime: '+(v.currentTime||0).toFixed(3)+'  (advancing: '+(diagCTmoved?'YES':'NO')+')',
     'UA: '+navigator.userAgent.slice(0,60),
+    // Pi Browser가 기기 언어를 넘기는지 확인용. nav이 en인데 tz가 Asia/Seoul이면 웹뷰가 언어를 안 넘긴 것.
+    'lang: '+LANG+'   nav:'+((navigator.languages&&navigator.languages[0])||navigator.language||'?')
+      +'   tz:'+(tzLang()||'-')+'   saved:'+(lsGet('fl_lang')||'-')+'   link:'+(linkLang()||'-'),
     '— detection —',
     'face detected: '+(extra&&extra.faces!=null?extra.faces:'?'),
     'blendshapes: '+(extra&&extra.bs!=null?extra.bs:'?'),
@@ -4835,7 +4879,7 @@ track('land', { c: activeChallenge?1:0, ret: currentStreak()>0?1:0 }, true);   /
 initPi().then(ok=>{ if(ok) piSignIn(false); });   // 로드 시 자동 로그인 시도(비차단·조용히 실패)
 window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curEvent(v){curEvent=v;}, get G(){return G;},
   awardEP, epTotal, epToday, EP_DAILY_CAP, SKINS, THEMES, HATS, get SKIN(){return SKIN;}, get THEME(){return THEME;}, get EQHAT(){return EQHAT;}, equip, equippedHat,
-  T, setLang, get LANG(){return LANG;}, LANGS, initPi, piSignIn, get piUser(){return piUser;},
+  T, setLang, initLang, linkLang, tzLang, get LANG(){return LANG;}, LANGS, initPi, piSignIn, get piUser(){return piUser;},
   runCalibration, CAL_STEPS,     // 워밍업 흐름 테스트용
   initAudio, bgmStart, bgmStop, bgmSchedule,     // BGM 테스트/튜닝용
   makeObstacles, hashStr, PROGRAMS,              // 미션 배치 검증/튜닝용
