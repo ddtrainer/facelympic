@@ -755,7 +755,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 // 배포 식별자 — 원격 진단 시 "새 버전을 받았는지" 즉시 확인용(진단 화면 첫 줄). 배포할 때마다 갱신.
-const BUILD='2026-07-30n';
+const BUILD='2026-07-30p';
 const $ = (id)=>document.getElementById(id);
 const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), diag:$("diag"), shop:$("shop"), lb:$("lb"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
@@ -855,8 +855,9 @@ I18N.en = {
   lb_loading:"Loading…", lb_fail:"Couldn't load the leaderboard. Try again in a moment.",
   lb_empty:"<b>The #1 spot is open.</b><br>Run a sprint and take it.",
   lb_note:"Sprint · resets every Monday · fastest run per player",
-  lb_me:"You're <b>#{rank}</b> of {n} this week", lb_me_first:"👑 You're <b>#1</b> of {n} this week!",
-  lb_me_none:"No time this week yet — run one and get on the board",
+  lb_scope_week:"this week", lb_scope_day:"today",
+  lb_me:"You're <b>#{rank}</b> of {n} {scope}", lb_me_first:"👑 You're <b>#1</b> of {n} {scope}!",
+  lb_me_none:"No time {scope} yet — run one and get on the board",
   lb_gap:"{d}s behind the player above you",
   lb_strip_me:"This week: <b>#{rank}</b> of {n}", lb_strip_top:"This week's #1 <b>{who}</b> {t}",
   lb_strip_empty:"The #1 spot is open — take it",
@@ -974,8 +975,9 @@ I18N.ko = {
   lb_loading:"불러오는 중…", lb_fail:"순위표를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
   lb_empty:"<b>1위 자리가 비어 있습니다.</b><br>단거리 한 판이면 차지할 수 있어요.",
   lb_note:"단거리 · 매주 월요일 초기화 · 선수당 최고 기록",
-  lb_me:"이번 주 {n}명 중 <b>{rank}위</b>", lb_me_first:"👑 이번 주 {n}명 중 <b>1위</b>!",
-  lb_me_none:"이번 주 기록이 아직 없어요 — 한 판 뛰고 이름을 올려보세요",
+  lb_scope_week:"이번 주", lb_scope_day:"오늘",
+  lb_me:"{scope} {n}명 중 <b>{rank}위</b>", lb_me_first:"👑 {scope} {n}명 중 <b>1위</b>!",
+  lb_me_none:"{scope} 기록이 아직 없어요 — 한 판 뛰고 이름을 올려보세요",
   lb_gap:"바로 위 선수와 {d}초 차이",
   lb_strip_me:"이번 주 {n}명 중 <b>{rank}위</b>", lb_strip_top:"이번 주 1위 <b>{who}</b> {t}",
   lb_strip_empty:"1위 자리가 비어 있어요 — 차지하세요",
@@ -4116,14 +4118,15 @@ function renderBoard(b){
     +'<div class="lb-t">'+lbFmt(r.t)+'</div></div>').join('');
 
   const me=$("lbMe");
+  const sc=T(b.scope==='day' ? 'lb_scope_day' : 'lb_scope_week');   // 탭에 맞는 기간 표현
   if(b.myRank){
     const ahead=rows.find(r=>r.rank===b.myRank-1);
     me.innerHTML = b.myRank===1
-      ? T('lb_me_first',{n:b.players})
-      : T('lb_me',{rank:b.myRank, n:b.players})
+      ? T('lb_me_first',{scope:sc, n:b.players})
+      : T('lb_me',{scope:sc, rank:b.myRank, n:b.players})
         + (ahead ? '<br>'+T('lb_gap',{d:(b.myTime-ahead.t).toFixed(2)}) : '');
   }else{
-    me.innerHTML=T('lb_me_none');
+    me.innerHTML=T('lb_me_none',{scope:sc});
   }
   me.style.display='';
 }

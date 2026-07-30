@@ -41,13 +41,19 @@ function weekKey(d) {
 }
 
 // 선수당 최고기록 1개만 남긴다(한 사람이 순위표를 도배하지 않도록).
-// 같은 사람 판정: Pi 인증 이름이 있으면 그것으로, 없으면 aid로.
+// 같은 사람 판정: Pi 인증 이름 → 기기 ID → 표시 이름 순.
+// ⚠️ 이름까지 보는 이유: aid 컬럼이 생기기 전에 들어온 기록은 기기 ID가 비어 있어서
+//    기기 ID만으로는 묶이지 않는다(실제로 같은 사람이 1·2·3위를 차지했다).
+//    이름도 없는 익명 기록끼리는 서로 다른 사람일 수 있으므로 묶지 않는다.
 function bestPerPlayer(rows) {
   const out = [], seen = new Set();
   for (const x of rows) {
-    const key = x.pi_name ? 'pi:' + x.pi_name.toLowerCase() : 'a:' + (x.aid || Math.random());
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const nm = (x.player_name || '').trim().toLowerCase();
+    const key = x.pi_name ? 'pi:' + x.pi_name.toLowerCase()
+              : x.aid     ? 'a:' + x.aid
+              : nm        ? 'n:' + nm
+              : null;                                  // 익명 + 기기ID 없음 → 묶지 않는다
+    if (key) { if (seen.has(key)) continue; seen.add(key); }
     out.push(x);
   }
   return out;
