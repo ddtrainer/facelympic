@@ -784,7 +784,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 // 배포 식별자 — 원격 진단 시 "새 버전을 받았는지" 즉시 확인용(진단 화면 첫 줄). 배포할 때마다 갱신.
-const BUILD='2026-07-30w';
+const BUILD='2026-07-30x';
 const $ = (id)=>document.getElementById(id);
 const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), diag:$("diag"), shop:$("shop"), lb:$("lb"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
@@ -4148,6 +4148,9 @@ function lbName(r){
   const who = (nm ? esc(nm) : T('nick_anon')) + (r.pi ? '<span class="lb-pi">π</span>' : '');
   return (flag?'<span class="lb-flag">'+flag+'</span>':'')+who;
 }
+// 밖에서 들어올 때(홈 스트립·결과화면 '🌍 전 세계 순위')는 항상 **세계 탭**으로 연다.
+// 지난번에 국가 탭을 봤다는 이유로 국가 순위가 열리면, 버튼 이름과 열리는 화면이 어긋난다(실제 신고).
+function enterLeaderboard(evId){ lbView='player'; return openLeaderboard(evId); }
 async function openLeaderboard(evId){
   if(evId && EVENTS.some(e=>e.id===evId)) lbEvent=evId;   // 결과화면 → 방금 뛴 종목으로 열린다
   show('lb'); renderLbTabs();
@@ -4837,8 +4840,8 @@ function buy(kind,id,it){
 $("openShop").addEventListener('click', ()=>{ renderShop(); show('shop'); });
 $("shopBack").addEventListener('click', ()=>{ show('intro'); updateStreakIntro(); });
 $("lbBack").addEventListener('click', ()=>{ show('intro'); updateStreakIntro(); });
-$("lbStrip").addEventListener('click', openLeaderboard);
-$("rLbOpen").addEventListener('click', ()=>openLeaderboard(lastRunEv||'sprint'));
+$("lbStrip").addEventListener('click', ()=>enterLeaderboard(LB_EVENT));   // 인자 없이 넘기면 클릭 이벤트가 종목으로 들어간다
+$("rLbOpen").addEventListener('click', ()=>enterLeaderboard(lastRunEv||'sprint'));
 $("lbViewPlayer").addEventListener('click', ()=>{ if(lbView!=='player'){ lbView='player'; openLeaderboard(); } });
 $("lbViewCountry").addEventListener('click', ()=>{ if(lbView!=='country'){ lbView='country'; openLeaderboard(); } });
 $("lbPeriod").addEventListener('change', (e)=>{ lbScope=e.target.value; openLeaderboard(); });
@@ -5113,7 +5116,7 @@ window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curE
   encodeChallenge, decodeChallenge, challengeURL, challengePiURL, readChallengeCode, initChallenge, piPref, initPiBar, openInPiBrowser, shareChallenge, shareResultCard, buildResultCard, showCardModal, drawScene,   // 친구 도전장 테스트용
   computeHeadPose, get SENS(){return SENS;}, getCameraStream, CAM_TRIES,   // roll·카메라 진단/튜닝용
   QUESTS, WEEKLY, questState, weekState, updateQuests, renderQuestStrip,   // 일일/주간 목표 테스트용
-  openLeaderboard, renderBoard, renderLbStrip, fetchBoard, submitScore, get lbScope(){return lbScope;}, set lbScope(v){lbScope=v;},   // 순위표 테스트용
+  openLeaderboard, enterLeaderboard, renderBoard, renderCountryBoard, renderLbStrip, fetchBoard, submitScore, get lbScope(){return lbScope;}, set lbScope(v){lbScope=v;},   // 순위표 테스트용
   restorePurchases, recordPurchase, pendingGrants, isOwned, addOwned, clearMyData,   // 구매 보존·복원 테스트용
   track, anonId,   // 익명 지표 테스트용
   startFever, FEVER_N, FEVER_SEC, FEVER_MUL, drawFever,   // 콤보 피버 테스트/튜닝용
