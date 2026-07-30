@@ -40,14 +40,6 @@ function weekKey(d) {
   return t.getUTCFullYear() + '-W' + String(Math.ceil(((t - y0) / 86400000 + 1) / 7)).padStart(2, '0');
 }
 
-// 선수당 최고기록 1개만 남긴다(한 사람이 순위표를 도배하지 않도록).
-//
-// 원칙: **화면에 보이는 이름 하나당 한 줄.** 이름이 같은데 두 줄로 나오면 고장으로 보인다.
-//   같은 사람이 Pi 로그인 전후로 기록을 올리면 한쪽은 pi_name, 다른 쪽은 player_name에만
-//   이름이 남는다. 기기 ID로 묶으려 해도 aid 컬럼이 생기기 전 기록은 그 값이 비어 있다.
-//   → 이름을 먼저 보고, 이름이 없을 때만 기기 ID로 묶는다.
-// ⚠️ 대가: 서로 다른 사람이 같은 닉네임을 쓰면 한 줄로 합쳐진다. 구분이 필요하면
-//   Pi 로그인(π 배지)이 그 역할을 한다. 익명끼리는 남남일 수 있으므로 묶지 않는다.
 // 예전 코드는 닉네임 자체에 'π '를 붙여 저장했다. 지금은 π를 배지로 따로 그리므로
 // 이름 비교·표시에서는 앞의 π와 공백을 벗긴다(안 그러면 'π skybird2'가 'skybird2'와 남남이 된다).
 function stripPi(s) {
@@ -63,7 +55,7 @@ function stripPi(s) {
 //   X를 매개로 두 이름이 한 사람으로 이어진다 — 닉네임을 바꿔 가며 뛰어도 한 줄로 합쳐진다.
 // 이름만 같은 경우도 여전히 묶는다(기기를 바꿔도 이어지도록). 대가는 서로 다른 사람이
 // 같은 닉네임을 쓰면 합쳐지는 것 — 구분이 필요하면 Pi 로그인(π 배지)이 그 역할을 한다.
-function bestPerPlayer(rows) {
+function mergePlayers(rows) {
   const parent = new Map();
   const add = k => { if (!parent.has(k)) parent.set(k, k); return k; };
   const find = k => { while (parent.get(k) !== k) { parent.set(k, parent.get(parent.get(k))); k = parent.get(k); } return k; };
@@ -87,7 +79,6 @@ function bestPerPlayer(rows) {
     const key = ids.length ? find(ids[0]) : null;   // 익명 + 기기ID 없음 → 묶지 않는다
     if (key && seen.has(key)) {
       // 가장 빠른 줄을 남기되, 배지·국가·기기ID가 느린 줄에만 있을 수 있으므로 살려서 옮긴다.
-      // (aid를 안 옮기면 1위가 본인인데도 '내 순위'가 안 잡힌다.)
       const kept = seen.get(key);
       if (!kept.pi_name && x.pi_name) kept.pi_name = x.pi_name;
       if (!kept.country && x.country) kept.country = x.country;
@@ -97,10 +88,14 @@ function bestPerPlayer(rows) {
       if (!stripPi(kept.player_name) && stripPi(x.player_name)) kept.player_name = x.player_name;
       continue;
     }
-    if (key) seen.set(key, x);
+    if (key) { seen.set(key, x); x._key = key; }
     out.push(x);
   }
-  return out;
+  // rootOf: 어떤 식별자가 '누구'에 속하는지 되묻는 용도.
+  // ⚠️ 내 순위를 기기 ID **일치**로 찾으면 안 된다 — 파이 브라우저와 카톡 브라우저는 기기 ID가
+  //    달라서, 다른 브라우저에서 세운 기록이 최고기록이면 1위인데도 '기록이 없다'고 나온다(실제 신고).
+  //    합쳐진 '사람' 단위로 비교해야 한다.
+  return { list: out, rootOf: id => (parent.has(id) ? find(id) : null) };
 }
 
 export default async function handler(req, res) {
@@ -134,7 +129,7 @@ export default async function handler(req, res) {
         + filter + '&order=time_sec.asc&limit=2000';
       const r = await fetch(url, { headers: H });
       if (!r.ok) { res.status(502).json({ error: 'db_read_failed', status: r.status }); return; }
-      const best = bestPerPlayer(await r.json().catch(() => []));
+      const { list: best, rootOf } = mergePlayers(await r.json().catch(() => []));
 
       // 국가별 순위 — 선수별 최고기록을 국가로 묶는다.
       // 정렬은 '그 나라 최고 기록'. 이 게임의 모든 순위가 기록 기준이라 여기만 참가자 수로
@@ -164,14 +159,16 @@ export default async function handler(req, res) {
       }
 
       // 특정 국가 안에서의 순위(국가 순위에서 나라를 눌러 들어온 경우).
-      // ⚠️ 필터는 **합치기(bestPerPlayer) 다음**에 건다. 먼저 거르면, 가장 빠른 기록이
+      // ⚠️ 필터는 **합치기(mergePlayers) 다음**에 건다. 먼저 거르면, 가장 빠른 기록이
       //    국가 컬럼이 생기기 전 것인 선수가 통째로 빠진다(국가는 합칠 때 옮겨 온다).
       const ccFilter = clean(q.cc || '', 2).toUpperCase();
       const list = /^[A-Z]{2}$/.test(ccFilter) ? best.filter(x => x.country === ccFilter) : best;
 
+      // 내 순위는 '사람' 단위로 찾는다(기기 ID 일치가 아니라). 브라우저를 바꿔 뛰어도 잡힌다.
+      const myRoot = aid ? rootOf('a:' + aid) : null;
       let myRank = null, myTime = null;
       for (let i = 0; i < list.length; i++) {
-        if (aid && list[i].aid === aid) { myRank = i + 1; myTime = +list[i].time_sec; break; }
+        if (myRoot && list[i]._key === myRoot) { myRank = i + 1; myTime = +list[i].time_sec; break; }
       }
       res.status(200).json({
         ok: true, scope, week: wk, day: day || null, event: ev,
@@ -182,7 +179,7 @@ export default async function handler(req, res) {
           name: stripPi(x.player_name) || null,      // 저장된 이름에 박힌 π는 벗긴다(배지로 따로 그린다)
           pi: stripPi(x.pi_name) || null,
           t: +x.time_sec,
-          me: !!(aid && x.aid === aid)
+          me: !!(myRoot && x._key === myRoot)
         })),
         myRank, myTime
       });
