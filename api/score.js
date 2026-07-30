@@ -163,14 +163,21 @@ export default async function handler(req, res) {
         return;
       }
 
+      // 특정 국가 안에서의 순위(국가 순위에서 나라를 눌러 들어온 경우).
+      // ⚠️ 필터는 **합치기(bestPerPlayer) 다음**에 건다. 먼저 거르면, 가장 빠른 기록이
+      //    국가 컬럼이 생기기 전 것인 선수가 통째로 빠진다(국가는 합칠 때 옮겨 온다).
+      const ccFilter = clean(q.cc || '', 2).toUpperCase();
+      const list = /^[A-Z]{2}$/.test(ccFilter) ? best.filter(x => x.country === ccFilter) : best;
+
       let myRank = null, myTime = null;
-      for (let i = 0; i < best.length; i++) {
-        if (aid && best[i].aid === aid) { myRank = i + 1; myTime = +best[i].time_sec; break; }
+      for (let i = 0; i < list.length; i++) {
+        if (aid && list[i].aid === aid) { myRank = i + 1; myTime = +list[i].time_sec; break; }
       }
       res.status(200).json({
         ok: true, scope, week: wk, day: day || null, event: ev,
-        players: best.length,
-        top: best.slice(0, 50).map((x, i) => ({
+        cc: /^[A-Z]{2}$/.test(ccFilter) ? ccFilter : null,
+        players: list.length,
+        top: list.slice(0, 50).map((x, i) => ({
           rank: i + 1, cc: x.country || null,
           name: stripPi(x.player_name) || null,      // 저장된 이름에 박힌 π는 벗긴다(배지로 따로 그린다)
           pi: stripPi(x.pi_name) || null,

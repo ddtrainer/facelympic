@@ -100,6 +100,13 @@
     background:var(--card);color:var(--dim);font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;}
   .lb-views{align-items:center;}
   .lb-cnt{flex:0 0 auto;font-size:11.5px;font-weight:700;color:var(--faint);margin-left:6px;}
+  .lb-row.tap{cursor:pointer;}
+  .lb-row.tap .lb-t::after{content:" ›";color:var(--faint);font-weight:800;}
+  /* 국가 안 순위를 보는 중임을 알리는 줄 — 누르면 전체로 돌아간다 */
+  .lb-filter{display:flex;align-items:center;gap:6px;width:100%;margin:0 0 8px;padding:8px 12px;border-radius:11px;
+    background:rgba(255,211,78,.10);border:1px solid rgba(255,211,78,.32);color:var(--ink);
+    font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer;text-align:left;}
+  .lb-filter .lb-filter-x{margin-left:auto;color:var(--dim);font-weight:800;}
   .lb-tabs .lb-tab{padding:7px 13px;font-size:12.5px;}   /* 탭 3개 — 좁은 폰에서 한 줄 유지 */
   .lb-t{flex:0 0 auto;font-size:15px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums;}
   .lb-empty{padding:22px 14px;text-align:center;color:var(--dim);font-size:13.5px;font-weight:700;line-height:1.6;}
@@ -561,6 +568,7 @@
       </select>
     </div>
     <div class="set-scroll">
+      <button class="lb-filter" id="lbFilter" style="display:none;"></button>
       <div class="lb-me" id="lbMe"></div>
       <div id="lbList"></div>
       <div class="lb-note" data-i18n="lb_note">Resets every Monday. Fastest run per player.</div>
@@ -784,7 +792,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 // 배포 식별자 — 원격 진단 시 "새 버전을 받았는지" 즉시 확인용(진단 화면 첫 줄). 배포할 때마다 갱신.
-const BUILD='2026-07-30x';
+const BUILD='2026-07-30y';
 const $ = (id)=>document.getElementById(id);
 const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), diag:$("diag"), shop:$("shop"), lb:$("lb"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
@@ -886,6 +894,7 @@ I18N.en = {
   lb_note:"{ev} · fastest run per player · This week resets on Monday",
   lb_all:"All time", lb_scope_all:"overall", lb_scope_week:"this week", lb_scope_day:"today",
   lb_view_player:"🌍 World", lb_view_country:"🚩 Countries",
+  lb_in_country:"{name} — national ranking", lb_clear:"World ›",
   lb_country_players:"{n} players", lb_country_me:"{flag} {name} is <b>#{rank}</b> of {n} countries {scope}",
   lb_country_none:"Your country has no time {scope} yet — set the first one",
   lb_country_empty:"<b>No country has a flag yet.</b><br>Run once and plant yours.",
@@ -1010,6 +1019,7 @@ I18N.ko = {
   lb_note:"{ev} · 선수당 최고 기록 · '이번 주'는 월요일마다 초기화",
   lb_all:"전체", lb_scope_all:"전체", lb_scope_week:"이번 주", lb_scope_day:"오늘",
   lb_view_player:"🌍 세계", lb_view_country:"🚩 국가",
+  lb_in_country:"{name} 국내 순위", lb_clear:"전체 보기 ›",
   lb_country_players:"{n}명", lb_country_me:"{flag} {name} — {scope} {n}개국 중 <b>{rank}위</b>",
   lb_country_none:"{scope} 우리나라 기록이 아직 없어요 — 첫 기록을 세워보세요",
   lb_country_empty:"<b>아직 국기가 붙은 나라가 없어요.</b><br>한 판 뛰면 우리나라 국기가 첫 번째로 올라갑니다.",
@@ -3767,10 +3777,11 @@ function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 // ⚠️ DB는 /api/score 를 통해서만 만진다. 예전엔 여기서 공개 anon 키로 직접 읽고 썼는데,
 //    그러면 누구나 0.1초짜리 기록을 꽂아 넣을 수 있어 이름이 붙은 순위표가 첫날에 죽는다.
 // scope: 'all'(누적, 기본) | 'week' | 'day'   view: 'player'(기본) | 'country'
-async function fetchBoard(eventId, scope, view){
+async function fetchBoard(eventId, scope, view, cc){
   const s=scope||'all';
   const q='?ev='+encodeURIComponent(eventId)+'&aid='+encodeURIComponent(anonId())
     +'&scope='+s+(view==='country'?'&view=country':'')
+    +(cc?'&cc='+encodeURIComponent(cc):'')
     +(s==='day'?'&day='+encodeURIComponent(todayStr()):'');
   const r=await fetch(PI_API_BASE+'/api/score'+q);
   if(!r.ok) throw new Error('board');
@@ -4129,6 +4140,7 @@ async function copyChallengeLinkForPi(forceUrl){
 let lbScope='all';                        // 'all' | 'week' | 'day'
 let lbView='player';                      // 'player'(전 세계 선수) | 'country'(국가 대항)
 let lbEvent='sprint';                     // 보고 있는 종목 — 결과화면에서 열면 방금 뛴 종목으로 맞춘다
+let lbCountry=null;                       // 국가 순위에서 나라를 눌러 들어오면 그 나라 안에서의 순위만 본다
 const LB_EVENT='sprint';                  // 홈 스트립 기준(입문 종목)
 function lbFmt(t){ return (+t).toFixed(2)+T('unit_sec'); }
 // 국가 코드(KR) → 국기(🇰🇷). 유니코드 지역표시문자 두 개로 만든다.
@@ -4150,18 +4162,27 @@ function lbName(r){
 }
 // 밖에서 들어올 때(홈 스트립·결과화면 '🌍 전 세계 순위')는 항상 **세계 탭**으로 연다.
 // 지난번에 국가 탭을 봤다는 이유로 국가 순위가 열리면, 버튼 이름과 열리는 화면이 어긋난다(실제 신고).
-function enterLeaderboard(evId){ lbView='player'; return openLeaderboard(evId); }
+function enterLeaderboard(evId){ lbView='player'; lbCountry=null; return openLeaderboard(evId); }
 async function openLeaderboard(evId){
   if(evId && EVENTS.some(e=>e.id===evId)) lbEvent=evId;   // 결과화면 → 방금 뛴 종목으로 열린다
-  show('lb'); renderLbTabs();
+  show('lb'); renderLbTabs(); renderLbFilter();
   $("lbList").innerHTML='<div class="lb-empty">'+T('lb_loading')+'</div>';
   $("lbMe").style.display='none';
   try{
-    const b=await fetchBoard(lbEvent, lbScope, lbView);
+    const b=await fetchBoard(lbEvent, lbScope, lbView, lbCountry);
     if(lbView==='country') renderCountryBoard(b); else renderBoard(b);
   }catch(e){
     $("lbList").innerHTML='<div class="lb-empty">'+T('lb_fail')+'</div>';
   }
+}
+function renderLbFilter(){
+  const el=$("lbFilter"); if(!el) return;
+  if(lbView==='player' && lbCountry){
+    el.innerHTML='<span class="lb-flag">'+ccFlag(lbCountry)+'</span>'
+      +T('lb_in_country',{name:esc(ccName(lbCountry))})
+      +'<span class="lb-filter-x">'+T('lb_clear')+'</span>';
+    el.style.display='';
+  }else el.style.display='none';
 }
 function renderLbTabs(){
   const tabs=$("lbEvTabs");
@@ -4189,12 +4210,16 @@ function renderCountryBoard(b){
     return;
   }
   const medal=['🥇','🥈','🥉'];
+  // 나라를 누르면 그 나라 안에서의 선수 순위로 들어간다 — 전 세계 1위는 멀어도 국내 1위는 노려볼 만하다
   $("lbList").innerHTML=rows.map(r=>
-    '<div class="lb-row'+(r.me?' me':'')+(r.rank<=3?' top'+r.rank:'')+'">'
+    '<div class="lb-row tap'+(r.me?' me':'')+(r.rank<=3?' top'+r.rank:'')+'" data-cc="'+esc(r.cc)+'">'
     +'<div class="lb-rk">'+(r.rank<=3?medal[r.rank-1]:r.rank)+'</div>'
     +'<div class="lb-nm"><span class="lb-flag">'+ccFlag(r.cc)+'</span>'+esc(ccName(r.cc))
       +'<span class="lb-cnt">'+T('lb_country_players',{n:r.players})+'</span></div>'
     +'<div class="lb-t">'+lbFmt(r.t)+'</div></div>').join('');
+  $("lbList").querySelectorAll('.lb-row.tap').forEach(el=>el.addEventListener('click', ()=>{
+    lbCountry=el.dataset.cc; lbView='player'; openLeaderboard();
+  }));
 
   const me=$("lbMe");
   const sc=T(b.scope==='day' ? 'lb_scope_day' : b.scope==='week' ? 'lb_scope_week' : 'lb_scope_all');
@@ -4842,8 +4867,9 @@ $("shopBack").addEventListener('click', ()=>{ show('intro'); updateStreakIntro()
 $("lbBack").addEventListener('click', ()=>{ show('intro'); updateStreakIntro(); });
 $("lbStrip").addEventListener('click', ()=>enterLeaderboard(LB_EVENT));   // 인자 없이 넘기면 클릭 이벤트가 종목으로 들어간다
 $("rLbOpen").addEventListener('click', ()=>enterLeaderboard(lastRunEv||'sprint'));
-$("lbViewPlayer").addEventListener('click', ()=>{ if(lbView!=='player'){ lbView='player'; openLeaderboard(); } });
-$("lbViewCountry").addEventListener('click', ()=>{ if(lbView!=='country'){ lbView='country'; openLeaderboard(); } });
+$("lbViewPlayer").addEventListener('click', ()=>{ if(lbView!=='player'||lbCountry){ lbView='player'; lbCountry=null; openLeaderboard(); } });
+$("lbViewCountry").addEventListener('click', ()=>{ if(lbView!=='country'){ lbView='country'; lbCountry=null; openLeaderboard(); } });
+$("lbFilter").addEventListener('click', ()=>{ lbCountry=null; openLeaderboard(); });
 $("lbPeriod").addEventListener('change', (e)=>{ lbScope=e.target.value; openLeaderboard(); });
 $("shopRestore").addEventListener('click', ()=>{ restorePurchases(true); });   // 기기 변경·데이터 삭제 후 구매 되살리기
 
@@ -5116,7 +5142,8 @@ window.__fl={ CAL, startGame, EVENTS, get curEvent(){return curEvent;}, set curE
   encodeChallenge, decodeChallenge, challengeURL, challengePiURL, readChallengeCode, initChallenge, piPref, initPiBar, openInPiBrowser, shareChallenge, shareResultCard, buildResultCard, showCardModal, drawScene,   // 친구 도전장 테스트용
   computeHeadPose, get SENS(){return SENS;}, getCameraStream, CAM_TRIES,   // roll·카메라 진단/튜닝용
   QUESTS, WEEKLY, questState, weekState, updateQuests, renderQuestStrip,   // 일일/주간 목표 테스트용
-  openLeaderboard, enterLeaderboard, renderBoard, renderCountryBoard, renderLbStrip, fetchBoard, submitScore, get lbScope(){return lbScope;}, set lbScope(v){lbScope=v;},   // 순위표 테스트용
+  openLeaderboard, enterLeaderboard, renderBoard, renderCountryBoard, renderLbStrip, fetchBoard, submitScore,
+  get lbCountry(){return lbCountry;}, set lbCountry(v){lbCountry=v;}, get lbView(){return lbView;}, set lbView(v){lbView=v;}, get lbScope(){return lbScope;}, set lbScope(v){lbScope=v;},   // 순위표 테스트용
   restorePurchases, recordPurchase, pendingGrants, isOwned, addOwned, clearMyData,   // 구매 보존·복원 테스트용
   track, anonId,   // 익명 지표 테스트용
   startFever, FEVER_N, FEVER_SEC, FEVER_MUL, drawFever,   // 콤보 피버 테스트/튜닝용
