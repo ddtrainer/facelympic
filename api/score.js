@@ -48,19 +48,49 @@ function weekKey(d) {
 //   → 이름을 먼저 보고, 이름이 없을 때만 기기 ID로 묶는다.
 // ⚠️ 대가: 서로 다른 사람이 같은 닉네임을 쓰면 한 줄로 합쳐진다. 구분이 필요하면
 //   Pi 로그인(π 배지)이 그 역할을 한다. 익명끼리는 남남일 수 있으므로 묶지 않는다.
+// 예전 코드는 닉네임 자체에 'π '를 붙여 저장했다. 지금은 π를 배지로 따로 그리므로
+// 이름 비교·표시에서는 앞의 π와 공백을 벗긴다(안 그러면 'π skybird2'가 'skybird2'와 남남이 된다).
+function stripPi(s) {
+  let v = String(s || '');
+  while (v.length && (v.charCodeAt(0) === 0x03c0 || v.charCodeAt(0) === 32)) v = v.slice(1);
+  return v.trim();
+}
+
+// 선수당 최고기록 1개만 남긴다.
+//
+// 같은 사람을 어떻게 알아보나: **한 행에 함께 등장한 식별자는 같은 사람의 것**이라는 사실을 잇는다.
+//   (기기ID X + Pi이름 skybird2) 한 줄과 (기기ID X + 닉네임 Odysseus) 한 줄이 있으면
+//   X를 매개로 두 이름이 한 사람으로 이어진다 — 닉네임을 바꿔 가며 뛰어도 한 줄로 합쳐진다.
+// 이름만 같은 경우도 여전히 묶는다(기기를 바꿔도 이어지도록). 대가는 서로 다른 사람이
+// 같은 닉네임을 쓰면 합쳐지는 것 — 구분이 필요하면 Pi 로그인(π 배지)이 그 역할을 한다.
 function bestPerPlayer(rows) {
+  const parent = new Map();
+  const add = k => { if (!parent.has(k)) parent.set(k, k); return k; };
+  const find = k => { while (parent.get(k) !== k) { parent.set(k, parent.get(parent.get(k))); k = parent.get(k); } return k; };
+  const union = (a, b) => { a = find(add(a)); b = find(add(b)); if (a !== b) parent.set(a, b); };
+  const idsOf = x => {
+    const out = [];
+    // Pi 사용자명과 표시 이름은 **같은 이름 공간**에 둔다. 따로 두면 같은 'skybird2'인데도
+    // 하나는 p:skybird2, 하나는 n:skybird2가 되어 연결되지 않는다(실제로 1·2위가 갈렸다).
+    const pi = stripPi(x.pi_name).toLowerCase();
+    const nm = stripPi(x.player_name).toLowerCase();
+    if (pi) out.push('n:' + pi);
+    if (nm && nm !== pi) out.push('n:' + nm);
+    if (x.aid) out.push('a:' + x.aid);
+    return out;
+  };
+  for (const x of rows) { const ids = idsOf(x); ids.forEach(add); for (let i = 1; i < ids.length; i++) union(ids[0], ids[i]); }
+
   const out = [], seen = new Map();
-  for (const x of rows) {
-    const nm = (x.pi_name || x.player_name || '').trim().toLowerCase();
-    const key = nm ? 'n:' + nm : (x.aid ? 'a:' + x.aid : null);
+  for (const x of rows) {                      // rows는 이미 기록 빠른 순
+    const ids = idsOf(x);
+    const key = ids.length ? find(ids[0]) : null;   // 익명 + 기기ID 없음 → 묶지 않는다
     if (key && seen.has(key)) {
-      // 이미 더 빠른 기록이 있다. 다만 π 배지·국가가 느린 쪽에만 있을 수 있으므로 살려서 옮긴다
-      // (예전 기록은 국가 컬럼이 생기기 전이라 비어 있다).
+      // 가장 빠른 줄을 남기되, 배지·국가·기기ID가 느린 줄에만 있을 수 있으므로 살려서 옮긴다.
+      // (aid를 안 옮기면 1위가 본인인데도 '내 순위'가 안 잡힌다.)
       const kept = seen.get(key);
       if (!kept.pi_name && x.pi_name) kept.pi_name = x.pi_name;
       if (!kept.country && x.country) kept.country = x.country;
-      // aid도 옮긴다. 안 옮기면 '내 순위'가 안 잡힌다 — 가장 빠른 기록이 aid 컬럼이
-      // 생기기 전 것이면 그 줄에 기기 ID가 없어, 1위가 본인인데도 "기록이 아직 없어요"가 뜬다.
       if (!kept.aid && x.aid) kept.aid = x.aid;
       continue;
     }
@@ -139,8 +169,8 @@ export default async function handler(req, res) {
         players: best.length,
         top: best.slice(0, 50).map((x, i) => ({
           rank: i + 1, cc: x.country || null,
-          name: (x.player_name || '').trim() || null,
-          pi: x.pi_name || null,
+          name: stripPi(x.player_name) || null,      // 저장된 이름에 박힌 π는 벗긴다(배지로 따로 그린다)
+          pi: stripPi(x.pi_name) || null,
           t: +x.time_sec,
           me: !!(aid && x.aid === aid)
         })),
