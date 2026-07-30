@@ -42,9 +42,14 @@ function weekKey(d) {
 
 // 예전 코드는 닉네임 자체에 'π '를 붙여 저장했다. 지금은 π를 배지로 따로 그리므로
 // 이름 비교·표시에서는 앞의 π와 공백을 벗긴다(안 그러면 'π skybird2'가 'skybird2'와 남남이 된다).
+// 벗겨내는 문자: π(U+03C0) · 깨진 문자(U+FFFD) · 각종 공백(U+00A0 포함).
+// U+FFFD는 옛 기록에서 'π '가 인코딩 깨진 흔적이다 — 화면에 '�� faker'로 나오고,
+// 배지처럼 읽혀 인증된 것처럼 보이게 한다.
+const NAME_JUNK = new Set([0x03c0, 0xfffd, 0x0020, 0x00a0, 0x200b, 0xfeff]);
 function stripPi(s) {
   let v = String(s || '');
-  while (v.length && (v.charCodeAt(0) === 0x03c0 || v.charCodeAt(0) === 32)) v = v.slice(1);
+  while (v.length && NAME_JUNK.has(v.charCodeAt(0))) v = v.slice(1);
+  while (v.length && NAME_JUNK.has(v.charCodeAt(v.length - 1))) v = v.slice(0, -1);
   return v.trim();
 }
 
