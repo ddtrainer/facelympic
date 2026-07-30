@@ -96,6 +96,9 @@
   .lb-view{flex:0 0 auto;padding:6px 14px;border-radius:999px;border:1px solid transparent;background:rgba(255,255,255,.05);
     color:var(--dim);font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer;}
   .lb-view.on{background:rgba(255,211,78,.16);border-color:rgba(255,211,78,.45);color:var(--ink);}
+  .lb-period{margin-left:auto;padding:6px 8px;border-radius:10px;border:1px solid var(--line);
+    background:var(--card);color:var(--dim);font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;}
+  .lb-views{align-items:center;}
   .lb-cnt{flex:0 0 auto;font-size:11.5px;font-weight:700;color:var(--faint);margin-left:6px;}
   .lb-tabs .lb-tab{padding:7px 13px;font-size:12.5px;}   /* 탭 3개 — 좁은 폰에서 한 줄 유지 */
   .lb-t{flex:0 0 auto;font-size:15px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums;}
@@ -544,15 +547,18 @@
   <section id="lb" class="screen">
     <button class="sel-back" id="lbBack">‹</button>
     <h2 class="set-header" data-i18n="lb_title">Leaderboard</h2>
-    <!-- 두 축을 나눠 둔다: 위=기간, 아래=보는 대상. '이번 주 국가 순위'처럼 조합해서 볼 수 있다. -->
-    <div class="lb-tabs">
-      <button class="lb-tab on" id="lbTabAll" data-i18n="lb_all">All time</button>
-      <button class="lb-tab" id="lbTabWeek" data-i18n="lb_week">This week</button>
-      <button class="lb-tab" id="lbTabDay" data-i18n="lb_today">Today</button>
-    </div>
+    <!-- 축이 셋(종목·대상·기간)이라 칩으로 다 늘어놓으면 조작 패널이 된다.
+         종목을 맨 위에 둔다 — 방금 뛴 종목의 순위를 가장 먼저 보고 싶어 하기 때문.
+         기간은 쓰는 빈도가 낮아 작은 선택 상자로 내렸다. -->
+    <div class="lb-tabs" id="lbEvTabs"></div>
     <div class="lb-views">
       <button class="lb-view on" id="lbViewPlayer" data-i18n="lb_view_player">🌍 World</button>
       <button class="lb-view" id="lbViewCountry" data-i18n="lb_view_country">🚩 Countries</button>
+      <select class="lb-period" id="lbPeriod">
+        <option value="all" data-i18n="lb_all">All time</option>
+        <option value="week" data-i18n="lb_week">This week</option>
+        <option value="day" data-i18n="lb_today">Today</option>
+      </select>
     </div>
     <div class="set-scroll">
       <div class="lb-me" id="lbMe"></div>
@@ -778,7 +784,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 // 배포 식별자 — 원격 진단 시 "새 버전을 받았는지" 즉시 확인용(진단 화면 첫 줄). 배포할 때마다 갱신.
-const BUILD='2026-07-30u';
+const BUILD='2026-07-30v';
 const $ = (id)=>document.getElementById(id);
 const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), diag:$("diag"), shop:$("shop"), lb:$("lb"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
@@ -877,7 +883,7 @@ I18N.en = {
   lb_title:"Leaderboard", lb_week:"This week", lb_today:"Today", lb_open:"🌍 World rankings",
   lb_loading:"Loading…", lb_fail:"Couldn't load the leaderboard. Try again in a moment.",
   lb_empty:"<b>The #1 spot is open.</b><br>Run a sprint and take it.",
-  lb_note:"Sprint · fastest run per player · the This week tab resets every Monday",
+  lb_note:"{ev} · fastest run per player · This week resets on Monday",
   lb_all:"All time", lb_scope_all:"overall", lb_scope_week:"this week", lb_scope_day:"today",
   lb_view_player:"🌍 World", lb_view_country:"🚩 Countries",
   lb_country_players:"{n} players", lb_country_me:"{flag} {name} is <b>#{rank}</b> of {n} countries {scope}",
@@ -1001,7 +1007,7 @@ I18N.ko = {
   lb_title:"순위표", lb_week:"이번 주", lb_today:"오늘", lb_open:"🌍 전 세계 순위",
   lb_loading:"불러오는 중…", lb_fail:"순위표를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
   lb_empty:"<b>1위 자리가 비어 있습니다.</b><br>단거리 한 판이면 차지할 수 있어요.",
-  lb_note:"단거리 · 선수당 최고 기록 · '이번 주' 탭은 월요일마다 초기화",
+  lb_note:"{ev} · 선수당 최고 기록 · '이번 주'는 월요일마다 초기화",
   lb_all:"전체", lb_scope_all:"전체", lb_scope_week:"이번 주", lb_scope_day:"오늘",
   lb_view_player:"🌍 세계", lb_view_country:"🚩 국가",
   lb_country_players:"{n}명", lb_country_me:"{flag} {name} — {scope} {n}개국 중 <b>{rank}위</b>",
@@ -4120,7 +4126,8 @@ async function copyChallengeLinkForPi(forceUrl){
 // (신규 유저가 노려볼 판이 필요해지므로) — 그래서 주간 탭은 지우지 않고 남겨 둔다.
 let lbScope='all';                        // 'all' | 'week' | 'day'
 let lbView='player';                      // 'player'(전 세계 선수) | 'country'(국가 대항)
-const LB_EVENT='sprint';                  // 1차는 단거리만(플레이어가 적어 종목을 쪼개면 표가 텅 빈다)
+let lbEvent='sprint';                     // 보고 있는 종목 — 결과화면에서 열면 방금 뛴 종목으로 맞춘다
+const LB_EVENT='sprint';                  // 홈 스트립 기준(입문 종목)
 function lbFmt(t){ return (+t).toFixed(2)+T('unit_sec'); }
 // 국가 코드(KR) → 국기(🇰🇷). 유니코드 지역표시문자 두 개로 만든다.
 function ccFlag(cc){
@@ -4134,23 +4141,31 @@ function lbName(r){
                    : (r.name ? esc(r.name) : T('nick_anon'));
   return (flag?'<span class="lb-flag">'+flag+'</span>':'')+who;
 }
-async function openLeaderboard(){
+async function openLeaderboard(evId){
+  if(evId && EVENTS.some(e=>e.id===evId)) lbEvent=evId;   // 결과화면 → 방금 뛴 종목으로 열린다
   show('lb'); renderLbTabs();
   $("lbList").innerHTML='<div class="lb-empty">'+T('lb_loading')+'</div>';
   $("lbMe").style.display='none';
   try{
-    const b=await fetchBoard(LB_EVENT, lbScope, lbView);
+    const b=await fetchBoard(lbEvent, lbScope, lbView);
     if(lbView==='country') renderCountryBoard(b); else renderBoard(b);
   }catch(e){
     $("lbList").innerHTML='<div class="lb-empty">'+T('lb_fail')+'</div>';
   }
 }
 function renderLbTabs(){
-  $("lbTabAll").classList.toggle('on', lbScope==='all');
-  $("lbTabWeek").classList.toggle('on', lbScope==='week');
-  $("lbTabDay").classList.toggle('on', lbScope==='day');
+  const tabs=$("lbEvTabs");
+  tabs.innerHTML=EVENTS.map(e=>
+    '<button class="lb-tab'+(e.id===lbEvent?' on':'')+'" data-ev="'+e.id+'">'+e.emoji+' '+T('ev_'+e.id)+'</button>').join('');
+  tabs.querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{
+    if(lbEvent!==b.dataset.ev){ lbEvent=b.dataset.ev; openLeaderboard(); }
+  }));
+  $("lbPeriod").value=lbScope;
   $("lbViewPlayer").classList.toggle('on', lbView==='player');
   $("lbViewCountry").classList.toggle('on', lbView==='country');
+  // 안내문은 보고 있는 종목을 따라간다
+  const note=document.querySelector('#lb .lb-note');
+  if(note) note.textContent=T('lb_note',{ev:T('ev_'+lbEvent)});
 }
 // 나라 이름은 브라우저가 현재 언어로 번역해 준다(한국·Korea·韓国…). 없으면 코드 그대로.
 function ccName(cc){
@@ -4815,12 +4830,10 @@ $("openShop").addEventListener('click', ()=>{ renderShop(); show('shop'); });
 $("shopBack").addEventListener('click', ()=>{ show('intro'); updateStreakIntro(); });
 $("lbBack").addEventListener('click', ()=>{ show('intro'); updateStreakIntro(); });
 $("lbStrip").addEventListener('click', openLeaderboard);
-$("rLbOpen").addEventListener('click', openLeaderboard);
+$("rLbOpen").addEventListener('click', ()=>openLeaderboard(lastRunEv||'sprint'));
 $("lbViewPlayer").addEventListener('click', ()=>{ if(lbView!=='player'){ lbView='player'; openLeaderboard(); } });
 $("lbViewCountry").addEventListener('click', ()=>{ if(lbView!=='country'){ lbView='country'; openLeaderboard(); } });
-$("lbTabAll").addEventListener('click', ()=>{ if(lbScope!=='all'){ lbScope='all'; openLeaderboard(); } });
-$("lbTabWeek").addEventListener('click', ()=>{ if(lbScope!=='week'){ lbScope='week'; openLeaderboard(); } });
-$("lbTabDay").addEventListener('click', ()=>{ if(lbScope!=='day'){ lbScope='day'; openLeaderboard(); } });
+$("lbPeriod").addEventListener('change', (e)=>{ lbScope=e.target.value; openLeaderboard(); });
 $("shopRestore").addEventListener('click', ()=>{ restorePurchases(true); });   // 기기 변경·데이터 삭제 후 구매 되살리기
 
 // --- 내 데이터 삭제 ---
