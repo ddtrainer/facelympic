@@ -617,7 +617,7 @@
          '순위표 보기'가 밑줄 텍스트라 눈에 띄지 않았다(사용자 신고). -->
     <div class="res-box rank-box" id="rRankBox">
       <div class="world-rank" id="rRank"></div>
-      <button class="btn lb-go" id="rLbOpen">🏆 <span data-i18n="lb_open">See leaderboard</span> ›</button>
+      <button class="btn lb-go" id="rLbOpen"><span data-i18n="lb_open">World rankings</span> ›</button>
     </div>
     <div class="res-box res-dim" id="rAnalysis">
       <div class="mission-report" id="rReport"></div>
@@ -768,7 +768,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 // 배포 식별자 — 원격 진단 시 "새 버전을 받았는지" 즉시 확인용(진단 화면 첫 줄). 배포할 때마다 갱신.
-const BUILD='2026-07-30r';
+const BUILD='2026-07-30s';
 const $ = (id)=>document.getElementById(id);
 const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), diag:$("diag"), shop:$("shop"), lb:$("lb"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
@@ -864,7 +864,7 @@ I18N.en = {
   best_first:"First record! 🎉", best_new:"🎉 New best! ↓{d}s", best_prev:"Previous best {t}s (+{d})",
   rank_calc:"🌍 Tallying world rank…", rank_line:"🌍 <b>#{rank}</b> worldwide", rank_today:" · {n} today",
   rank_me1:"👑 I'm #1! ", rank_1st:"👑 #1 {who}", rank_later:"World rank in a moment",
-  lb_title:"Leaderboard", lb_week:"This week", lb_today:"Today", lb_open:"Country rankings",
+  lb_title:"Leaderboard", lb_week:"This week", lb_today:"Today", lb_open:"🌍 World rankings",
   lb_loading:"Loading…", lb_fail:"Couldn't load the leaderboard. Try again in a moment.",
   lb_empty:"<b>The #1 spot is open.</b><br>Run a sprint and take it.",
   lb_note:"Sprint · fastest run per player · the This week tab resets every Monday",
@@ -984,7 +984,7 @@ I18N.ko = {
   best_first:"첫 기록! 🎉", best_new:"🎉 자기최고! ↓{d}초", best_prev:"이전 최고 {t}초 (+{d})",
   rank_calc:"🌍 전 세계 순위 집계 중…", rank_line:"🌍 전 세계 <b>{rank}등</b>", rank_today:" · 오늘 {n}명",
   rank_me1:"👑 내가 1등! ", rank_1st:"👑 1등 {who}", rank_later:"전 세계 순위는 잠시 후",
-  lb_title:"순위표", lb_week:"이번 주", lb_today:"오늘", lb_open:"국가별 순위",
+  lb_title:"순위표", lb_week:"이번 주", lb_today:"오늘", lb_open:"🌍 전 세계 순위",
   lb_loading:"불러오는 중…", lb_fail:"순위표를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
   lb_empty:"<b>1위 자리가 비어 있습니다.</b><br>단거리 한 판이면 차지할 수 있어요.",
   lb_note:"단거리 · 선수당 최고 기록 · '이번 주' 탭은 월요일마다 초기화",
