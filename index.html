@@ -6,10 +6,10 @@
 <title>페이셀림픽 · Facelympic</title>
 <!-- 링크 미리보기 카드(카톡·블로그·SNS). 없으면 URL만 덩그러니 남아 클릭률이 떨어진다.
      pinet 주소의 카드는 PiNet이 만들어서 우리가 못 바꾸지만, 우리 도메인 링크는 이걸로 결정된다. -->
-<meta name="description" content="웃으면 달리고, 눈썹 올리면 점프. 얼굴로 하는 달리기 게임 · 한 판 10초 · 카메라는 기기 안에서만 처리됩니다.">
+<meta name="description" content="웃으면 달리고, 눈썹 올리면 점프. 얼굴 운동 올림픽 게임 · 한 판 10초 · 카메라는 기기 안에서만 처리됩니다.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Facelympic">
-<meta property="og:title" content="Facelympic — 얼굴로 달리는 게임">
+<meta property="og:title" content="Facelympic — 얼굴 운동 올림픽 게임">
 <meta property="og:description" content="웃으면 달리고, 눈썹 올리면 점프. 한 판 10초. 카메라는 기기 안에서만 처리됩니다.">
 <meta property="og:url" content="https://facelympic.vercel.app/">
 <meta property="og:image" content="https://facelympic.vercel.app/og.jpg">
@@ -707,7 +707,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 // 배포 식별자 — 원격 진단 시 "새 버전을 받았는지" 즉시 확인용(진단 화면 첫 줄). 배포할 때마다 갱신.
-const BUILD='2026-07-30e';
+const BUILD='2026-07-30f';
 const $ = (id)=>document.getElementById(id);
 const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), diag:$("diag"), shop:$("shop"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
