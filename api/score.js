@@ -92,6 +92,9 @@ function bestPerPlayer(rows) {
       if (!kept.pi_name && x.pi_name) kept.pi_name = x.pi_name;
       if (!kept.country && x.country) kept.country = x.country;
       if (!kept.aid && x.aid) kept.aid = x.aid;
+      // 닉네임도 옮긴다. 가장 빠른 기록이 닉네임을 정하기 전에 올라간 것이면
+      // 닉네임을 정해 놓고도 '익명'으로 보이게 된다.
+      if (!stripPi(kept.player_name) && stripPi(x.player_name)) kept.player_name = x.player_name;
       continue;
     }
     if (key) seen.set(key, x);

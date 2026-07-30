@@ -784,7 +784,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 // 배포 식별자 — 원격 진단 시 "새 버전을 받았는지" 즉시 확인용(진단 화면 첫 줄). 배포할 때마다 갱신.
-const BUILD='2026-07-30v';
+const BUILD='2026-07-30w';
 const $ = (id)=>document.getElementById(id);
 const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), diag:$("diag"), shop:$("shop"), lb:$("lb"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
@@ -3788,7 +3788,9 @@ async function updateWorldRank(eventId, time, day){   // 기록 등록 + 오늘�
     const b=await fetchBoard(eventId, 'day');   // 결과화면의 '전 세계 N등'은 오늘의 트랙 기준
     const total=b.players||0;
     const rank=b.myRank || (total+1);
-    const top = (b.top&&b.top[0]) ? { time:b.top[0].t, name:(b.top[0].pi?('π '+b.top[0].pi):(b.top[0].name||'')) } : null;
+    // 이름 표기는 순위표와 같은 규칙(닉네임 → Pi 이름 → 익명, 검증되면 π)
+    const t0=(b.top&&b.top[0])||null;
+    const top = t0 ? { time:t0.t, name:((t0.name||t0.pi||'')+(t0.pi?' π':'')) } : null;
     const lk='fl_rank_'+eventId+'_'+day; const prev=parseInt(lsGet(lk)||'',10); let delta='';
     if(!isNaN(prev) && prev!==rank){ const d=prev-rank; delta=d>0?' <span class="rk-up">↑'+d+'</span>':' <span class="rk-down">↓'+(-d)+'</span>'; }
     lsSet(lk,String(rank));
@@ -4135,10 +4137,15 @@ function ccFlag(cc){
   const s=cc.toUpperCase();
   return String.fromCodePoint(0x1F1E6+s.charCodeAt(0)-65, 0x1F1E6+s.charCodeAt(1)-65);
 }
+// 표시 규칙: **닉네임 → Pi 사용자명 → 익명**. π 배지는 서버가 Pi 로그인을 검증한 경우에만.
+//  · Pi 로그인 + 닉네임 미설정 → 닉네임이 Pi 이름으로 자동 등록되므로 'skybird2 π'
+//  · Pi 로그인 + 닉네임 설정   → 닉네임 우선. 배지는 유지(로그인한 파이오니어 구분)
+//  · 로그인 없음 + 닉네임 없음 → 익명
+function lbDisplayName(r){ return r.name || r.pi || null; }
 function lbName(r){
   const flag=ccFlag(r.cc);
-  const who = r.pi ? esc(r.pi)+'<span class="lb-pi">π</span>'
-                   : (r.name ? esc(r.name) : T('nick_anon'));
+  const nm=lbDisplayName(r);
+  const who = (nm ? esc(nm) : T('nick_anon')) + (r.pi ? '<span class="lb-pi">π</span>' : '');
   return (flag?'<span class="lb-flag">'+flag+'</span>':'')+who;
 }
 async function openLeaderboard(evId){
@@ -4230,8 +4237,9 @@ async function renderLbStrip(){
     if(!b.players){ el.innerHTML='🏆 <b>'+T('lb_strip_empty')+'</b><span class="lb-strip-go">›</span>'; }
     else if(b.myRank){ el.innerHTML='🏆 '+T('lb_strip_me',{rank:b.myRank,n:b.players})+'<span class="lb-strip-go">›</span>'; }
     else{
-      const t=b.top[0];
-      el.innerHTML='🏆 '+T('lb_strip_top',{who:(t.pi?('π '+esc(t.pi)):(t.name?esc(t.name):T('nick_anon'))), t:lbFmt(t.t)})+'<span class="lb-strip-go">›</span>';
+      const t=b.top[0], nm=lbDisplayName(t);
+      const who=(nm?esc(nm):T('nick_anon'))+(t.pi?' π':'');
+      el.innerHTML='🏆 '+T('lb_strip_top',{who, t:lbFmt(t.t)})+'<span class="lb-strip-go">›</span>';
     }
     el.style.display='';
   }catch(e){ el.style.display='none'; }   // 서버가 없으면 조용히 숨긴다(홈이 깨지지 않게)
