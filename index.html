@@ -102,6 +102,24 @@
   .quest-box .q-week{margin-top:5px;font-size:10.5px;font-weight:700;color:var(--faint);}
   .quest-box .q-week.ok{color:var(--lime);font-weight:900;}
   .quest-done{font-size:14px;font-weight:800;color:var(--lime);margin-top:6px;line-height:1.5;}
+  /* 결과 화면 공용 박스 — 정보를 '보상 / 얼굴운동 / 분석' 세 덩어리로 묶어 시선을 정리 */
+  .res-box{width:100%;max-width:360px;margin:10px 0 0;padding:11px 13px;border-radius:12px;
+    background:rgba(255,255,255,.045);border:1px solid var(--line);}
+  .res-box.res-dim{background:transparent;}
+  .rb-total{text-align:center;font-size:26px;font-weight:900;color:var(--lime);line-height:1.1;}
+  .rb-rows{margin-top:8px;}
+  .rb-row{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    font-size:13px;padding:3px 0;color:var(--dim);}
+  .rb-row b{color:var(--ink);font-weight:900;font-variant-numeric:tabular-nums;}
+  .rb-row.q{color:var(--lime);}          /* 목표 달성 줄은 강조 */
+  .rb-row.q b{color:var(--lime);}
+  .rb-foot{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;
+    font-size:11.5px;font-weight:700;color:var(--faint);}
+  .rb-foot .rb-streak{color:var(--gold);}
+  .res-dim .world-rank{margin:0 0 6px;}
+  .res-dim .mission-report{margin:0;}
+  .res-dim .coaching{margin:6px 0 0;}
   /* 오늘의 얼굴 운동 — 측정한 사실만 표시(효능 주장 없음) */
   .face-report{width:100%;max-width:360px;margin:10px 0 0;padding:10px 12px;border-radius:12px;
     background:rgba(55,214,255,.07);border:1px solid rgba(55,214,255,.22);}
@@ -498,15 +516,19 @@
     <div class="self-best" id="rBest">—</div>
     <div class="medal-gap" id="rMedal"></div>
     <div class="vs-result" id="rVs" style="display:none;"></div>
-    <div class="r-divider"></div>
-    <div class="world-rank" id="rRank"></div>
-    <div class="r-divider"></div>
-    <div class="mission-report" id="rReport"></div>
-    <div class="coaching" id="rCoach"></div>
-    <div class="streak-result" id="streakResult"></div>
-    <div class="ep-earn" id="rEP"></div>
-    <div class="quest-done" id="rQuest"></div>
+    <!-- 결과 화면은 '기록(히어로) → 보상 → 얼굴운동 → 분석' 3개 박스로 묶는다.
+         예전엔 10개 블록이 색·크기 제각각으로 나열돼 어디를 봐야 할지 알 수 없었다. -->
+    <div class="res-box" id="rRewardBox">
+      <div class="rb-total" id="rEPTotal"></div>
+      <div class="rb-rows" id="rEPRows"></div>
+      <div class="rb-foot" id="rEPFoot"></div>
+    </div>
     <div class="face-report" id="rFace"></div>
+    <div class="res-box res-dim" id="rAnalysis">
+      <div class="world-rank" id="rRank"></div>
+      <div class="mission-report" id="rReport"></div>
+      <div class="coaching" id="rCoach"></div>
+    </div>
     <div class="r-divider"></div>
     <button class="btn btn-share" id="shareChalBtn" style="max-width:380px;">🏁 <span id="shareChalLabel" data-i18n="chal_send">Challenge a friend</span></button>
     <button class="btn btn-primary" id="againBtn" style="max-width:380px;" data-i18n="again">Run again</button>
@@ -3860,24 +3882,27 @@ function finish(){
 
   const streak=markPlayedToday();
   track('race_done',{ev:curEvent.id, t:Math.round(t*100)/100, ghost:G.ghost?1:0, hits:G.hits|0});
-  $("streakResult").textContent = streak<=1 ? T('streak_start',{n:streak}) : T('streak_days',{n:streak});
 
-  const ep=computeRaceEP(t, isBest, streak);   // EP 계산·적립(일일 상한 300)
-  const questDone=updateQuests(medalFor(t), G.hits);   // 일일/주간 목표 누적(+달성 시 EP) — EP 총합 표시 전에
-  const atCap = epToday() >= EP_DAILY_CAP;      // 오늘 총합이 상한 도달?
-  let epHtml;
-  if(ep.net>0){
-    epHtml='<span class="ep-amt">⚡ +'+ep.net+' EP</span>';
-    if(!ep.capped) epHtml+='<small>'+ep.items.map(i=>i.label+' +'+i.ep).join('  ·  ')+'</small>';
-  }else{
-    epHtml='<span class="ep-amt" style="color:var(--faint)">'+T('ep_full')+'</span>';
-  }
-  if(atCap) epHtml+='<small style="color:var(--gold)">'+T('ep_cap')+'</small>';
-  epHtml+='<small>'+T('ep_total',{n:epTotal().toLocaleString(), today:epToday(), cap:EP_DAILY_CAP})+'</small>';
-  $("rEP").innerHTML=epHtml;
-  // 목표 달성 축하(달성한 순간에만) + 홈 진행바 갱신
-  $("rQuest").innerHTML = questDone.length
-    ? questDone.map(q=>'🎉 '+T('q_clear',{q:q.icon+' '+q.label})+' <b>+'+q.ep+' EP</b>').join('<br>') : '';
+  // ── 보상 박스: EP 총액 + 내역 표 + (누적·오늘·연속) ──
+  const epBefore=epTotal();                                   // 실제 적립량을 정확히 재기 위해(상한 반영)
+  const ep=computeRaceEP(t, isBest, streak);                  // EP 계산·적립(일일 상한 300)
+  const questDone=updateQuests(medalFor(t), G.hits);          // 일일/주간 목표 누적(+달성 시 EP)
+  const gained=epTotal()-epBefore;                            // = 이번 판에 실제로 들어온 EP
+  const atCap = epToday() >= EP_DAILY_CAP;
+
+  $("rEPTotal").innerHTML = gained>0
+    ? '⚡ +'+gained+' EP'
+    : '<span style="color:var(--faint);font-size:17px">'+T('ep_full')+'</span>';
+  const rbRows=[];
+  if(gained>0 && !ep.capped) ep.items.forEach(i=>rbRows.push(['', i.label, '+'+i.ep]));
+  questDone.forEach(q=>rbRows.push(['q', '🎉 '+q.icon+' '+q.label, '+'+q.ep]));
+  $("rEPRows").innerHTML = rbRows.map(r=>
+    '<div class="rb-row'+(r[0]==='q'?' q':'')+'"><span>'+r[1]+'</span><b>'+r[2]+'</b></div>').join('');
+  const streakTxt = streak<=1 ? T('streak_start',{n:streak}) : T('streak_days',{n:streak});
+  $("rEPFoot").innerHTML =
+      '<span>'+T('ep_total',{n:epTotal().toLocaleString(), today:epToday(), cap:EP_DAILY_CAP})+'</span>'
+    + '<span class="rb-streak">'+streakTxt+'</span>'
+    + (atCap ? '<span style="color:var(--gold);width:100%">'+T('ep_cap')+'</span>' : '');
   renderQuestStrip();
 
   // 오늘의 얼굴 운동 — 이번 판을 오늘 누적에 더해 '측정된 사실'만 표시
