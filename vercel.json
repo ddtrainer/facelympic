@@ -1,5 +1,14 @@
 {
+  "rewrites": [
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ],
   "headers": [
+    {
+      "source": "/c/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+      ]
+    },
     {
       "source": "/",
       "headers": [
