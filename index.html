@@ -89,8 +89,10 @@
   .logo{position:relative;display:inline-block;margin:0 0 2px;max-width:100%;}
   .logo-word{display:inline-block;font-size:clamp(26px,9vw,42px);font-weight:900;font-style:italic;letter-spacing:-.03em;line-height:1;white-space:nowrap;
     padding-right:.16em;   /* 이탤릭 기울기로 마지막 글자(C)가 박스 밖으로 삐져나가 잘리는 것 방지 */
-    background:linear-gradient(95deg,#f2f8ff 52%,var(--lime));-webkit-background-clip:text;background-clip:text;
-    -webkit-text-fill-color:transparent;filter:drop-shadow(0 3px 10px rgba(55,214,255,.4));}
+    /* 예전엔 그라데이션(52%)이라 경계가 글자 중간에 걸려 FACELY/MPIC로 읽혔다.
+       링크 미리보기 카드와 같은 FACE/LYMPIC 분할이 되도록 두 조각을 각각 칠한다. */
+    color:#f2f8ff;filter:drop-shadow(0 3px 10px rgba(55,214,255,.4));}
+  .logo-word em{font-style:italic;color:var(--lime);}
   .logo::before{content:"";position:absolute;top:22%;bottom:22%;right:100%;width:26px;margin-right:7px;opacity:.7;
     background:repeating-linear-gradient(180deg,var(--cyan) 0 3px,transparent 3px 8px);
     -webkit-mask:linear-gradient(90deg,transparent,#000 92%);mask:linear-gradient(90deg,transparent,#000 92%);}
@@ -386,7 +388,7 @@
     <button class="intro-set" id="openSet" data-i18n-aria="aria_set" aria-label="Settings">⚙️</button>
     <div class="hero">
       <div class="tagline" data-i18n="tagline">Smile to go faster</div>
-      <div class="logo"><span class="logo-word">FACELYMPIC</span></div>
+      <div class="logo"><span class="logo-word">FACE<em>LYMPIC</em></span></div>
       <p class="sub-hero" data-i18n-html="hero_sub"></p>
       <div class="hero-stage" aria-hidden="true">
         <div class="hero-platform"></div>
@@ -618,7 +620,7 @@
   var dc=$('chalCardDom');
   if(dc){
     dc.innerHTML='<div class="d-slogan">'+(ko?'웃으면 빨라진다':'Smile to go faster')+'</div>'
-      +'<div class="d-logo">FACELY<i>MPIC</i></div><div class="d-medal">🥇</div><div class="d-run">🏃</div>'
+      +'<div class="d-logo">FACE<i>LYMPIC</i></div><div class="d-medal">🥇</div><div class="d-run">🏃</div>'
       +'<div class="d-time">'+t+'</div><div class="d-sub">🏁 '+esc(who)+' · '+esc(evName)+'</div>'
       +'<div class="d-cta">'+(ko?'이 기록 이겨봐! 🔥':'Beat this time? 🔥')+'</div>';
     dc.style.display='';
@@ -707,7 +709,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 // 배포 식별자 — 원격 진단 시 "새 버전을 받았는지" 즉시 확인용(진단 화면 첫 줄). 배포할 때마다 갱신.
-const BUILD='2026-07-30f';
+const BUILD='2026-07-30g';
 const $ = (id)=>document.getElementById(id);
 const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), diag:$("diag"), shop:$("shop"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
@@ -3754,8 +3756,15 @@ function buildResultCard(o){
   ctx.fillText(T('tagline'), S/2, 98);
   // 로고
   ctx.font='900 italic 62px Pretendard';
-  const lg=ctx.createLinearGradient(0,120,0,178); lg.addColorStop(0,'#f2f8ff'); lg.addColorStop(1,'#9be635');
-  ctx.fillStyle=lg; ctx.fillText('FACELYMPIC', S/2, 172);
+  // FACE(흰) + LYMPIC(라임) — 홈 로고·링크 미리보기 카드와 같은 분할.
+  // 세로 그라데이션은 위아래로 색이 갈려 이 분할을 표현할 수 없어 두 번 나눠 그린다.
+  const _la='FACE', _lb='LYMPIC';
+  const _wa=ctx.measureText(_la).width, _wb=ctx.measureText(_lb).width;
+  const _lx=S/2-(_wa+_wb)/2, _al=ctx.textAlign;
+  ctx.textAlign='left';
+  ctx.fillStyle='#f2f8ff'; ctx.fillText(_la, _lx, 172);
+  ctx.fillStyle='#9be635'; ctx.fillText(_lb, _lx+_wa, 172);
+  ctx.textAlign=_al;
   // 메달
   ctx.font='104px serif'; ctx.fillText(medal, S/2, 292);
   // 플랫폼 빛 + 그림자
