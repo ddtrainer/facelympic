@@ -4,6 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>페이셀림픽 · Facelympic</title>
+<!-- 링크 미리보기 카드(카톡·블로그·SNS). 없으면 URL만 덩그러니 남아 클릭률이 떨어진다.
+     pinet 주소의 카드는 PiNet이 만들어서 우리가 못 바꾸지만, 우리 도메인 링크는 이걸로 결정된다. -->
+<meta name="description" content="웃으면 달리고, 눈썹 올리면 점프. 얼굴로 하는 달리기 게임 · 한 판 10초 · 카메라는 기기 안에서만 처리됩니다.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Facelympic">
+<meta property="og:title" content="Facelympic — 얼굴로 달리는 게임">
+<meta property="og:description" content="웃으면 달리고, 눈썹 올리면 점프. 한 판 10초. 카메라는 기기 안에서만 처리됩니다.">
+<meta property="og:url" content="https://facelympic.vercel.app/">
+<meta property="og:image" content="https://facelympic.vercel.app/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <script src="https://sdk.minepi.com/pi-sdk.js"></script>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <style>
@@ -695,7 +707,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 // 배포 식별자 — 원격 진단 시 "새 버전을 받았는지" 즉시 확인용(진단 화면 첫 줄). 배포할 때마다 갱신.
-const BUILD='2026-07-30d';
+const BUILD='2026-07-30e';
 const $ = (id)=>document.getElementById(id);
 const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), diag:$("diag"), shop:$("shop"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
@@ -3846,11 +3858,15 @@ function piPref(){
     return sessionStorage.getItem('fl_pipref')==='1';
   }catch(e){ return false; }
 }
+// PiNet 래퍼(iframe) 안인데 Pi Browser가 아니다 = 일반 브라우저에서 pinet 주소를 연 것.
+// 이 사람은 Pi 사용자가 확실하므로(pinet 링크를 눌렀다) ?pi=1과 동일하게 대우한다.
+// 실측: 카톡에서 pinet 링크를 열면 화면 맨 아래 'Pi로 로그인'까지 스크롤해야 Pi Browser로 갈 수 있었다.
+function inPiNetWrapper(){ try{ return window.self!==window.top; }catch(e){ return true; } }
 function initPiBar(){
   const bar=$('piOpenBar'); if(!bar) return;
   let off=false; try{ off=sessionStorage.getItem('fl_pibar_off')==='1'; }catch(e){}
   // 이미 Pi Browser면 불필요. 도전장 배너가 떴으면 거기 Pi 안내가 이미 있으므로 중복 표시하지 않는다.
-  if(!piPref() || isPiBrowser() || activeChallenge || off){ bar.style.display='none'; return; }
+  if((!piPref() && !inPiNetWrapper()) || isPiBrowser() || activeChallenge || off){ bar.style.display='none'; return; }
   bar.style.display='';
   $('piBarOpen').addEventListener('click', openInPiBrowser);
   $('piBarSkip').addEventListener('click', ()=>{
@@ -3870,7 +3886,7 @@ function showChallengeBanner(c){
     const inPi = isPiBrowser();
     // 카메라가 실제로 막히는 iOS 인앱에서만 펼쳐 보여준다(없으면 게임 자체가 안 되는 필수 안내).
     // 그 외에는 접어두고 '바로 플레이'를 방해하지 않는다.
-    const mustShow = (mode==='iosapp') || piPref();   // Pi 커뮤니티 유입이면 접지 않고 펼쳐 둔다
+    const mustShow = (mode==='iosapp') || piPref() || inPiNetWrapper();   // Pi 사용자로 확인되면 접지 않고 펼쳐 둔다
     pi.style.display = (!inPi && mustShow) ? '' : 'none';
     if(piToggle) piToggle.style.display = (!inPi && !mustShow) ? '' : 'none';
     const msgEl=pi.querySelector('.chal-pi-msg'), hintEl=pi.querySelector('.chal-pi-hint'), openLbl=$('chalOpenPi')&&$('chalOpenPi').querySelector('span');
