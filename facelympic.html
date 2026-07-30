@@ -103,10 +103,9 @@
   .lb-row.tap{cursor:pointer;}
   .lb-row.tap .lb-t::after{content:" ›";color:var(--faint);font-weight:800;}
   /* 국가 안 순위를 보는 중임을 알리는 줄 — 누르면 전체로 돌아간다 */
-  .lb-filter{display:flex;align-items:center;gap:6px;width:100%;margin:0 0 8px;padding:8px 12px;border-radius:11px;
-    background:rgba(255,211,78,.10);border:1px solid rgba(255,211,78,.32);color:var(--ink);
-    font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer;text-align:left;}
-  .lb-filter .lb-filter-x{margin-left:auto;color:var(--dim);font-weight:800;}
+  .lb-filter{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin:0 0 8px;
+    padding:8px 12px;border-radius:11px;background:rgba(255,211,78,.10);border:1px solid rgba(255,211,78,.32);
+    color:var(--ink);font-size:12.5px;font-weight:800;text-align:center;}
   .lb-tabs .lb-tab{padding:7px 13px;font-size:12.5px;}   /* 탭 3개 — 좁은 폰에서 한 줄 유지 */
   .lb-t{flex:0 0 auto;font-size:15px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums;}
   .lb-empty{padding:22px 14px;text-align:center;color:var(--dim);font-size:13.5px;font-weight:700;line-height:1.6;}
@@ -568,7 +567,10 @@
       </select>
     </div>
     <div class="set-scroll">
-      <button class="lb-filter" id="lbFilter" style="display:none;"></button>
+      <!-- 지금 어느 나라 안을 보고 있는지 알려주는 '라벨'. 나가는 길은 위의 칩(세계/국가)이 맡는다.
+           예전엔 여기에 '전체 보기 ›'를 뒀는데, 위 칩과 하는 일이 같으면서
+           '국내 순위 전체를 본다'는 뜻으로 읽혀 오히려 헷갈렸다. -->
+      <div class="lb-filter" id="lbFilter" style="display:none;"></div>
       <div class="lb-me" id="lbMe"></div>
       <div id="lbList"></div>
       <div class="lb-note" data-i18n="lb_note">Resets every Monday. Fastest run per player.</div>
@@ -792,7 +794,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 // 배포 식별자 — 원격 진단 시 "새 버전을 받았는지" 즉시 확인용(진단 화면 첫 줄). 배포할 때마다 갱신.
-const BUILD='2026-07-31a';
+const BUILD='2026-07-31b';
 const $ = (id)=>document.getElementById(id);
 const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), diag:$("diag"), shop:$("shop"), lb:$("lb"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
@@ -894,7 +896,7 @@ I18N.en = {
   lb_note:"{ev} · fastest run per player · This week resets on Monday",
   lb_all:"All time", lb_scope_all:"overall", lb_scope_week:"this week", lb_scope_day:"today",
   lb_view_player:"🌍 World", lb_view_country:"🚩 Countries",
-  lb_in_country:"{name} — national ranking", lb_clear:"World ›",
+  lb_in_country:"{name} — national ranking",
   lb_country_players:"{n} players", lb_country_me:"{flag} {name} is <b>#{rank}</b> of {n} countries {scope}",
   lb_country_none:"Your country has no time {scope} yet — set the first one",
   lb_country_empty:"<b>No country has a flag yet.</b><br>Run once and plant yours.",
@@ -1019,7 +1021,7 @@ I18N.ko = {
   lb_note:"{ev} · 선수당 최고 기록 · '이번 주'는 월요일마다 초기화",
   lb_all:"전체", lb_scope_all:"전체", lb_scope_week:"이번 주", lb_scope_day:"오늘",
   lb_view_player:"🌍 세계", lb_view_country:"🚩 국가",
-  lb_in_country:"{name} 국내 순위", lb_clear:"전체 보기 ›",
+  lb_in_country:"{name} 국내 순위",
   lb_country_players:"{n}명", lb_country_me:"{flag} {name} — {scope} {n}개국 중 <b>{rank}위</b>",
   lb_country_none:"{scope} 우리나라 기록이 아직 없어요 — 첫 기록을 세워보세요",
   lb_country_empty:"<b>아직 국기가 붙은 나라가 없어요.</b><br>한 판 뛰면 우리나라 국기가 첫 번째로 올라갑니다.",
@@ -4178,9 +4180,7 @@ async function openLeaderboard(evId){
 function renderLbFilter(){
   const el=$("lbFilter"); if(!el) return;
   if(lbView==='player' && lbCountry){
-    el.innerHTML='<span class="lb-flag">'+ccFlag(lbCountry)+'</span>'
-      +T('lb_in_country',{name:esc(ccName(lbCountry))})
-      +'<span class="lb-filter-x">'+T('lb_clear')+'</span>';
+    el.innerHTML='<span class="lb-flag">'+ccFlag(lbCountry)+'</span>'+T('lb_in_country',{name:esc(ccName(lbCountry))});
     el.style.display='';
   }else el.style.display='none';
 }
@@ -4871,7 +4871,6 @@ $("lbStrip").addEventListener('click', ()=>enterLeaderboard(LB_EVENT));   // 인
 $("rLbOpen").addEventListener('click', ()=>enterLeaderboard(lastRunEv||'sprint'));
 $("lbViewPlayer").addEventListener('click', ()=>{ if(lbView!=='player'||lbCountry){ lbView='player'; lbCountry=null; openLeaderboard(); } });
 $("lbViewCountry").addEventListener('click', ()=>{ if(lbView!=='country'){ lbView='country'; lbCountry=null; openLeaderboard(); } });
-$("lbFilter").addEventListener('click', ()=>{ lbCountry=null; openLeaderboard(); });
 $("lbPeriod").addEventListener('change', (e)=>{ lbScope=e.target.value; openLeaderboard(); });
 $("shopRestore").addEventListener('click', ()=>{ restorePurchases(true); });   // 기기 변경·데이터 삭제 후 구매 되살리기
 
