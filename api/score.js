@@ -41,19 +41,25 @@ function weekKey(d) {
 }
 
 // 선수당 최고기록 1개만 남긴다(한 사람이 순위표를 도배하지 않도록).
-// 같은 사람 판정: Pi 인증 이름 → 기기 ID → 표시 이름 순.
-// ⚠️ 이름까지 보는 이유: aid 컬럼이 생기기 전에 들어온 기록은 기기 ID가 비어 있어서
-//    기기 ID만으로는 묶이지 않는다(실제로 같은 사람이 1·2·3위를 차지했다).
-//    이름도 없는 익명 기록끼리는 서로 다른 사람일 수 있으므로 묶지 않는다.
+//
+// 원칙: **화면에 보이는 이름 하나당 한 줄.** 이름이 같은데 두 줄로 나오면 고장으로 보인다.
+//   같은 사람이 Pi 로그인 전후로 기록을 올리면 한쪽은 pi_name, 다른 쪽은 player_name에만
+//   이름이 남는다. 기기 ID로 묶으려 해도 aid 컬럼이 생기기 전 기록은 그 값이 비어 있다.
+//   → 이름을 먼저 보고, 이름이 없을 때만 기기 ID로 묶는다.
+// ⚠️ 대가: 서로 다른 사람이 같은 닉네임을 쓰면 한 줄로 합쳐진다. 구분이 필요하면
+//   Pi 로그인(π 배지)이 그 역할을 한다. 익명끼리는 남남일 수 있으므로 묶지 않는다.
 function bestPerPlayer(rows) {
-  const out = [], seen = new Set();
+  const out = [], seen = new Map();
   for (const x of rows) {
-    const nm = (x.player_name || '').trim().toLowerCase();
-    const key = x.pi_name ? 'pi:' + x.pi_name.toLowerCase()
-              : x.aid     ? 'a:' + x.aid
-              : nm        ? 'n:' + nm
-              : null;                                  // 익명 + 기기ID 없음 → 묶지 않는다
-    if (key) { if (seen.has(key)) continue; seen.add(key); }
+    const nm = (x.pi_name || x.player_name || '').trim().toLowerCase();
+    const key = nm ? 'n:' + nm : (x.aid ? 'a:' + x.aid : null);
+    if (key && seen.has(key)) {
+      // 이미 더 빠른 기록이 있다. 다만 π 배지가 느린 쪽에만 있을 수 있으므로 살려서 옮긴다.
+      const kept = seen.get(key);
+      if (!kept.pi_name && x.pi_name) kept.pi_name = x.pi_name;
+      continue;
+    }
+    if (key) seen.set(key, x);
     out.push(x);
   }
   return out;
