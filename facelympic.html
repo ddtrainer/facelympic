@@ -712,7 +712,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 // 배포 식별자 — 원격 진단 시 "새 버전을 받았는지" 즉시 확인용(진단 화면 첫 줄). 배포할 때마다 갱신.
-const BUILD='2026-07-30j';
+const BUILD='2026-07-30k';
 const $ = (id)=>document.getElementById(id);
 const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), diag:$("diag"), shop:$("shop"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
@@ -1984,10 +1984,10 @@ function initLang(){
       if(LANGS.some(x=>x.code===navBase)) l=navBase;
     }catch(e){}
   }
-  // en으로 나왔다면 두 가지가 섞여 있다 — 진짜 영어 사용자, 그리고 기기 언어를 안 넘기는 웹뷰.
-  // 시간대가 다른 언어권을 가리키면 그쪽을 따른다(카톡선 한국어인데 Pi Browser선 영어로 뜨던 문제).
-  // America/* 처럼 매핑에 없는 시간대면 그대로 영어 — 진짜 영어 사용자는 영향받지 않는다.
-  if(!explicit && (!l || l==='en')){ const t=tzLang(); if(t) l=t; }
+  // 브라우저가 아무것도/지원하지 않는 언어를 줬을 때만 시간대로 메운다.
+  // ⚠️ en을 시간대로 덮지 않는다: Pi Browser는 기기 언어를 제대로 넘긴다(실측 nav:ko-KR).
+  //    그래서 en은 대개 '진짜 영어 사용자'이고, 덮으면 서울·도쿄에 사는 영어 사용자만 잘못 건드린다.
+  if(!explicit && !l){ const t=tzLang(); if(t) l=t; }
   applyLang(l);
 }
 function applyLang(l){
