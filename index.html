@@ -91,6 +91,8 @@
   .lb-nm{flex:1 1 auto;min-width:0;font-size:14px;font-weight:800;color:var(--ink);
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .lb-pi{color:#c9b8ff;font-size:12px;font-weight:800;margin-left:5px;}
+  .lb-flag{margin-right:6px;font-size:15px;}
+  .lb-tabs .lb-tab{padding:7px 13px;font-size:12.5px;}   /* 탭 3개 — 좁은 폰에서 한 줄 유지 */
   .lb-t{flex:0 0 auto;font-size:15px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums;}
   .lb-empty{padding:22px 14px;text-align:center;color:var(--dim);font-size:13.5px;font-weight:700;line-height:1.6;}
   .lb-empty b{color:var(--lime);}
@@ -532,7 +534,8 @@
     <button class="sel-back" id="lbBack">‹</button>
     <h2 class="set-header" data-i18n="lb_title">Leaderboard</h2>
     <div class="lb-tabs">
-      <button class="lb-tab on" id="lbTabWeek" data-i18n="lb_week">This week</button>
+      <button class="lb-tab on" id="lbTabAll" data-i18n="lb_all">All time</button>
+      <button class="lb-tab" id="lbTabWeek" data-i18n="lb_week">This week</button>
       <button class="lb-tab" id="lbTabDay" data-i18n="lb_today">Today</button>
     </div>
     <div class="set-scroll">
@@ -755,7 +758,7 @@ import { FilesetResolver, FaceLandmarker }
   from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs";
 
 // 배포 식별자 — 원격 진단 시 "새 버전을 받았는지" 즉시 확인용(진단 화면 첫 줄). 배포할 때마다 갱신.
-const BUILD='2026-07-30p';
+const BUILD='2026-07-30q';
 const $ = (id)=>document.getElementById(id);
 const screens = { intro:$("intro"), select:$("select"), settings:$("settings"), profileEdit:$("profileEdit"), langScreen:$("langScreen"), diag:$("diag"), shop:$("shop"), lb:$("lb"), consent:$("consent"), legal:$("legal"), calib:$("calib"), game:$("game"), done:$("done") };
 function show(n){ Object.values(screens).forEach(s=>s.classList.remove("active")); screens[n].classList.add("active"); }
@@ -841,7 +844,7 @@ I18N.en = {
   consent_p1:"Facelympic uses your phone <b>camera to read facial movements</b> to control the game.",
   consent_li1:"Video is analyzed <b>only on your device (browser)</b> — never stored or sent to a server.",
   consent_li2:"We <b>do not collect</b> face photos, video, or identity information.",
-  consent_li3:"Only your game <b>record (finish time)</b> is saved for rankings.",
+  consent_li3:"Only your game <b>record (finish time)</b> and <b>country</b> are saved for rankings.",
   consent_agree:"I am 14+ and agree to the above, the <a id='lnkTerms'>Terms</a> · <a id='lnkPrivacy'>Privacy Policy</a>.",
   consent_go:"Agree & start", back:"Back",
   select:"Select event", ev_sprint:"Sprint", ev_middle:"Middle", ev_long:"Long",
@@ -854,12 +857,12 @@ I18N.en = {
   lb_title:"Leaderboard", lb_week:"This week", lb_today:"Today", lb_open:"See leaderboard ›",
   lb_loading:"Loading…", lb_fail:"Couldn't load the leaderboard. Try again in a moment.",
   lb_empty:"<b>The #1 spot is open.</b><br>Run a sprint and take it.",
-  lb_note:"Sprint · resets every Monday · fastest run per player",
-  lb_scope_week:"this week", lb_scope_day:"today",
+  lb_note:"Sprint · fastest run per player · the This week tab resets every Monday",
+  lb_all:"All time", lb_scope_all:"overall", lb_scope_week:"this week", lb_scope_day:"today",
   lb_me:"You're <b>#{rank}</b> of {n} {scope}", lb_me_first:"👑 You're <b>#1</b> of {n} {scope}!",
   lb_me_none:"No time {scope} yet — run one and get on the board",
   lb_gap:"{d}s behind the player above you",
-  lb_strip_me:"This week: <b>#{rank}</b> of {n}", lb_strip_top:"This week's #1 <b>{who}</b> {t}",
+  lb_strip_me:"Ranked <b>#{rank}</b> of {n}", lb_strip_top:"#1 <b>{who}</b> {t}",
   lb_strip_empty:"The #1 spot is open — take it",
   mr_food:"😮 Food {a}/{b}", mr_monster:"👹 Monster {a}/{b}", mr_hurdle:"🙇 Hurdle {a}/{b}",
   mr_arrow_hit:"↔️ Hit by {m} arrows", mr_arrow_perfect:"↔️ Arrows perfect",
@@ -961,7 +964,7 @@ I18N.ko = {
   consent_p1:"페이셀림픽은 휴대폰 <b>카메라로 표정 움직임을 인식</b>해 게임을 조작합니다.",
   consent_li1:"영상은 <b>기기(브라우저) 안에서만</b> 분석되고, 서버에 저장·전송되지 않습니다.",
   consent_li2:"얼굴 사진·동영상·신원 정보를 <b>수집하지 않습니다.</b>",
-  consent_li3:"게임 <b>기록(완주 시간)</b>만 순위를 위해 저장됩니다.",
+  consent_li3:"게임 <b>기록(완주 시간)</b>과 <b>국가</b>만 순위를 위해 저장됩니다.",
   consent_agree:"만 14세 이상이며, 위 내용과 <a id='lnkTerms'>이용약관</a> · <a id='lnkPrivacy'>개인정보 처리방침</a>에 동의합니다.",
   consent_go:"동의하고 시작", back:"돌아가기",
   select:"종목 선택", ev_sprint:"단거리", ev_middle:"중거리", ev_long:"장거리",
@@ -974,12 +977,12 @@ I18N.ko = {
   lb_title:"순위표", lb_week:"이번 주", lb_today:"오늘", lb_open:"순위표 보기 ›",
   lb_loading:"불러오는 중…", lb_fail:"순위표를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
   lb_empty:"<b>1위 자리가 비어 있습니다.</b><br>단거리 한 판이면 차지할 수 있어요.",
-  lb_note:"단거리 · 매주 월요일 초기화 · 선수당 최고 기록",
-  lb_scope_week:"이번 주", lb_scope_day:"오늘",
+  lb_note:"단거리 · 선수당 최고 기록 · '이번 주' 탭은 월요일마다 초기화",
+  lb_all:"전체", lb_scope_all:"전체", lb_scope_week:"이번 주", lb_scope_day:"오늘",
   lb_me:"{scope} {n}명 중 <b>{rank}위</b>", lb_me_first:"👑 {scope} {n}명 중 <b>1위</b>!",
   lb_me_none:"{scope} 기록이 아직 없어요 — 한 판 뛰고 이름을 올려보세요",
   lb_gap:"바로 위 선수와 {d}초 차이",
-  lb_strip_me:"이번 주 {n}명 중 <b>{rank}위</b>", lb_strip_top:"이번 주 1위 <b>{who}</b> {t}",
+  lb_strip_me:"{n}명 중 <b>{rank}위</b>", lb_strip_top:"1위 <b>{who}</b> {t}",
   lb_strip_empty:"1위 자리가 비어 있어요 — 차지하세요",
   mr_food:"😮 음식 {a}/{b}", mr_monster:"👹 괴물 {a}/{b}", mr_hurdle:"🙇 허들 {a}/{b}",
   mr_arrow_hit:"↔️ 화살 {m}회 피격", mr_arrow_perfect:"↔️ 화살 완벽",
@@ -1045,7 +1048,7 @@ I18N.zh = {
   consent_p1:"Facelympic 使用手机<b>摄像头识别面部动作</b>来操控游戏。",
   consent_li1:"视频<b>仅在你的设备（浏览器）内</b>分析，绝不存储或发送到服务器。",
   consent_li2:"我们<b>不收集</b>面部照片、视频或身份信息。",
-  consent_li3:"仅保存你的游戏<b>记录（完成时间）</b>用于排名。",
+  consent_li3:"仅保存你的游戏<b>记录（完成时间）</b>和<b>国家</b>用于排名。",
   consent_agree:"我已满14岁，并同意以上内容、<a id='lnkTerms'>服务条款</a> · <a id='lnkPrivacy'>隐私政策</a>。",
   consent_go:"同意并开始", back:"返回",
   select:"选择项目", ev_sprint:"短跑", ev_middle:"中跑", ev_long:"长跑",
@@ -1121,7 +1124,7 @@ I18N.vi = {
   consent_p1:"Facelympic dùng <b>camera điện thoại để đọc chuyển động khuôn mặt</b> nhằm điều khiển trò chơi.",
   consent_li1:"Video chỉ được phân tích <b>trên thiết bị của bạn (trình duyệt)</b> — không bao giờ lưu hay gửi lên máy chủ.",
   consent_li2:"Chúng tôi <b>không thu thập</b> ảnh, video khuôn mặt hay thông tin danh tính.",
-  consent_li3:"Chỉ <b>kết quả (thời gian hoàn thành)</b> được lưu để xếp hạng.",
+  consent_li3:"Chỉ <b>kết quả (thời gian hoàn thành)</b> và <b>quốc gia</b> được lưu để xếp hạng.",
   consent_agree:"Tôi từ 14 tuổi trở lên và đồng ý với nội dung trên, <a id='lnkTerms'>Điều khoản</a> · <a id='lnkPrivacy'>Chính sách bảo mật</a>.",
   consent_go:"Đồng ý & bắt đầu", back:"Quay lại",
   select:"Chọn nội dung", ev_sprint:"Chạy ngắn", ev_middle:"Chạy trung", ev_long:"Chạy dài",
@@ -1197,7 +1200,7 @@ I18N.es = {
   consent_p1:"Facelympic usa la <b>cámara del teléfono para leer los movimientos faciales</b> y controlar el juego.",
   consent_li1:"El video se analiza <b>solo en tu dispositivo (navegador)</b>: nunca se guarda ni se envía a un servidor.",
   consent_li2:"<b>No recopilamos</b> fotos, videos de tu cara ni datos de identidad.",
-  consent_li3:"Solo se guarda tu <b>récord (tiempo de meta)</b> para el ranking.",
+  consent_li3:"Solo se guardan tu <b>récord (tiempo de meta)</b> y tu <b>país</b> para el ranking.",
   consent_agree:"Tengo 14 años o más y acepto lo anterior, los <a id='lnkTerms'>Términos</a> · <a id='lnkPrivacy'>Política de privacidad</a>.",
   consent_go:"Aceptar y empezar", back:"Volver",
   select:"Elegir prueba", ev_sprint:"Velocidad", ev_middle:"Media", ev_long:"Larga",
@@ -1273,7 +1276,7 @@ I18N.pt = {
   consent_p1:"O Facelympic usa a <b>câmera do celular para ler os movimentos do rosto</b> e controlar o jogo.",
   consent_li1:"O vídeo é analisado <b>apenas no seu aparelho (navegador)</b> — nunca é armazenado nem enviado a um servidor.",
   consent_li2:"<b>Não coletamos</b> fotos, vídeos do rosto nem dados de identidade.",
-  consent_li3:"Apenas o seu <b>recorde (tempo de chegada)</b> é salvo para o ranking.",
+  consent_li3:"Apenas o seu <b>recorde (tempo de chegada)</b> e o seu <b>país</b> são salvos para o ranking.",
   consent_agree:"Tenho 14 anos ou mais e concordo com o acima, os <a id='lnkTerms'>Termos</a> · <a id='lnkPrivacy'>Política de privacidade</a>.",
   consent_go:"Concordar e começar", back:"Voltar",
   select:"Escolher prova", ev_sprint:"Curta", ev_middle:"Média", ev_long:"Longa",
@@ -1349,7 +1352,7 @@ I18N.ar = {
   consent_p1:"يستخدم Facelympic <b>كاميرا الهاتف لقراءة حركات الوجه</b> للتحكم في اللعبة.",
   consent_li1:"يُحلَّل الفيديو <b>على جهازك فقط (المتصفح)</b> — لا يُخزَّن ولا يُرسَل إلى خادم أبداً.",
   consent_li2:"<b>لا نجمع</b> صور الوجه أو الفيديو أو معلومات الهوية.",
-  consent_li3:"يُحفظ فقط <b>سجلّك (زمن الوصول)</b> للترتيب.",
+  consent_li3:"يُحفظ فقط <b>سجلّك (زمن الوصول)</b> و<b>بلدك</b> للترتيب.",
   consent_agree:"عمري 14 عاماً أو أكثر وأوافق على ما سبق و<a id='lnkTerms'>الشروط</a> · <a id='lnkPrivacy'>سياسة الخصوصية</a>.",
   consent_go:"أوافق وابدأ", back:"رجوع",
   select:"اختر السباق", ev_sprint:"سرعة", ev_middle:"متوسط", ev_long:"طويل",
@@ -1425,7 +1428,7 @@ I18N.fr = {
   consent_p1:"Facelympic utilise la <b>caméra du téléphone pour lire les mouvements du visage</b> afin de contrôler le jeu.",
   consent_li1:"La vidéo est analysée <b>uniquement sur ton appareil (navigateur)</b> — jamais stockée ni envoyée à un serveur.",
   consent_li2:"Nous <b>ne collectons pas</b> de photos, vidéos du visage ni d'informations d'identité.",
-  consent_li3:"Seul ton <b>résultat (temps d'arrivée)</b> est enregistré pour le classement.",
+  consent_li3:"Seuls ton <b>résultat (temps d'arrivée)</b> et ton <b>pays</b> sont enregistrés pour le classement.",
   consent_agree:"J'ai 14 ans ou plus et j'accepte ce qui précède, les <a id='lnkTerms'>Conditions</a> · <a id='lnkPrivacy'>Politique de confidentialité</a>.",
   consent_go:"Accepter et commencer", back:"Retour",
   select:"Choisir l'épreuve", ev_sprint:"Sprint", ev_middle:"Moyenne", ev_long:"Longue",
@@ -1501,7 +1504,7 @@ I18N.hi = {
   consent_p1:"Facelympic खेल को नियंत्रित करने के लिए फ़ोन के <b>कैमरे से चेहरे की हलचल पढ़ता है</b>।",
   consent_li1:"वीडियो का विश्लेषण <b>केवल आपके डिवाइस (ब्राउज़र) में</b> होता है — कभी सर्वर पर संग्रहित या भेजा नहीं जाता।",
   consent_li2:"हम चेहरे की तस्वीर, वीडियो या पहचान जानकारी <b>एकत्र नहीं करते।</b>",
-  consent_li3:"रैंकिंग के लिए केवल आपका <b>रिकॉर्ड (समाप्ति समय)</b> सहेजा जाता है।",
+  consent_li3:"रैंकिंग के लिए केवल आपका <b>रिकॉर्ड (समाप्ति समय)</b> और <b>देश</b> सहेजा जाता है।",
   consent_agree:"मैं 14 वर्ष या अधिक का हूँ और ऊपर की बातों, <a id='lnkTerms'>शर्तें</a> · <a id='lnkPrivacy'>गोपनीयता नीति</a> से सहमत हूँ।",
   consent_go:"सहमत होकर शुरू करें", back:"वापस",
   select:"स्पर्धा चुनें", ev_sprint:"स्प्रिंट", ev_middle:"मध्यम", ev_long:"लंबी",
@@ -1577,7 +1580,7 @@ I18N.id = {
   consent_p1:"Facelympic memakai <b>kamera ponsel untuk membaca gerakan wajah</b> guna mengontrol permainan.",
   consent_li1:"Video dianalisis <b>hanya di perangkatmu (browser)</b> — tidak pernah disimpan atau dikirim ke server.",
   consent_li2:"Kami <b>tidak mengumpulkan</b> foto, video wajah, atau informasi identitas.",
-  consent_li3:"Hanya <b>rekor (waktu finis)</b> yang disimpan untuk peringkat.",
+  consent_li3:"Hanya <b>rekor (waktu finis)</b> dan <b>negara</b> yang disimpan untuk peringkat.",
   consent_agree:"Saya berusia 14+ dan menyetujui hal di atas, <a id='lnkTerms'>Ketentuan</a> · <a id='lnkPrivacy'>Kebijakan Privasi</a>.",
   consent_go:"Setuju & mulai", back:"Kembali",
   select:"Pilih nomor", ev_sprint:"Sprint", ev_middle:"Menengah", ev_long:"Jauh",
@@ -1653,7 +1656,7 @@ I18N.tl = {
   consent_p1:"Gumagamit ang Facelympic ng <b>camera ng telepono para basahin ang galaw ng mukha</b> upang kontrolin ang laro.",
   consent_li1:"Ang video ay sinusuri <b>sa iyong device lang (browser)</b> — hindi kailanman iniimbak o ipinapadala sa server.",
   consent_li2:"<b>Hindi kami nangongolekta</b> ng litrato, video ng mukha, o impormasyon ng pagkakakilanlan.",
-  consent_li3:"Ang <b>record (oras ng pagtatapos)</b> lang ang iniimbak para sa ranking.",
+  consent_li3:"Ang <b>record (oras ng pagtatapos)</b> at <b>bansa</b> lang ang iniimbak para sa ranking.",
   consent_agree:"Ako ay 14+ at sumasang-ayon sa nasa itaas, <a id='lnkTerms'>Mga Tuntunin</a> · <a id='lnkPrivacy'>Patakaran sa Privacy</a>.",
   consent_go:"Sumang-ayon at magsimula", back:"Bumalik",
   select:"Pumili ng event", ev_sprint:"Sprint", ev_middle:"Gitna", ev_long:"Mahaba",
@@ -1729,7 +1732,7 @@ I18N.th = {
   consent_p1:"Facelympic ใช้ <b>กล้องมือถืออ่านการเคลื่อนไหวของใบหน้า</b> เพื่อควบคุมเกม",
   consent_li1:"วิดีโอถูกวิเคราะห์ <b>ในอุปกรณ์ของคุณเท่านั้น (เบราว์เซอร์)</b> — ไม่มีการจัดเก็บหรือส่งไปเซิร์ฟเวอร์",
   consent_li2:"เรา <b>ไม่เก็บ</b> รูปภาพ วิดีโอใบหน้า หรือข้อมูลระบุตัวตน",
-  consent_li3:"บันทึกเฉพาะ <b>สถิติ (เวลาเข้าเส้นชัย)</b> เพื่อจัดอันดับ",
+  consent_li3:"บันทึกเฉพาะ <b>สถิติ (เวลาเข้าเส้นชัย)</b> และ <b>ประเทศ</b> เพื่อจัดอันดับ",
   consent_agree:"ฉันอายุ 14 ปีขึ้นไปและยอมรับข้างต้น <a id='lnkTerms'>ข้อกำหนด</a> · <a id='lnkPrivacy'>นโยบายความเป็นส่วนตัว</a>",
   consent_go:"ยอมรับและเริ่ม", back:"กลับ",
   select:"เลือกประเภท", ev_sprint:"วิ่งเร็ว", ev_middle:"ระยะกลาง", ev_long:"ระยะไกล",
@@ -1805,7 +1808,7 @@ I18N.ja = {
   consent_p1:"Facelympic はスマホの<b>カメラで表情の動きを認識</b>してゲームを操作します。",
   consent_li1:"映像は<b>端末（ブラウザ）内だけ</b>で解析され、サーバーに保存・送信されません。",
   consent_li2:"顔写真・動画・個人情報は<b>収集しません。</b>",
-  consent_li3:"ランキングのため、ゲームの<b>記録（完走タイム）</b>のみ保存します。",
+  consent_li3:"ランキングのため、ゲームの<b>記録（完走タイム）</b>と<b>国</b>のみ保存します。",
   consent_agree:"14歳以上で、上記と<a id='lnkTerms'>利用規約</a> · <a id='lnkPrivacy'>プライバシーポリシー</a>に同意します。",
   consent_go:"同意して開始", back:"戻る",
   select:"種目を選ぶ", ev_sprint:"短距離", ev_middle:"中距離", ev_long:"長距離",
@@ -1881,7 +1884,7 @@ I18N.tr = {
   consent_p1:"Facelympic, oyunu kontrol etmek için telefonun <b>kamerasıyla yüz hareketlerini okur</b>.",
   consent_li1:"Video <b>yalnızca cihazında (tarayıcıda)</b> analiz edilir — asla sunucuda saklanmaz veya gönderilmez.",
   consent_li2:"Yüz fotoğrafı, videosu veya kimlik bilgisi <b>toplamıyoruz.</b>",
-  consent_li3:"Sıralama için yalnızca <b>kaydın (bitiş süresi)</b> saklanır.",
+  consent_li3:"Sıralama için yalnızca <b>kaydın (bitiş süresi)</b> ve <b>ülken</b> saklanır.",
   consent_agree:"14 yaşındayım veya daha büyüğüm ve yukarıdakileri, <a id='lnkTerms'>Şartlar</a> · <a id='lnkPrivacy'>Gizlilik Politikası</a>'nı kabul ediyorum.",
   consent_go:"Kabul et ve başla", back:"Geri",
   select:"Etkinlik seç", ev_sprint:"Kısa", ev_middle:"Orta", ev_long:"Uzun",
@@ -1957,7 +1960,7 @@ I18N.ru = {
   consent_p1:"Facelympic использует <b>камеру телефона для считывания движений лица</b>, чтобы управлять игрой.",
   consent_li1:"Видео анализируется <b>только на твоём устройстве (в браузере)</b> — никогда не сохраняется и не отправляется на сервер.",
   consent_li2:"Мы <b>не собираем</b> фото, видео лица или данные, удостоверяющие личность.",
-  consent_li3:"Для рейтинга сохраняется только твой <b>результат (время финиша)</b>.",
+  consent_li3:"Для рейтинга сохраняются только твой <b>результат (время финиша)</b> и <b>страна</b>.",
   consent_agree:"Мне 14 лет или больше, и я согласен с вышеизложенным, <a id='lnkTerms'>Условиями</a> · <a id='lnkPrivacy'>Политикой конфиденциальности</a>.",
   consent_go:"Принять и начать", back:"Назад",
   select:"Выбрать дисциплину", ev_sprint:"Спринт", ev_middle:"Средняя", ev_long:"Длинная",
@@ -3729,8 +3732,11 @@ function coachingLine(){            // 점수 아님 — "이걸 깨면 더 빠�
 function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 // ⚠️ DB는 /api/score 를 통해서만 만진다. 예전엔 여기서 공개 anon 키로 직접 읽고 썼는데,
 //    그러면 누구나 0.1초짜리 기록을 꽂아 넣을 수 있어 이름이 붙은 순위표가 첫날에 죽는다.
-async function fetchBoard(eventId, day){
-  const q='?ev='+encodeURIComponent(eventId)+'&aid='+encodeURIComponent(anonId())+(day?'&day='+encodeURIComponent(day):'');
+// scope: 'all'(누적, 기본) | 'week' | 'day'
+async function fetchBoard(eventId, scope){
+  const s=scope||'all';
+  const q='?ev='+encodeURIComponent(eventId)+'&aid='+encodeURIComponent(anonId())
+    +'&scope='+s+(s==='day'?'&day='+encodeURIComponent(todayStr()):'');
   const r=await fetch(PI_API_BASE+'/api/score'+q);
   if(!r.ok) throw new Error('board');
   return await r.json();
@@ -3744,7 +3750,7 @@ async function submitScore(eventId, time, day){
 async function updateWorldRank(eventId, time, day){   // 기록 등록 + 오늘의 트랙 기준 등수
   try{
     await submitScore(eventId, time, day);
-    const b=await fetchBoard(eventId, day);
+    const b=await fetchBoard(eventId, 'day');   // 결과화면의 '전 세계 N등'은 오늘의 트랙 기준
     const total=b.players||0;
     const rank=b.myRank || (total+1);
     const top = (b.top&&b.top[0]) ? { time:b.top[0].t, name:(b.top[0].pi?('π '+b.top[0].pi):(b.top[0].name||'')) } : null;
@@ -4080,25 +4086,36 @@ async function copyChallengeLinkForPi(forceUrl){
 //  또 1~10위만 보여주는 대신 **내 순위와 바로 앞 사람**을 강조한다 — 사람을 한 판 더
 //  하게 만드는 건 1위가 아니라 코앞에 있는 사람이다.
 // ============================================================
-let lbScope='week';                       // 'week' | 'day'
+// 기본은 **누적**. 주간 리셋을 기본으로 두면 월요일마다 빈 순위표로 돌아가서,
+// 선수가 적은 지금은 기록이 쌓이는 맛이 사라진다. 사람이 많아지면 주간이 기본이 되는 게 낫다
+// (신규 유저가 노려볼 판이 필요해지므로) — 그래서 주간 탭은 지우지 않고 남겨 둔다.
+let lbScope='all';                        // 'all' | 'week' | 'day'
 const LB_EVENT='sprint';                  // 1차는 단거리만(플레이어가 적어 종목을 쪼개면 표가 텅 빈다)
 function lbFmt(t){ return (+t).toFixed(2)+T('unit_sec'); }
+// 국가 코드(KR) → 국기(🇰🇷). 유니코드 지역표시문자 두 개로 만든다.
+function ccFlag(cc){
+  if(!/^[A-Za-z]{2}$/.test(cc||'')) return '';
+  const s=cc.toUpperCase();
+  return String.fromCodePoint(0x1F1E6+s.charCodeAt(0)-65, 0x1F1E6+s.charCodeAt(1)-65);
+}
 function lbName(r){
-  if(r.pi) return esc(r.pi)+'<span class="lb-pi">π</span>';   // 서버가 검증한 계정만 π가 붙는다
-  return r.name ? esc(r.name) : T('nick_anon');
+  const flag=ccFlag(r.cc);
+  const who = r.pi ? esc(r.pi)+'<span class="lb-pi">π</span>'
+                   : (r.name ? esc(r.name) : T('nick_anon'));
+  return (flag?'<span class="lb-flag">'+flag+'</span>':'')+who;
 }
 async function openLeaderboard(){
   show('lb'); renderLbTabs();
   $("lbList").innerHTML='<div class="lb-empty">'+T('lb_loading')+'</div>';
   $("lbMe").style.display='none';
   try{
-    const b=await fetchBoard(LB_EVENT, lbScope==='day' ? todayStr() : '');
-    renderBoard(b);
+    renderBoard(await fetchBoard(LB_EVENT, lbScope));
   }catch(e){
     $("lbList").innerHTML='<div class="lb-empty">'+T('lb_fail')+'</div>';
   }
 }
 function renderLbTabs(){
+  $("lbTabAll").classList.toggle('on', lbScope==='all');
   $("lbTabWeek").classList.toggle('on', lbScope==='week');
   $("lbTabDay").classList.toggle('on', lbScope==='day');
 }
@@ -4118,7 +4135,7 @@ function renderBoard(b){
     +'<div class="lb-t">'+lbFmt(r.t)+'</div></div>').join('');
 
   const me=$("lbMe");
-  const sc=T(b.scope==='day' ? 'lb_scope_day' : 'lb_scope_week');   // 탭에 맞는 기간 표현
+  const sc=T(b.scope==='day' ? 'lb_scope_day' : b.scope==='week' ? 'lb_scope_week' : 'lb_scope_all');   // 탭에 맞는 기간 표현
   if(b.myRank){
     const ahead=rows.find(r=>r.rank===b.myRank-1);
     me.innerHTML = b.myRank===1
@@ -4134,7 +4151,7 @@ function renderBoard(b){
 async function renderLbStrip(){
   const el=$("lbStrip"); if(!el) return;
   try{
-    const b=await fetchBoard(LB_EVENT, '');
+    const b=await fetchBoard(LB_EVENT, 'all');
     if(!b.players){ el.innerHTML='🏆 <b>'+T('lb_strip_empty')+'</b><span class="lb-strip-go">›</span>'; }
     else if(b.myRank){ el.innerHTML='🏆 '+T('lb_strip_me',{rank:b.myRank,n:b.players})+'<span class="lb-strip-go">›</span>'; }
     else{
@@ -4739,6 +4756,7 @@ $("shopBack").addEventListener('click', ()=>{ show('intro'); updateStreakIntro()
 $("lbBack").addEventListener('click', ()=>{ show('intro'); updateStreakIntro(); });
 $("lbStrip").addEventListener('click', openLeaderboard);
 $("rLbOpen").addEventListener('click', openLeaderboard);
+$("lbTabAll").addEventListener('click', ()=>{ if(lbScope!=='all'){ lbScope='all'; openLeaderboard(); } });
 $("lbTabWeek").addEventListener('click', ()=>{ if(lbScope!=='week'){ lbScope='week'; openLeaderboard(); } });
 $("lbTabDay").addEventListener('click', ()=>{ if(lbScope!=='day'){ lbScope='day'; openLeaderboard(); } });
 $("shopRestore").addEventListener('click', ()=>{ restorePurchases(true); });   // 기기 변경·데이터 삭제 후 구매 되살리기

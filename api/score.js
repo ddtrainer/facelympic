@@ -54,9 +54,11 @@ function bestPerPlayer(rows) {
     const nm = (x.pi_name || x.player_name || '').trim().toLowerCase();
     const key = nm ? 'n:' + nm : (x.aid ? 'a:' + x.aid : null);
     if (key && seen.has(key)) {
-      // 이미 더 빠른 기록이 있다. 다만 π 배지가 느린 쪽에만 있을 수 있으므로 살려서 옮긴다.
+      // 이미 더 빠른 기록이 있다. 다만 π 배지·국가가 느린 쪽에만 있을 수 있으므로 살려서 옮긴다
+      // (예전 기록은 국가 컬럼이 생기기 전이라 비어 있다).
       const kept = seen.get(key);
       if (!kept.pi_name && x.pi_name) kept.pi_name = x.pi_name;
+      if (!kept.country && x.country) kept.country = x.country;
       continue;
     }
     if (key) seen.set(key, x);
@@ -82,13 +84,18 @@ export default async function handler(req, res) {
     const q = req.query || {};
     const ev = clean(q.ev || 'sprint', 12);
     const aid = clean(q.aid || '', 40);          // 내 순위 표시용 — 응답엔 담기지 않는다
-    const day = clean(q.day || '', 12);          // 있으면 그날, 없으면 이번 주
+    const day = clean(q.day || '', 12);
+    // 기본은 **누적**. 주간 리셋을 기본으로 두면 월요일마다 빈 순위표로 돌아가,
+    // 아직 선수가 적은 지금은 기록이 쌓이는 맛이 사라진다. 주간은 탭으로 남긴다.
+    const scope = clean(q.scope || (day ? 'day' : 'all'), 6);
     if (!FLOOR[ev]) { res.status(400).json({ error: 'bad_event' }); return; }
     try {
-      const filter = day ? '&day=eq.' + encodeURIComponent(day) : '&wk=eq.' + encodeURIComponent(wk);
+      const filter = scope === 'day'  ? '&day=eq.' + encodeURIComponent(day || '')
+                   : scope === 'week' ? '&wk=eq.' + encodeURIComponent(wk)
+                   : '';
       const url = SB_URL + '/rest/v1/' + TABLE
-        + '?select=aid,player_name,pi_name,time_sec&event_id=eq.' + encodeURIComponent(ev)
-        + filter + '&order=time_sec.asc&limit=1000';
+        + '?select=aid,player_name,pi_name,country,time_sec&event_id=eq.' + encodeURIComponent(ev)
+        + filter + '&order=time_sec.asc&limit=2000';
       const r = await fetch(url, { headers: H });
       if (!r.ok) { res.status(502).json({ error: 'db_read_failed', status: r.status }); return; }
       const best = bestPerPlayer(await r.json().catch(() => []));
@@ -98,10 +105,10 @@ export default async function handler(req, res) {
         if (aid && best[i].aid === aid) { myRank = i + 1; myTime = +best[i].time_sec; break; }
       }
       res.status(200).json({
-        ok: true, scope: day ? 'day' : 'week', week: wk, day: day || null, event: ev,
+        ok: true, scope, week: wk, day: day || null, event: ev,
         players: best.length,
         top: best.slice(0, 50).map((x, i) => ({
-          rank: i + 1,
+          rank: i + 1, cc: x.country || null,
           name: (x.player_name || '').trim() || null,
           pi: x.pi_name || null,
           t: +x.time_sec,
@@ -146,6 +153,12 @@ export default async function handler(req, res) {
   let name = nick;
   while (name.length && (name.charCodeAt(0) === 0x03c0 || name.charCodeAt(0) === 32)) name = name.slice(1);
 
+  // 국가: Vercel이 요청에 붙여주는 국가 코드(예: KR). 사용자가 입력하지 않아도 되고,
+  // 클라이언트가 보낸 값을 믿지 않는다(국기를 마음대로 바꿔 다는 걸 막는다).
+  // 저장하는 건 **국가 코드 2글자뿐** — IP는 저장하지 않는다.
+  const cc = String(req.headers['x-vercel-ip-country'] || '').toUpperCase();
+  const country = /^[A-Z]{2}$/.test(cc) && cc !== 'XX' ? cc : null;
+
   try {
     if (aid) {
       const c = await fetch(SB_URL + '/rest/v1/' + TABLE
@@ -158,11 +171,11 @@ export default async function handler(req, res) {
     }
     const w = await fetch(SB_URL + '/rest/v1/' + TABLE, {
       method: 'POST', headers: { ...H, Prefer: 'return=minimal' },
-      body: JSON.stringify([{ event_id: ev, time_sec: time, day, wk, aid: aid || null,
+      body: JSON.stringify([{ event_id: ev, time_sec: time, day, wk, aid: aid || null, country,
                               player_name: name || null, pi_name: piName, verified: !!piName }])
     });
     if (!w.ok) { const t = await w.text().catch(() => ''); res.status(502).json({ error: 'db_write_failed', detail: t.slice(0, 200) }); return; }
-    res.status(200).json({ ok: true, week: wk, verified: !!piName });
+    res.status(200).json({ ok: true, week: wk, verified: !!piName, country });
   } catch (e) {
     res.status(500).json({ error: 'submit_failed', message: String((e && e.message) || e) });
   }
