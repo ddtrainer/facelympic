@@ -22,6 +22,8 @@ const ALLOWED = new Set([
   'pi_login',    // Pi 로그인 검증됨
   'buy',         // Pi 결제 완료
   'share',       // 도전장 공유 시도
+  'pibar_show',  // Pi 커뮤니티 유입(?pi=1) — 'Pi Browser로 열기' 바 노출
+  'pibar_skip',  // 그 바를 건너뛰고 현재 브라우저에서 계속
 ]);
 
 export default async function handler(req, res) {
