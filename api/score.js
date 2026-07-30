@@ -1,57 +1,148 @@
-// Facelympic — server-gated score submission (anti-cheat Phase 1)
-// (1) plausibility check (reject impossible times), (2) verify Pi token via /me
-//     -> if verified, server sets the name to 'π <username>' + verified=true so the
-//        client cannot forge the verified marker. Unverified names get any leading
-//        π (U+03C0) stripped. Inserts into fl_scores.
-// (Phase 1 uses the public anon key. RLS lockdown + service role = Phase 1.5.)
+// Facelympic — 기록 제출 + 순위표 조회
+//
+// 이 파일이 DB에 닿는 유일한 통로다. 예전에는 클라이언트가 공개 anon 키로 fl_scores를
+// 직접 읽고 썼는데, 그러면 누구나 0.1초짜리 기록을 꽂아 넣을 수 있어 이름이 붙은 순위표가
+// 첫날에 죽는다. 그래서 쓰기·읽기를 모두 서버(service key)로 옮겼다.
+//
+// 개인정보 원칙:
+//  - 이름은 사용자가 넣은 닉네임만. Pi 사용자명은 **서버가 토큰을 검증했을 때만** 붙인다
+//    (클라이언트가 "나 인증됨"이라고 주장하는 건 믿지 않는다).
+//  - aid(익명 기기 ID)는 선수당 최고기록 1개만 남기는 데만 쓰고 **응답에 담지 않는다**.
+//
+// 부정 기록: 기록은 클라이언트가 재므로 완벽한 차단은 불가능하다. 현실적인 선까지만 —
+//  ①물리적으로 불가능한 값 거부 ②주당 제출 수 제한 ③Pi 인증 배지로 '진짜 기록'을 구분.
 const SB_URL = 'https://yixigkpyncjmbfyaocjl.supabase.co';
-const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpeGlna3B5bmNqbWJmeWFvY2psIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0OTg2NjksImV4cCI6MjA5NDA3NDY2OX0.7XDv1emSYABdYDcdGa54MCLH-iAiwEPHr43HiWP_kD4';
-const PI_PREFIX = String.fromCharCode(0x03c0);   // π
-const EV_MIN = { sprint: 4, middle: 10, long: 20 };   // impossible-time floor (seconds)
-const EV_MAX = 3600;
+const TABLE = 'fl_scores';
+
+// 종목별 물리적 최소 기록(초) = 거리 ÷ (최고속도 20 × 피버 1.25).
+// 단거리 200m ÷ 25 = 8.0초. 실측 최고 8.22초가 이 하한 바로 위에 있다.
+// 2%는 타이머 흔들림 여유. ⚠️ EVENTS.dist나 속도 상한을 바꾸면 여기도 같이 고칠 것.
+const FLOOR = { sprint: 8.0 * 0.98, middle: 20.0 * 0.98, long: 40.0 * 0.98 };
+const CEIL = 3600;
+const MAX_PER_WEEK = 80;          // 정상 플레이로는 닿지 않는 수(완주자당 평균 5.4판)
+
+const clean = (s, n) => String(s == null ? '' : s).replace(/[<>"'\\]/g, '').trim().slice(0, n);
+
+// ISO 주차(2026-W31). 클라이언트 시계를 믿지 않고 서버가 정한다.
+function weekKey(d) {
+  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
+  const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return t.getUTCFullYear() + '-W' + String(Math.ceil(((t - y0) / 86400000 + 1) / 7)).padStart(2, '0');
+}
+
+// 선수당 최고기록 1개만 남긴다(한 사람이 순위표를 도배하지 않도록).
+// 같은 사람 판정: Pi 인증 이름이 있으면 그것으로, 없으면 aid로.
+function bestPerPlayer(rows) {
+  const out = [], seen = new Set();
+  for (const x of rows) {
+    const key = x.pi_name ? 'pi:' + x.pi_name.toLowerCase() : 'a:' + (x.aid || Math.random());
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(x);
+  }
+  return out;
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') { res.status(204).end(); return; }
-  if (req.method !== 'POST') { res.status(405).json({ error: 'method_not_allowed' }); return; }
 
-  let event_id = '', time_sec = null, day = '', nickname = '', accessToken = '';
-  try {
-    const b = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    if (b) { event_id = b.event_id || ''; time_sec = b.time_sec; day = b.day || ''; nickname = b.nickname || ''; accessToken = b.accessToken || ''; }
-  } catch (e) {}
+  const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
+  if (!SB_KEY) { res.status(500).json({ error: 'no_service_key' }); return; }
+  const H = { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY, 'Content-Type': 'application/json' };
+  const wk = weekKey(new Date());
 
-  // (1) plausibility
-  const floor = EV_MIN[event_id];
-  if (!floor || typeof time_sec !== 'number' || !isFinite(time_sec) || time_sec < floor || time_sec > EV_MAX || !day) {
-    res.status(400).json({ error: 'implausible' });
+  // ---------------- 순위표 조회 ----------------
+  if (req.method === 'GET') {
+    const q = req.query || {};
+    const ev = clean(q.ev || 'sprint', 12);
+    const aid = clean(q.aid || '', 40);          // 내 순위 표시용 — 응답엔 담기지 않는다
+    const day = clean(q.day || '', 12);          // 있으면 그날, 없으면 이번 주
+    if (!FLOOR[ev]) { res.status(400).json({ error: 'bad_event' }); return; }
+    try {
+      const filter = day ? '&day=eq.' + encodeURIComponent(day) : '&wk=eq.' + encodeURIComponent(wk);
+      const url = SB_URL + '/rest/v1/' + TABLE
+        + '?select=aid,player_name,pi_name,time_sec&event_id=eq.' + encodeURIComponent(ev)
+        + filter + '&order=time_sec.asc&limit=1000';
+      const r = await fetch(url, { headers: H });
+      if (!r.ok) { res.status(502).json({ error: 'db_read_failed', status: r.status }); return; }
+      const best = bestPerPlayer(await r.json().catch(() => []));
+
+      let myRank = null, myTime = null;
+      for (let i = 0; i < best.length; i++) {
+        if (aid && best[i].aid === aid) { myRank = i + 1; myTime = +best[i].time_sec; break; }
+      }
+      res.status(200).json({
+        ok: true, scope: day ? 'day' : 'week', week: wk, day: day || null, event: ev,
+        players: best.length,
+        top: best.slice(0, 50).map((x, i) => ({
+          rank: i + 1,
+          name: (x.player_name || '').trim() || null,
+          pi: x.pi_name || null,
+          t: +x.time_sec,
+          me: !!(aid && x.aid === aid)
+        })),
+        myRank, myTime
+      });
+    } catch (e) {
+      res.status(500).json({ error: 'fetch_failed', message: String((e && e.message) || e) });
+    }
     return;
   }
 
-  // strip any leading whitespace / π (U+03C0) from an unverified name so it can't fake the marker
-  let name = String(nickname || '');
-  while (name.length && (name.charCodeAt(0) === 0x03c0 || name.charCodeAt(0) === 32)) name = name.slice(1);   // strip leading pi(U+03C0)/space so unverified can't fake the marker
-  name = name.slice(0, 20);
-  let verified = false;
+  if (req.method !== 'POST') { res.status(405).json({ error: 'method_not_allowed' }); return; }
 
-  // (2) identity verification (optional): valid Pi token -> server assigns π + username
-  if (accessToken) {
-    try {
-      const me = await fetch('https://api.minepi.com/v2/me', { headers: { Authorization: 'Bearer ' + accessToken } });
-      if (me.ok) { const u = await me.json(); if (u && u.username) { verified = true; if (!name) name = PI_PREFIX + ' ' + String(u.username).slice(0, 18); } }   // 닉네임 있으면 우선, 없으면 π 유저명
-    } catch (e) {}
+  // ---------------- 기록 제출 ----------------
+  let b = null;
+  try { b = typeof req.body === 'string' ? JSON.parse(req.body) : req.body; } catch (e) {}
+  if (!b) { res.status(400).json({ error: 'bad_body' }); return; }
+
+  const ev = clean(b.event_id, 12);
+  const time = Number(b.time_sec);
+  const day = clean(b.day, 12);
+  const aid = clean(b.aid, 40);
+  const nick = clean(b.nickname, 20);
+
+  if (!FLOOR[ev] || !day) { res.status(400).json({ error: 'bad_event' }); return; }
+  if (!isFinite(time) || time < FLOOR[ev] || time > CEIL) {
+    // 물리적으로 불가능한 기록 — 조용히 버린다(공격자에게 경계선을 알려주지 않는다)
+    res.status(200).json({ ok: true, skipped: 'out_of_range' }); return;
   }
 
+  // Pi 인증 배지는 서버가 직접 확인한 경우에만
+  let piName = null;
+  if (b.accessToken) {
+    try {
+      const me = await fetch('https://api.minepi.com/v2/me', { headers: { Authorization: 'Bearer ' + String(b.accessToken) } });
+      if (me.ok) { const u = await me.json(); if (u && u.username) piName = clean(u.username, 20); }
+    } catch (e) {}
+  }
+  // 인증되지 않은 사람이 π를 붙여 인증된 척하지 못하게 앞의 π/공백을 벗긴다
+  let name = nick;
+  while (name.length && (name.charCodeAt(0) === 0x03c0 || name.charCodeAt(0) === 32)) name = name.slice(1);
+
   try {
-    const r = await fetch(SB_URL + '/rest/v1/fl_scores', {
-      method: 'POST',
-      headers: { apikey: SB_ANON, Authorization: 'Bearer ' + SB_ANON, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify({ event_id, time_sec, day, player_name: name || null, verified })
+    if (aid) {
+      const c = await fetch(SB_URL + '/rest/v1/' + TABLE
+        + '?select=id&wk=eq.' + encodeURIComponent(wk) + '&aid=eq.' + encodeURIComponent(aid)
+        + '&limit=' + (MAX_PER_WEEK + 1), { headers: H });
+      if (c.ok) {
+        const rows = await c.json().catch(() => []);
+        if (Array.isArray(rows) && rows.length > MAX_PER_WEEK) { res.status(200).json({ ok: true, skipped: 'rate' }); return; }
+      }
+    }
+    const w = await fetch(SB_URL + '/rest/v1/' + TABLE, {
+      method: 'POST', headers: { ...H, Prefer: 'return=minimal' },
+      body: JSON.stringify([{ event_id: ev, time_sec: time, day, wk, aid: aid || null,
+                              player_name: name || null, pi_name: piName, verified: !!piName }])
     });
-    res.status(r.ok ? 200 : 500).json({ ok: r.ok, verified });
+    if (!w.ok) { const t = await w.text().catch(() => ''); res.status(502).json({ error: 'db_write_failed', detail: t.slice(0, 200) }); return; }
+    res.status(200).json({ ok: true, week: wk, verified: !!piName });
   } catch (e) {
-    res.status(500).json({ error: 'insert_failed', message: String((e && e.message) || e) });
+    res.status(500).json({ error: 'submit_failed', message: String((e && e.message) || e) });
   }
 }
